@@ -1,6 +1,7 @@
 // `Scroll`: a UIScrollView whose content the core lays out (`ContentSize`),
 // with throttled scroll events and pull to refresh.
 
+import NativeShellShared
 import UIKit
 
 final class NSHScrollView: NSHComponentView, UIScrollViewDelegate {

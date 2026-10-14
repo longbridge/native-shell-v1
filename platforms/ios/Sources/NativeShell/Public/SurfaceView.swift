@@ -3,6 +3,7 @@
 // core's Environment in sync with size, safe area, keyboard, appearance and
 // content size category.
 
+import NativeShellShared
 import UIKit
 
 @objcMembers

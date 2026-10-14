@@ -2,6 +2,7 @@
 // surface presenter (`NSHViewController`, or the bare surface view) decides how
 // they appear.
 
+import NativeShellShared
 import UIKit
 
 /// Something that wants to hear when a surface's props change.

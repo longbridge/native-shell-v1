@@ -6,6 +6,7 @@
 // button, sheet swipe-down, backdrop tap) are reported (`Dismiss`,
 // `BackPressed`); a page whose `CanGoBack` is false cannot be left natively.
 
+import NativeShellShared
 import UIKit
 
 @objcMembers

@@ -2,6 +2,7 @@
 // nearest node on the responder chain whose mask has KEY, or on the root node
 // when none has. Presses are never consumed: text fields still type.
 
+import NativeShellShared
 import UIKit
 
 enum KeyEvents {

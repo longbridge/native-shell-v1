@@ -2,6 +2,7 @@
 // platform hooks. Register before creating instances; each instance receives
 // the registry as it was at its creation.
 
+import NativeShellShared
 import os.log
 import UIKit
 

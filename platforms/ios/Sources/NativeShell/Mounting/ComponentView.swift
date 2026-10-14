@@ -7,6 +7,7 @@
 // `prepareForReuse` replays `.null` for every prop the view has seen, so a
 // pooled view comes back exactly as a fresh one.
 
+import NativeShellShared
 import UIKit
 
 /// Where a component sends events and asks for renderer services.

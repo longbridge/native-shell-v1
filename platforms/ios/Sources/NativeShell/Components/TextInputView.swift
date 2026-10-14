@@ -1,6 +1,7 @@
 // `TextInput`: a controlled UITextField (or UITextView when `Multiline`).
 // See `ControlledText` for the value protocol.
 
+import NativeShellShared
 import UIKit
 
 final class NSHTextInputView: NSHComponentView, UITextFieldDelegate, UITextViewDelegate {

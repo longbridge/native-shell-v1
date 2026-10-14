@@ -2,6 +2,7 @@
 // marks a batch ANIMATED, and frames / opacity of nodes that declared a
 // transition for that property animate to their new value.
 
+import NativeShellShared
 import UIKit
 
 enum Animator {

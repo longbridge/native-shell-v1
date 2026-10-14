@@ -2,6 +2,7 @@
 // measurer used, so the drawn size matches the measured one. Selectable text
 // switches to a TextKit 1 `UITextView` configured identically.
 
+import NativeShellShared
 import UIKit
 
 final class NSHTextView: NSHComponentView {

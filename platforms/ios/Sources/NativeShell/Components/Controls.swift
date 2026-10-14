@@ -1,6 +1,7 @@
 // Native controls. Each wraps a UIKit control filling the node's bounds and
 // reports user changes with the payloads of `EventType::Change`.
 
+import NativeShellShared
 import UIKit
 
 /// A component that hosts one control filling its bounds.

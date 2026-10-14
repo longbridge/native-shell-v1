@@ -2,6 +2,7 @@
 // calls on its JS thread (text and component measurement, host-module calls,
 // batch notifications, logs).
 
+import NativeShellShared
 import NativeShellFFI
 import UIKit
 

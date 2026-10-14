@@ -23,17 +23,21 @@ let package = Package(
     products: [
         .library(name: "NativeShell", targets: ["NativeShell"]),
     ],
+    dependencies: [
+        // Platform-neutral Swift shared with the macOS renderer.
+        .package(path: "../apple/NativeShellShared"),
+    ],
     targets: [
         ffiTarget,
         .target(
             name: "NativeShell",
-            dependencies: ["NativeShellFFI"],
+            dependencies: ["NativeShellFFI", .product(name: "NativeShellShared", package: "NativeShellShared")],
             path: "Sources/NativeShell",
             linkerSettings: [.linkedLibrary("c++"), .linkedFramework("Security"), .linkedFramework("SystemConfiguration")]
         ),
         .testTarget(
             name: "NativeShellTests",
-            dependencies: ["NativeShell"],
+            dependencies: ["NativeShell", .product(name: "NativeShellShared", package: "NativeShellShared")],
             path: "Tests/NativeShellTests"
         ),
     ]

@@ -2,6 +2,7 @@
 // name. Containers are pooled per component name, so a component instance is
 // reused only for the same name, after `prepareForReuse`.
 
+import NativeShellShared
 import UIKit
 
 final class NSHHostComponentView: NSHComponentView {

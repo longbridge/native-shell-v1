@@ -3,6 +3,7 @@
 // TextKit 1 configuration, so the size the layout engine was given is the size
 // that gets drawn.
 
+import NativeShellShared
 import UIKit
 
 /// The parsed form of one `AttributedText` value. Immutable, so one instance is

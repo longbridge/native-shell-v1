@@ -5,6 +5,7 @@
 // arrives, the core's defaults overridden by the host's theme provider stand in,
 // as dynamic colors.
 
+import NativeShellShared
 import UIKit
 
 enum ThemeTokens {

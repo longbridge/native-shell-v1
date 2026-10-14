@@ -4,6 +4,7 @@
 // core renders it. The visible range plus `Prefetch` is reported with
 // `RangeChange` whenever it changes, which moves the core's window.
 
+import NativeShellShared
 import UIKit
 
 final class NSHListRowView: NSHComponentView {

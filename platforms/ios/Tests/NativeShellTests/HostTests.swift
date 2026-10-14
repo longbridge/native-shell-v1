@@ -1,3 +1,4 @@
+import NativeShellShared
 @testable import NativeShell
 import NativeShellFFI
 import XCTest

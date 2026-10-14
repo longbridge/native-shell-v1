@@ -2,6 +2,7 @@
 // modules answered natively) and host components (native views placed by
 // scripts). Every type is Objective-C compatible.
 
+import NativeShellShared
 import UIKit
 
 @objc public enum NSHMethodKind: Int {

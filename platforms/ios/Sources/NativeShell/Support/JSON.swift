@@ -1,45 +1,11 @@
-// Small helpers for the JSON-valued props. Every accessor tolerates missing or
-// mistyped fields: values come from scripts and must never crash the host.
+// UIKit colors for the JSON-valued props. Parsing itself (JSON, ARGB values,
+// accessors) is platform-neutral and lives in NativeShellShared.
 
+import NativeShellShared
 import UIKit
 
-enum JSON {
-    static func object(_ s: String) -> [String: Any]? {
-        guard let data = s.data(using: .utf8) else { return nil }
-        return (try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])) as? [String: Any]
-    }
-
-    static func array(_ s: String) -> [Any]? {
-        guard let data = s.data(using: .utf8) else { return nil }
-        return (try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])) as? [Any]
-    }
-
-    static func any(_ s: String) -> Any? {
-        guard let data = s.data(using: .utf8) else { return nil }
-        return try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
-    }
-
-    /// Serializes any JSON-able value (fragments included). Non-JSON values become `null`.
-    static func string(_ value: Any?) -> String {
-        guard let value = value, !(value is NSNull) else { return "null" }
-        if JSONSerialization.isValidJSONObject(value) || value is String || value is NSNumber {
-            if let data = try? JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed]),
-               let s = String(data: data, encoding: .utf8) {
-                return s
-            }
-        }
-        return "null"
-    }
-}
-
 extension Dictionary where Key == String, Value == Any {
-    func double(_ k: String) -> Double? { (self[k] as? NSNumber)?.doubleValue }
-    func cgFloat(_ k: String) -> CGFloat? { double(k).map { CGFloat($0) } }
-    func int(_ k: String) -> Int? { (self[k] as? NSNumber)?.intValue }
-    func bool(_ k: String) -> Bool? { (self[k] as? NSNumber)?.boolValue }
-    func string(_ k: String) -> String? { self[k] as? String }
-    func object(_ k: String) -> [String: Any]? { self[k] as? [String: Any] }
-    func color(_ k: String) -> UIColor? { self[k].flatMap(Colors.parse) }
+    func color(_ k: String) -> UIColor? { argb(k).map(Colors.argb) }
 }
 
 enum Colors {
@@ -50,30 +16,9 @@ enum Colors {
     }
 
     /// A color in JSON: an ARGB integer, or a `#rgb` / `#rrggbb` / `#rrggbbaa` string.
-    static func parse(_ v: Any) -> UIColor? {
-        if let n = v as? NSNumber {
-            let d = n.doubleValue
-            guard d >= 0, d <= Double(UInt32.max) else { return nil }
-            return argb(UInt32(d))
-        }
-        if let s = v as? String { return hex(s) }
-        return nil
-    }
+    static func parse(_ v: Any) -> UIColor? { ColorValue.argb(v).map(argb) }
 
-    static func hex(_ s: String) -> UIColor? {
-        guard s.hasPrefix("#") else { return nil }
-        let h = String(s.dropFirst())
-        guard h.allSatisfy(\.isHexDigit), let n = UInt32(h, radix: 16) else { return nil }
-        let r, g, b, a: UInt32
-        switch h.count {
-        case 3: (r, g, b, a) = ((n >> 8 & 0xF) * 17, (n >> 4 & 0xF) * 17, (n & 0xF) * 17, 255)
-        case 4: (r, g, b, a) = ((n >> 12 & 0xF) * 17, (n >> 8 & 0xF) * 17, (n >> 4 & 0xF) * 17, (n & 0xF) * 17)
-        case 6: (r, g, b, a) = (n >> 16 & 0xFF, n >> 8 & 0xFF, n & 0xFF, 255)
-        case 8: (r, g, b, a) = (n >> 24 & 0xFF, n >> 16 & 0xFF, n >> 8 & 0xFF, n & 0xFF)
-        default: return nil
-        }
-        return argb(a << 24 | r << 16 | g << 8 | b)
-    }
+    static func hex(_ s: String) -> UIColor? { ColorValue.hex(s).map(argb) }
 
     static func toHex(_ color: UIColor) -> String {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
@@ -85,27 +30,5 @@ enum Colors {
 }
 
 extension PropValue {
-    var bool: Bool? { if case let .bool(b) = self { return b }; return nil }
-    var string: String? {
-        switch self {
-        case let .str(s), let .json(s): return s
-        default: return nil
-        }
-    }
-
-    var floats: [Float]? { if case let .f32Array(a) = self { return a }; return nil }
-    var uiColor: UIColor? { if case let .color(c) = self { return Colors.argb(c) }; return nil }
-
-    var number: Double? {
-        switch self {
-        case let .f32(f): return Double(f)
-        case let .i32(i): return Double(i)
-        case let .bool(b): return b ? 1 : 0
-        default: return nil
-        }
-    }
-
-    var int: Int? { number.map { Int($0) } }
-    var jsonObject: [String: Any]? { if case let .json(s) = self { return JSON.object(s) }; return nil }
-    var jsonArray: [Any]? { if case let .json(s) = self { return JSON.array(s) }; return nil }
+    var uiColor: UIColor? { argb.map(Colors.argb) }
 }

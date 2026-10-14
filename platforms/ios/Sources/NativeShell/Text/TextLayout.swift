@@ -2,6 +2,7 @@
 // padding, no insets, the container's line limit and truncation taken from the
 // parsed text. Measurement and drawing both go through it.
 
+import NativeShellShared
 import UIKit
 
 final class TextLayout {

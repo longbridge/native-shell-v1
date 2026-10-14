@@ -21,6 +21,7 @@ Pod::Spec.new do |s|
   s.swift_versions = ['5.9']
 
   s.source_files = 'Sources/NativeShell/**/*.swift'
+  s.dependency 'NativeShellShared', s.version.to_s
   s.vendored_frameworks = 'Frameworks/NativeShellFFI.xcframework'
   s.frameworks = 'UIKit', 'QuartzCore', 'ImageIO', 'Security', 'SystemConfiguration'
   s.libraries = 'c++'

@@ -1,5 +1,6 @@
 // System alerts and toasts.
 
+import NativeShellShared
 import UIKit
 
 enum AlertPresenter {

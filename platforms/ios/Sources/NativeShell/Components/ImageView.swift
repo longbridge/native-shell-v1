@@ -1,6 +1,7 @@
 // `Image`: network images through the runtime's image loader (downsampled to
 // the view size), local files, `data:` URIs.
 
+import NativeShellShared
 import ImageIO
 import UIKit
 

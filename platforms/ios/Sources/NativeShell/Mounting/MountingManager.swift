@@ -5,6 +5,7 @@
 // instruction that names an unknown node is skipped with a log line rather
 // than trusted: a renderer bug or a hostile buffer must never crash the app.
 
+import NativeShellShared
 import UIKit
 
 /// Presents the surfaces the core attaches to the root node: pages, sheets and
