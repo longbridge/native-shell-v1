@@ -56,6 +56,9 @@ pub struct Text {
     mask: Rc<Cell<u32>>,
     /// The script set its own accessibility label.
     explicit_a11y_label: bool,
+    /// The selectable label's selection color rule, and the CSS it holds.
+    selection_css: gtk::CssProvider,
+    selection_rule: String,
 }
 
 impl Text {
@@ -66,6 +69,8 @@ impl Text {
             links_enabled: Rc::new(Cell::new(false)),
             mask: Rc::default(),
             explicit_a11y_label: false,
+            selection_css: gtk::CssProvider::new(),
+            selection_rule: String::new(),
         };
         cx.view.set_accessible_role(gtk::AccessibleRole::Label);
         text.install_draw(cx.view);
@@ -153,10 +158,13 @@ impl Text {
         cx.view.queue_draw();
     }
 
-    fn set_selectable(&mut self, view: &NodeView, on: bool) {
+    fn set_selectable(&mut self, cx: &NodeCx, on: bool) {
+        let view = cx.view;
         match (on, self.label.is_some()) {
             (true, false) => {
                 let label = gtk::Label::new(None);
+                label.add_css_class("nsh-text");
+                add_css(&label, &self.selection_css);
                 label.set_selectable(true);
                 label.set_wrap(true);
                 label.set_wrap_mode(pango::WrapMode::WordChar);
@@ -166,6 +174,7 @@ impl Text {
                 view.set_content(Some(label.upcast_ref()));
                 self.label = Some(label);
                 self.sync_label(view);
+                self.sync_selection_color(cx);
             }
             (false, true) => {
                 view.set_content(None);
@@ -219,6 +228,31 @@ impl Text {
         view.set_overflow(if laid.clip.is_some() { gtk::Overflow::Hidden } else { gtk::Overflow::Visible });
     }
 
+    /// Selected text keeps its run colors over the theme's `selection` wash,
+    /// as on the other renderers.
+    fn sync_selection_color(&mut self, cx: &NodeCx) {
+        if self.label.is_none() {
+            return;
+        }
+        let theme = cx.shared.theme.borrow();
+        // Before tokens arrive, the platform default, as TextInput does.
+        let color = theme.color("selection").or_else(|| {
+            native_shell_core::theme::Theme::default_for(theme.appearance).colors.get("selection").copied()
+        });
+        let color = color.unwrap_or(0x3300_7aff);
+        let a = f32::from((color >> 24) as u8) / 255.0;
+        let rule = format!(
+            "label.nsh-text > selection {{ background-color: rgba({},{},{},{a:.3}); }}",
+            (color >> 16) & 0xff,
+            (color >> 8) & 0xff,
+            color & 0xff
+        );
+        if rule != self.selection_rule {
+            self.selection_css.load_from_string(&rule);
+            self.selection_rule = rule;
+        }
+    }
+
     fn sync_a11y_label(&self, view: &NodeView) {
         if self.explicit_a11y_label {
             return;
@@ -236,7 +270,7 @@ impl Component for Text {
                 PropValue::Json(json) | PropValue::Str(json) => self.set_text(cx, Some(json)),
                 _ => self.set_text(cx, None),
             },
-            Prop::Selectable => self.set_selectable(cx.view, matches!(value, PropValue::Bool(true))),
+            Prop::Selectable => self.set_selectable(cx, matches!(value, PropValue::Bool(true))),
             Prop::LinksEnabled => self.links_enabled.set(matches!(value, PropValue::Bool(true))),
             Prop::A11yLabel => {
                 self.explicit_a11y_label = !matches!(value, PropValue::Null);
@@ -257,9 +291,20 @@ impl Component for Text {
         self.mask.set(mask);
     }
 
+    fn theme_changed(&mut self, cx: &NodeCx) {
+        self.sync_selection_color(cx);
+    }
+
     fn batch_applied(&mut self, cx: &NodeCx) {
         self.sync_a11y_label(cx.view);
     }
+}
+
+// A per-widget provider: the rule depends on the surface's theme, and a
+// display-wide one would leak it into other surfaces.
+#[allow(deprecated)]
+fn add_css(widget: &impl IsA<gtk::Widget>, css: &gtk::CssProvider) {
+    widget.style_context().add_provider(css, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
 }
 
 fn has_selection(view: Option<&NodeView>) -> bool {
