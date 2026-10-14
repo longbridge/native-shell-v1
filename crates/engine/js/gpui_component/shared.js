@@ -12,9 +12,9 @@ export const LEADING = { body: 22 / 17, callout: 21 / 16, subheadline: 20 / 15, 
 
 const SIZES = ["xsmall", "small", "medium", "large"];
 
-export function checkSize(size, what) {
-  if (!SIZES.includes(size)) throw new TypeError(`${what}: use one of ${SIZES.join(", ")}, got ${JSON.stringify(size)}`);
-  return size;
+/** Whether `size` names a component size; anything else is the `size` style (width and height), as on any element. */
+export function isComponentSize(size) {
+  return typeof size === "string" && SIZES.includes(size);
 }
 
 /**
@@ -25,7 +25,20 @@ export const CARD = [["rounded", "0.625rem"], ["bg", "surface"], ["overflow_hidd
 
 /** A hairline between rows, inset to the text column as iOS separators are. */
 export function separator(inset = 16) {
-  return div().h(1).ml(inset).bg("border").flex_none();
+  return div().h(0.5).ml(inset).bg("border").flex_none();
+}
+
+/** An inset grouped section's header: footnote, secondary, in capitals, over the card's text column. */
+export function sectionHeader(title) {
+  return div()
+    .role("header")
+    .px_4()
+    .pb_1p5()
+    .text_size(TEXT.footnote)
+    .line_height(LEADING.footnote)
+    .text_color("muted_foreground")
+    .accessibility_label(String(title))
+    .child(String(title).toUpperCase());
 }
 
 const retained = new Map();

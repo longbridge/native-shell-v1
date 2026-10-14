@@ -326,6 +326,40 @@ fn toast_symbols_take_the_status_tokens() {
     });
 }
 
+fn show_toast(rig: &mut Rig, payload: &str) {
+    rig.manager.apply(&[native_shell::core::protocol::Mutation::Command {
+        node: ROOT_NODE,
+        command: native_shell::core::protocol::Command::ShowToast,
+        payload: payload.into(),
+    }]);
+}
+
+#[test]
+fn a_toast_with_the_id_of_a_showing_one_replaces_it() {
+    gtk_test::run(|| {
+        set_animations(false);
+        let mut rig = Rig::new();
+        let p = rig.presenter();
+        show_toast(&mut rig, r#"{"id":"a","title":"Uploading 1 of 3","duration":0}"#);
+        show_toast(&mut rig, r#"{"id":"b","title":"Saved","duration":0}"#);
+        show_toast(&mut rig, r#"{"id":"a","title":"Uploading 2 of 3","duration":0}"#);
+        assert_eq!(p.toasts.visible_ids(), ["a", "b"], "replaced in its place, not stacked");
+        assert_eq!(p.toasts.title("a").as_deref(), Some("Uploading 2 of 3"));
+        assert_eq!(p.toasts.cards(), 2, "the old card is gone");
+
+        // Queued ones are replaced in the queue.
+        show_toast(&mut rig, r#"{"id":"c","title":"Third","duration":0}"#);
+        show_toast(&mut rig, r#"{"id":"d","title":"Queued","duration":0}"#);
+        show_toast(&mut rig, r#"{"id":"d","title":"Queued again","duration":0}"#);
+        assert_eq!(p.toasts.queued_ids(), ["d"]);
+
+        // The replacement's own timeout applies; the old one's is void.
+        show_toast(&mut rig, r#"{"id":"b","title":"Saved again","duration":600}"#);
+        assert!(wait_until(3000, || !p.toasts.visible_ids().contains(&"b".to_string())), "retracted after its own timeout");
+        assert_eq!(p.toasts.visible_ids(), ["a", "c", "d"], "the queued toast moved up");
+    });
+}
+
 #[test]
 fn a_deleted_page_stays_until_its_exit_transition_ends() {
     gtk_test::run(|| {

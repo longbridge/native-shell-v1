@@ -3,6 +3,6 @@
   "name": "Components",
   "version": "1.0.0",
   "entry": "main.js",
-  "description": "Every control in a believable scenario with its states: buttons, fields, selection, sliders, progress, pickers, forms and overlays.",
+  "description": "Every control in a believable scenario with its states: buttons, fields, selection, sliders, progress, pickers, forms, charts, description lists, trees, calendars, carousels, settings and overlays.",
   "capabilities": { "clipboard": { "write": true } }
 }

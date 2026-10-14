@@ -204,6 +204,41 @@ fn an_input_group_frames_its_field_and_addons_and_reports_edits() {
     assert!(!h.text_of("log").contains("apply:BAD"), "{}", h.text_of("log"));
 }
 
+#[test]
+fn an_input_group_textarea_mounts_a_multiline_field_with_its_rows() {
+    let h = load(
+        r#"
+import { View, TextareaState } from "native-shell";
+import { InputGroup, InputGroupTextarea } from "gpui-component";
+export default class C extends View {
+  init() {
+    this.note = TextareaState.new({ placeholder: "Happy birthday! Love, Sam", rows: 3 });
+  }
+  render() {
+    return InputGroup.new("message").test_id("group")
+      .input(InputGroupTextarea.new(this.note).test_id("note").rows(4));
+  }
+}
+"#,
+    );
+    assert_eq!(h.prop("note", Prop::Multiline), Some(PropValue::Bool(true)), "{}", h.dump());
+    let node = h.find("note").unwrap_or_else(|| panic!("no note\n{}", h.dump()));
+    let height = h.native().nodes[&node].frame.map_or(0.0, |f| f.height);
+    assert!(height >= 4.0 * 22.0 + 16.0, "four rows tall, got {height}");
+
+    let h = load(
+        r#"
+import { View, InputState } from "native-shell";
+import { InputGroup, InputGroupInput } from "gpui-component";
+export default class C extends View {
+  init() { this.code = InputState.new({ placeholder: "Code" }); }
+  render() { return InputGroup.new("code").input(InputGroupInput.new(this.code).test_id("code")); }
+}
+"#,
+    );
+    assert_eq!(h.prop("code", Prop::Multiline), Some(PropValue::Bool(false)), "a group input stays one line");
+}
+
 const DELIVERY: &str = r#"
 import { View, v_flex, div } from "native-shell";
 import { Rating } from "gpui-component";

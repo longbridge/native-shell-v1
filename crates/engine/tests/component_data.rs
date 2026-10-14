@@ -187,6 +187,32 @@ fn tree_arrow_keys_move_the_selection_and_open_folders() {
     assert_eq!(log(&h), "tax,receipts,tax", "disabled rows are skipped: nothing below Photos");
 }
 
+#[test]
+fn tree_selected_item_reveals_a_selection_made_elsewhere_once() {
+    let mut h = start(
+        r#"
+export default class C extends View {
+  init() { this.sel = "receipts"; }
+  render() {
+    return v_flex()
+      .child(div().test_id("pick").child("Pick").on_click((_e, cx) => { this.sel = "lisbon"; cx.notify(); }))
+      .child(new Tree("files").test_id("tree").selected_item(this.sel).on_select((id, cx) => { this.sel = id; cx.notify(); })
+        .child(new TreeItem("docs", "Documents").child(new TreeItem("tax", "Taxes").child(new TreeItem("receipts", "Receipts.pdf"))))
+        .child(new TreeItem("photos", "Photos").child(new TreeItem("lisbon", "Lisbon.jpg"))));
+  }
+}
+"#,
+    );
+    assert_eq!(h.text_of("tree"), "Documents Taxes Receipts.pdf Photos");
+    assert_eq!(a11y_state(&h, labeled(&h, "Receipts.pdf"))["selected"], true);
+    // The reader may close the folder around the selection; it stays closed.
+    h.tap_text("Documents");
+    assert_eq!(h.text_of("tree"), "Documents Photos");
+    h.tap("pick");
+    assert_eq!(h.text_of("tree"), "Documents Photos Lisbon.jpg");
+    assert_eq!(a11y_state(&h, labeled(&h, "Lisbon.jpg"))["selected"], true);
+}
+
 // List ------------------------------------------------------------------------------
 
 #[test]
@@ -283,7 +309,7 @@ export default class C extends View {
   render() {
     return v_flex()
       .child(text(this.log.join(",")).test_id("log"))
-      .child(new Breadcrumb(["Files", "Projects", "Garden plan"]).test_id("path").on_click((i, cx) => { this.log.push(i); cx.notify(); }));
+      .child(new Breadcrumb(["Files", "Projects", "Garden plan"]).test_id("path").on_item_click((i, cx) => { this.log.push(i); cx.notify(); }));
   }
 }
 "#,
@@ -321,7 +347,7 @@ export default class C extends View {
 fn settings_draws_groups_as_inset_cards_and_switches_pages() {
     let mut h = start(SETTINGS);
     let texts = h.texts();
-    for t in ["Applies to this device.", "Connections", "Wi-Fi", "Bluetooth", "Not available on this model", "Off saves battery."] {
+    for t in ["Applies to this device.", "CONNECTIONS", "Wi-Fi", "Bluetooth", "Not available on this model", "Off saves battery."] {
         assert!(texts.contains(&t.to_string()), "{t}: {texts:?}");
     }
     assert!(!texts.contains(&"Share analytics".to_string()));
@@ -375,7 +401,7 @@ export default class C extends View {
 }
 "#,
     );
-    assert_eq!(h.text_of("box"), "Delivery Arrives Thursday");
+    assert_eq!(h.text_of("box"), "DELIVERY Arrives Thursday");
     let content = h.native().children(h.find("box").unwrap())[1];
     let surface = Theme::default_for(Appearance::Light).color("surface").unwrap();
     assert_eq!(h.native().prop(content, Prop::BackgroundColor), Some(&PropValue::Color(surface)));
@@ -461,6 +487,49 @@ fn calendar_week_starts_on_the_locales_first_day() {
         let h = started(Harness::build(&[("main.js", &src)]).environment(env).start());
         assert_eq!(h.texts()[2], first, "{locale}");
     }
+}
+
+#[test]
+fn calendar_marks_days_and_names_its_parts() {
+    let mut h = start(&calendar(
+        r#"this.state.set_month(2020, 10); this.state.set_marker_matcher((d) => d === "2020-10-16" ? "tinted" : d === "2020-10-20" ? "default" : null);"#,
+        "new Calendar(this.state)",
+    ));
+    assert_eq!(h.prop("cal-2020-10-16", Prop::A11yLabel), Some(PropValue::Str("Friday, October 16, 2020, has events".into())));
+    let dot = |h: &Harness, id: &str| {
+        let disc = h.native().children(h.find(id).unwrap())[0];
+        let kids = h.native().children(disc).to_vec();
+        kids.iter().find_map(|k| match h.native().prop(*k, Prop::BackgroundColor) {
+            Some(PropValue::Color(c)) => Some(*c),
+            _ => None,
+        })
+    };
+    let theme = Theme::default_for(Appearance::Light);
+    assert_eq!(dot(&h, "cal-2020-10-16"), theme.color("primary"));
+    assert_eq!(dot(&h, "cal-2020-10-20"), theme.color("muted_foreground"));
+    assert_eq!(dot(&h, "cal-2020-10-17"), None);
+    // Day and month-button ids make taps scriptable.
+    h.tap("cal-2020-10-16");
+    assert_eq!(log(&h), r#""2020-10-16""#);
+    assert_eq!(dot(&h, "cal-2020-10-16"), theme.color("primary_foreground"), "white on the selected disc");
+    h.tap("cal-next");
+    assert!(h.find("cal-2020-11-02").is_some());
+    h.tap("cal-prev");
+    assert!(h.find("cal-2020-10-31").is_some());
+}
+
+#[test]
+fn calendar_columns_fit_at_twice_the_text_size() {
+    let src = program(&calendar("this.state.set_month(2020, 10);", "new Calendar(this.state)"));
+    let env = Environment { font_scale: 2.0, ..Environment::default() };
+    let h = started(Harness::build(&[("main.js", &src)]).environment(env).start());
+    assert_eq!(&h.texts()[2..4], ["S", "M"], "narrow weekday symbols");
+    // Saturday's column ends inside the 390 pt screen, and its disc inside the column.
+    let sat = h.find("cal-2020-10-31").unwrap();
+    let cell = h.native().nodes[&sat].frame.unwrap();
+    assert!(cell.x + cell.width <= 390.5, "{cell:?}");
+    let disc = h.native().nodes[&h.native().children(sat)[0]].frame.unwrap();
+    assert!(disc.x >= 0.0 && disc.x + disc.width <= cell.width + 0.5, "{disc:?} in {cell:?}");
 }
 
 #[test]

@@ -8,7 +8,7 @@
 import { scope, markDirty, refuseStateInRender } from "nsh:core";
 import { Element, div, chainKey } from "nsh:elements";
 import { IconElement } from "nsh:component/icons";
-import { checkSize } from "nsh:component/shared";
+import { isComponentSize } from "nsh:component/shared";
 
 const SPRING = JSON.stringify({ response: 0.4, damping: 0.86 });
 /** A swipe pages when it travels this far (points) or ends this fast (points per second). */
@@ -275,7 +275,8 @@ class CarouselArrow extends Element {
   }
 
   size(size) {
-    this._size = checkSize(size, "size()");
+    if (!isComponentSize(size)) return super.size(size);
+    this._size = size;
     return this._sync();
   }
 
