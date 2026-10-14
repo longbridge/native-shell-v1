@@ -450,6 +450,20 @@ class Chart extends Element {
     return this._format ? String(this._format(v)) : group(plain(v));
   }
 
+  /**
+   * The chart's description for screen readers, read before its points. It
+   * replaces the generated summary rather than labelling the chart's root, which
+   * would hide the points from VoiceOver.
+   */
+  accessibility_label(text) {
+    this._a11y = String(text);
+    return this;
+  }
+
+  _summary(labels, series, format) {
+    return this._a11y ?? summary(this._kind, labels, series, format);
+  }
+
   /** A chart with a `test_id` names its points `<test_id>-point-<index>`, for UI tests. */
   _pointId(el, i) {
     const id = this._p?.test_id;
@@ -534,7 +548,7 @@ class CartesianChart extends Chart {
     const n = labels.length;
     const span = scale.max - scale.min || 1;
     const pct = (v) => (1 - (Math.max(scale.min, Math.min(scale.max, v)) - scale.min) / span) * 100;
-    const inner = div().absolute().inset_0().child(described(summary(this._kind, labels, series, (v) => this._text(v))));
+    const inner = div().absolute().inset_0().child(described(this._summary(labels, series, (v) => this._text(v))));
     if (this._grid || n === 0) {
       // With nothing to plot, only the baseline: no scale to read.
       for (const tick of n === 0 ? [scale.min] : scale.ticks) {
@@ -994,7 +1008,7 @@ export class PieChart extends Chart {
       .size_full()
       .gap_4()
       .items_center()
-      .child(described(summary(this._kind, labels, [{ values }], (v) => `${this._text(v)}, ${share(v)}`)));
+      .child(described(this._summary(labels, [{ values }], (v) => `${this._text(v)}, ${share(v)}`)));
     if (labels.length === 0) return root.child(emptyState(t));
 
     const ring = squareBox().accessibility_hidden();
@@ -1107,7 +1121,7 @@ export class RadarChart extends Chart {
       .size_full()
       .flex()
       .justify_center()
-      .child(described(summary(this._kind, labels, series, (v) => this._text(v))));
+      .child(described(this._summary(labels, series, (v) => this._text(v))));
     if (n === 0) return root.child(emptyState(t));
     const colors = series.map((s, i) => resolve(t, s.stroke) ?? palette(t)[i % 5]);
     const top = Math.max(0, ...series.flatMap((s) => s.values));
