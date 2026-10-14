@@ -1,5 +1,6 @@
-//! The `nshell dev` client against a small in-process server speaking the
-//! same HTTP endpoints (crates/cli/src/dev.rs).
+//! Hot reload: the `nshell dev` client against a small in-process server
+//! speaking the same HTTP endpoints (crates/cli/src/dev.rs), and a watched
+//! local program directory.
 
 mod support;
 
@@ -19,6 +20,8 @@ fn main() -> ExitCode {
         ("server errors show the error page until fixed", server_errors_show_the_error_page_until_fixed),
         ("an unreachable server shows the error page", an_unreachable_server_shows_the_error_page),
         ("logs reach the server", logs_reach_the_server),
+        ("a watched directory reloads on change", a_watched_directory_reloads_on_change),
+        ("watching needs a program directory", watching_needs_a_program_directory),
     ])
 }
 
@@ -196,4 +199,45 @@ fn logs_reach_the_server() {
     let line: serde_json::Value = serde_json::from_str(server.logs().iter().find(|l| l.contains("started logging")).unwrap()).unwrap();
     assert_eq!(line["level"], "info");
     window.destroy();
+}
+
+fn a_watched_directory_reloads_on_change() {
+    let tmp = tempfile::tempdir().unwrap();
+    let dir = tmp.path();
+    std::fs::write(dir.join("native-shell.json"), MANIFEST).unwrap();
+    std::fs::write(dir.join("main.js"), program("watched")).unwrap();
+    let client = DevClient::watch(dir, &Runtime::new()).unwrap();
+    let reloads = Counter::default();
+    let counter = reloads.clone();
+    client.connect_reloaded(move |_| counter.bump());
+    let window = show(&client);
+    wait_for(&window, "watched");
+    let first = client.surface().unwrap();
+
+    // An editor saving two files at once: one reload.
+    std::fs::write(dir.join("label.js"), "export const label = \"edited\";\n").unwrap();
+    std::fs::write(
+        dir.join("main.js"),
+        r#"import { View, div } from "native-shell";
+import { label } from "./label.js";
+export default class App extends View { render() { return div().size_full().test_id(label); } }"#,
+    )
+    .unwrap();
+    wait_for(&window, "edited");
+    assert_ne!(client.surface().unwrap(), first, "reloaded in place on a fresh surface");
+    pump_for(Duration::from_millis(600));
+    assert_eq!(reloads.get(), 2, "the first load and one reload for both files");
+
+    // A broken manifest shows the error page; fixing it reloads.
+    std::fs::write(dir.join("native-shell.json"), "{ not json").unwrap();
+    wait_for(&window, "nsh-error-page");
+    std::fs::write(dir.join("native-shell.json"), MANIFEST).unwrap();
+    wait_for(&window, "edited");
+    window.destroy();
+}
+
+fn watching_needs_a_program_directory() {
+    let tmp = tempfile::tempdir().unwrap();
+    let error = DevClient::watch(tmp.path(), &Runtime::new()).err().expect("no manifest, no program");
+    assert!(error.contains("no native-shell.json"), "{error}");
 }
