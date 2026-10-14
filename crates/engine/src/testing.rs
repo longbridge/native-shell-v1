@@ -337,6 +337,8 @@ struct NativeList {
     scroll_y: f32,
     reported: Option<(u32, u32)>,
     count_changed: bool,
+    /// Scrolled away from the end: a bottom-aligned list stops following it.
+    detached: bool,
 }
 
 /// A native text change the renderer has made but the core has not received yet.
@@ -548,8 +550,14 @@ impl Harness {
                     self.inputs.remove(node);
                     self.lists.remove(node);
                 }
-                Mutation::SetProp { node, prop: Prop::ItemCount, .. } => {
+                Mutation::SetProp { node, prop: Prop::ItemCount | Prop::RowOffsets, .. } => {
                     self.lists.entry(*node).or_default().count_changed = true;
+                }
+                // A list resized (the keyboard rising) may show other rows.
+                Mutation::SetFrame { node, .. } => {
+                    if let Some(list) = self.lists.get_mut(node) {
+                        list.count_changed = true;
+                    }
                 }
                 _ => {}
             }
@@ -581,6 +589,11 @@ impl Harness {
                 _ => 10,
             };
             let height = n.frame.map_or(0.0, |f| f.height);
+            // A bottom-aligned list keeps its end in view while the user is there.
+            if n.props.get(&Prop::ListAlignment) == Some(&PropValue::I32(1)) && !list.detached {
+                let total = offsets.last().copied().unwrap_or(0.0);
+                list.scroll_y = (total - height).max(0.0);
+            }
             let top = list.scroll_y;
             let first = (0..count).rfind(|&i| offsets.get(i as usize).is_some_and(|o| *o <= top)).unwrap_or(0);
             let last =
@@ -877,9 +890,14 @@ impl Harness {
             Some(PropValue::F32Array(o)) => o.get(first as usize).copied().unwrap_or(0.0),
             _ => 0.0,
         };
+        let count = match self.native.prop(node, Prop::ItemCount) {
+            Some(PropValue::I32(c)) => (*c).max(0) as u32,
+            _ => 0,
+        };
         let list = self.lists.entry(node).or_default();
         list.scroll_y = top;
         list.reported = Some((first, end));
+        list.detached = end < count;
         self.dispatch(node, EventType::RangeChange, &serde_json::json!({ "first": first, "end": end }).to_string());
     }
 

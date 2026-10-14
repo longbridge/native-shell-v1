@@ -553,6 +553,35 @@ export function shape(path, opts = {}) {
 }
 
 class ListElement extends Element {
+  /**
+   * Mobile: GPUI's `ListAlignment` (gpui-shell always uses top). `"bottom"`
+   * opens the list at its end and keeps the end in view while the user is
+   * there — a chat thread as messages arrive and the keyboard rises.
+   */
+  alignment(value) {
+    if (value !== "top" && value !== "bottom") {
+      throw new TypeError(`alignment(value) must be "top" or "bottom", got ${JSON.stringify(value)}`);
+    }
+    this._P().list_alignment = value === "bottom" ? 1 : 0;
+    if (value === "bottom" && this._fill) {
+      // The rows were built before the alignment was known: rebuild them for
+      // the window the tree will use (its `list_window_for` rule): the tail on
+      // the first build, and the tail again when rows arrive while the window
+      // reaches the end.
+      const n = this._count;
+      const [first, last] = this._snap;
+      let w = [Math.min(first, n), Math.min(last, n)];
+      if (this._before === undefined) w = [Math.max(0, n - 20), n];
+      else if (n !== this._before && last >= this._before) w = [Math.max(0, n - (last - first || 20)), n];
+      if (w[0] !== this._built[0] || w[1] !== this._built[1]) {
+        this._c = undefined;
+        this._fill(w[0], w[1]);
+        if (this._itemClick) this.on_item_click(this._itemClick);
+      }
+    }
+    return this;
+  }
+
   estimated_row_height(px) {
     this._est = Number(px);
     return this;
@@ -561,6 +590,7 @@ class ListElement extends Element {
   /** `(key, cx)` for a tap on any row, with the row's stable key (gpui-shell). */
   on_item_click(fn) {
     if (typeof fn !== "function") throw new TypeError(".on_item_click(handler) expects a function");
+    this._itemClick = fn;
     for (const r of this._c ?? []) {
       const key = r._k;
       const content = r._c?.[0];
@@ -593,10 +623,12 @@ function listShell(id, count) {
   el._uniform = false;
   el._rid = "__list:" + el._lid;
   let [first, last] = N.list_window(el._lid);
+  el._snap = [first, last];
   // A window that reached the end of the list follows it as items are added,
   // until the renderer reports the new range (rows appended at the bottom of a
   // short list would otherwise stay missing for a frame or more).
   const before = builtCounts.get(el._lid);
+  el._before = before;
   if (before !== undefined && last >= before && el._count > before) {
     last = Math.max(last, Math.min(el._count, first + Math.max(last - first, 20)));
   }
@@ -617,7 +649,11 @@ function row(index, key, content, list) {
 export function list(id, count, keyFn, rowFn) {
   const cx = renderCx("list()");
   const [el, first, last] = listShell(id, count);
-  for (let i = first; i < last; i++) (el._c ??= []).push(row(i, keyFn(i), rowFn(i, cx), el));
+  el._fill = (first, last) => {
+    el._built = [first, last];
+    for (let i = first; i < last; i++) (el._c ??= []).push(row(i, keyFn(i), rowFn(i, cx), el));
+  };
+  el._fill(first, last);
   return el;
 }
 
@@ -663,11 +699,14 @@ export function uniform_list(id, count, keyOrRows, maybeRows) {
   const [keyFn, rowsFn] = maybeRows === undefined ? [(i) => i, keyOrRows] : [keyOrRows, maybeRows];
   const [el, first, last] = listShell(id, count);
   el._uniform = true;
-  if (last > first) {
+  el._fill = (first, last) => {
+    el._built = [first, last];
+    if (last <= first) return;
     const rows = rowsFn({ start: first, end: last }, cx);
     if (!Array.isArray(rows)) throw new TypeError("uniform_list(): the row function must return an array");
     rows.slice(0, last - first).forEach((content, n) => (el._c ??= []).push(row(first + n, keyFn(first + n), content, el)));
-  }
+  };
+  el._fill(first, last);
   return el;
 }
 

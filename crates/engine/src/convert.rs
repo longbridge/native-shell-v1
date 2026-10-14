@@ -100,6 +100,7 @@ fn prop_spec(name: &str) -> Option<(Prop, Kind)> {
         "stroke" => (Prop::StrokeColor, Color),
         "stroke_width" => (Prop::StrokeWidth, F32),
         "tooltip" => (Prop::Tooltip, Str),
+        "list_alignment" => (Prop::ListAlignment, I32),
         "fill_rule" => (Prop::FillRule, I32),
         "src" => (Prop::ImageSource, Str),
         "content_mode" => (Prop::ContentMode, I32),

@@ -71,5 +71,6 @@ scale), the iOS text styles as `cx.theme().typography` roles (`large_title`,
 font scale) next to gpui-shell's keys, `cx.navigator` (push/pop pages), `cx.alert`, `cx.haptic`,
 `cx.focus / blur / scroll_to / scroll_to_item`, toast actions (`push_toast({…, action: {label, on_click}})`), `cx.set_title`,
 `cx.set_can_go_back`, `cx.on_back`, `.key`, `.test_id`, `.hit_slop`,
-`.on_long_press`, `.on_pan`, `.on_pinch`, `.on_press_in / out`, `.href`, and
+`.on_long_press`, `list(…).alignment("bottom")` (GPUI's `ListAlignment::Bottom`
+for chat threads: opens at the end and keeps it in view), `.on_pan`, `.on_pinch`, `.on_press_in / out`, `.href`, and
 host modules (`import … from "<host module>"`).
