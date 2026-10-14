@@ -5,7 +5,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use gtk::glib::translate::IntoGlib;
 use gtk::prelude::*;
 use native_shell_core::protocol::{event_mask, Command, EventType, Frame, Mutation, Prop, PropValue, ViewType};
 
@@ -294,29 +293,9 @@ fn switching_to_multiline_keeps_text_and_rules() {
 }
 
 #[test]
-fn keys_are_reported_without_being_swallowed() {
+fn secure_fields_draw_dots() {
     gtk_test::run(|| {
         let mut f = Fixture::new(0);
-        let controllers = f.line().observe_controllers();
-        let keys = (0..controllers.n_items())
-            .find_map(|i| controllers.item(i).and_downcast::<gtk::EventControllerKey>())
-            .filter(|k| k.propagation_phase() == gtk::PropagationPhase::Capture);
-        let Some(keys) = keys else { panic!("no capture-phase key controller") };
-        let press = |keys: &gtk::EventControllerKey| {
-            let keyval = gtk::gdk::Key::Return.into_glib();
-            // `true` would mean the press was consumed.
-            keys.emit_by_name::<bool>("key-pressed", &[&keyval, &36u32, &gtk::gdk::ModifierType::SHIFT_MASK])
-        };
-        assert!(!press(&keys));
-        assert!(f.take().is_empty(), "no Key events without the KEY mask");
-        f.manager.apply(&[Mutation::SetEventMask { node: INPUT, mask: event_mask::KEY }]);
-        assert!(!press(&keys), "the editor still gets the key");
-        let events = f.take();
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0].0, EventType::Key);
-        assert_eq!(events[0].1["key"], "enter");
-        assert_eq!(events[0].1["phase"], "down");
-        assert_eq!(events[0].1["modifiers"]["shift"], true);
         f.set(Prop::Secure, PropValue::Bool(true));
         assert!(!gtk::Text::is_visible(&f.line()), "secure text is drawn as dots");
         assert_eq!(f.line().input_purpose(), gtk::InputPurpose::Password);

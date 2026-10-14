@@ -6,7 +6,6 @@
 //! value is written after the filters and the editor kind of the same batch.
 
 mod controlled;
-mod keys;
 #[cfg(test)]
 mod tests;
 
@@ -14,7 +13,7 @@ use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
 use gtk::prelude::*;
-use gtk::{gdk, glib};
+use gtk::glib;
 
 use native_shell_core::protocol::{event_mask, Command, EventType, Prop, PropValue};
 
@@ -403,7 +402,8 @@ impl Inner {
         Editor::Area { view, scroller }
     }
 
-    /// Focus, blur and key listeners shared by both editors.
+    /// Focus and blur listeners shared by both editors. (`Key` events are the
+    /// base layer's: it routes them from the window to the nearest listener.)
     fn wire_common(&self, widget: &gtk::Widget) {
         let focus = gtk::EventControllerFocus::new();
         let weak = self.weak.clone();
@@ -419,34 +419,6 @@ impl Inner {
             }
         });
         widget.add_controller(focus);
-
-        // Capture phase: the editor and its input method would consume the
-        // keys. Presses are reported, never swallowed, so typing still works.
-        let keys = gtk::EventControllerKey::new();
-        keys.set_propagation_phase(gtk::PropagationPhase::Capture);
-        let weak = self.weak.clone();
-        keys.connect_key_pressed(move |_, keyval, _, state| {
-            if let Some(inner) = weak.upgrade() {
-                inner.key(keyval, state, "down");
-            }
-            glib::Propagation::Proceed
-        });
-        let weak = self.weak.clone();
-        keys.connect_key_released(move |_, keyval, _, state| {
-            if let Some(inner) = weak.upgrade() {
-                inner.key(keyval, state, "up");
-            }
-        });
-        widget.add_controller(keys);
-    }
-
-    fn key(&self, keyval: gdk::Key, state: gdk::ModifierType, phase: &str) {
-        if !self.listens(event_mask::KEY) {
-            return;
-        }
-        if let Some(payload) = keys::payload(keyval, state, phase) {
-            self.emit(EventType::Key, payload);
-        }
     }
 
     fn preedit_changed(&self, preedit: String) {
