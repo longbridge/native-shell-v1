@@ -116,7 +116,7 @@ export default class ProgressPage extends View {
         }),
         this.upload === "idle" || this.upload === "done"
           ? filledButton(cx, "upload-start", this.upload === "done" ? "Upload Again" : "Upload", {
-              tone: this.upload === "done" ? "gray" : "primary",
+              tone: this.upload === "done" ? "tinted" : "primary",
               on_click: (_e, cx) => this.start(cx),
             })
           : h_flex()

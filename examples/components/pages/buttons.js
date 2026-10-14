@@ -1,5 +1,5 @@
-// Buttons, in a post composer: one filled primary commit (Publish), a gray
-// filled alternative (Save Draft), a plain exit (Discard…), tinted icon
+// Buttons, in a post composer: one filled primary commit (Publish), a tinted
+// alternative (Save Draft), a plain exit (Discard…), tinted icon
 // buttons as shortcuts into the post, and a destructive row set apart. Shows
 // rest, pressed, disabled and loading states.
 
@@ -111,7 +111,7 @@ export default class ButtonsPage extends View {
           )
           .child(
             filledButton(cx, "save-draft", this.state === "saved" ? "Saved" : "Save Draft", {
-              tone: "gray",
+              tone: "tinted",
               disabled: empty || busy || this.state === "saved",
               leading: this.state === "saved" ? icon("check", t.primary, 18) : undefined,
               on_click: (_e, cx) => {

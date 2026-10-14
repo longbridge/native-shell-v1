@@ -155,47 +155,35 @@ export function navBar(cx, { title, back, trailing }) {
  */
 export function textButton(cx, id, text, { on_click, emphasized = false, disabled = false, destructive = false } = {}) {
   const t = cx.theme();
-  const color = disabled ? t.muted_foreground : destructive ? t.destructive : t.primary;
-  return textStyle(Button.new(id), cx, emphasized ? "headline" : "body")
+  return Button.new(id)
     .test_id(id)
+    .link()
     .disabled(disabled)
     .px_2()
     .py_2()
     .hit_slop(6)
-    .text_color(color)
-    .when(!disabled && Boolean(on_click), (el) => el.active((s) => s.opacity(0.4)).on_click(/** @type {OnClick} */ (on_click)))
+    .when(emphasized, (el) => el.font_semibold())
+    .when(destructive, (el) => el.text_color(t.destructive))
+    .when(!disabled && Boolean(on_click), (el) => el.on_click(/** @type {OnClick} */ (on_click)))
     .child(text);
 }
 
 /**
  * The screen's one primary action: a filled 50 pt button with a 12 pt radius.
- * `tone` "gray" is the secondary filled style; "destructive" commits a
+ * `tone` "tinted" is the secondary, tinted style; "destructive" commits a
  * destructive action.
  * @param {Context} cx @param {string} id @param {string} text
- * @param {{ on_click?: OnClick, disabled?: boolean, tone?: "primary" | "gray" | "destructive", leading?: Element }} [opts]
+ * @param {{ on_click?: OnClick, disabled?: boolean, tone?: "primary" | "tinted" | "destructive", leading?: Element }} [opts]
  */
 export function filledButton(cx, id, text, { on_click, disabled = false, tone = "primary", leading } = {}) {
-  const t = cx.theme();
-  const [bg, fg] = {
-    primary: [t.primary, t.primary_foreground],
-    gray: [t.secondary, t.primary],
-    destructive: [t.destructive, t.destructive_foreground],
-  }[tone];
-  return textStyle(Button.new(id), cx, "headline")
+  return Button.new(id)
     .test_id(id)
+    .variant(tone)
+    .size("large")
     .disabled(disabled)
-    .flex()
-    .items_center()
-    .justify_center()
     .gap_2()
     .w_full()
-    .min_h("3.125rem")
-    .px_5()
-    .rounded(t.radius.lg)
-    .bg(bg)
-    .text_color(fg)
-    .when(disabled, (el) => el.opacity(0.4))
-    .when(!disabled && Boolean(on_click), (el) => el.active((s) => s.opacity(0.7)).on_click(/** @type {OnClick} */ (on_click)))
+    .when(!disabled && Boolean(on_click), (el) => el.on_click(/** @type {OnClick} */ (on_click)))
     .when(Boolean(leading), (el) => el.child(leading))
     .child(text);
 }
