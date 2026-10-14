@@ -17,6 +17,7 @@ native-shell check examples/components
 | Sliders and progress | Slideshow settings and an upload | The value written next to each slider; a spinner while the wait is unknown, then determinate progress with Cancel; the finished state |
 | Pickers | A table booking | A segmented control for two modes, menus for longer lists, the native date picker, and a sentence that reads the booking back |
 | Overlays | A shared document | The smallest surface for each decision: a sheet for share targets, a dialog for a one-field rename, a toast for a result you can’t see (making it available offline), an alert for a deletion that can’t be undone |
+| Status | A shop’s order screen | `gpui-component`’s feedback set in context: a status `Tag` and a banner `Alert` per delivery state (success, a dismissible warning, a declined payment with its fix), `Label` rows with muted quantities split by inset `Separator` hairlines, a `Notification` button confirmed by a toast, `Badge` counts on a tab bar (capped at 99+) and presence dots on avatars, an inbox emptied into an `Empty` state with Undo, `Skeleton` rows and `ShimmerText` while recommendations load, `Kbd` shortcuts for a hardware keyboard |
 
 ## Design notes
 

@@ -13,6 +13,7 @@ import SelectionPage from "./pages/selection.js";
 import ProgressPage from "./pages/progress.js";
 import PickersPage from "./pages/pickers.js";
 import OverlaysPage from "./pages/overlays.js";
+import StatusPage from "./pages/status.js";
 import { largeTitle, row, section, statusBar } from "./ui.js";
 
 const SECTIONS = [
@@ -31,7 +32,10 @@ const SECTIONS = [
   },
   {
     title: "Feedback",
-    pages: [{ id: "overlays", icon: "layers", title: "Overlays", detail: "Sheet, dialog, toast and alert", page: OverlaysPage }],
+    pages: [
+      { id: "overlays", icon: "layers", title: "Overlays", detail: "Sheet, dialog, toast and alert", page: OverlaysPage },
+      { id: "status", icon: "status", title: "Status", detail: "Order banners, badges and empty states", page: StatusPage },
+    ],
   },
 ];
 
