@@ -29,10 +29,20 @@ class NSHControlView: NSHComponentView {
     /// `TintColor` from the core, overriding the theme's `primary`.
     private var explicitTint: UIColor?
 
+    /// Whether the theme's `primary` tints the control. Controls whose iOS look
+    /// is not accent-colored (segmented control, activity indicator) keep the
+    /// system look until the script sets a tint.
+    var tintsWithTheme: Bool { true }
+
     /// Applies the accent color to the control's parts (subclasses).
     func applyTint(_ color: UIColor) {}
 
-    func refreshTint() { applyTint(explicitTint ?? themeColor("primary")) }
+    /// Restores the system look (subclasses whose `tintsWithTheme` is false).
+    func resetTint() {}
+
+    func refreshTint() {
+        if let tint = explicitTint ?? (tintsWithTheme ? themeColor("primary") : nil) { applyTint(tint) } else { resetTint() }
+    }
 
     override func themeDidChange() { refreshTint() }
 
@@ -259,7 +269,9 @@ final class NSHProgressView: NSHControlView {
 final class NSHSpinnerView: NSHControlView {
     var control: UIActivityIndicatorView { controlView as! UIActivityIndicatorView }
     override func makeControl() -> UIView { UIActivityIndicatorView() }
+    override var tintsWithTheme: Bool { false }
     override func applyTint(_ color: UIColor) { control.color = color }
+    override func resetTint() { control.color = nil }
 
     override func commonInit() {
         super.commonInit()
@@ -291,9 +303,15 @@ final class NSHSpinnerView: NSHControlView {
 final class NSHSegmentedView: NSHControlView {
     var control: UISegmentedControl { controlView as! UISegmentedControl }
     override func makeControl() -> UIView { UISegmentedControl() }
+    // iOS draws the selected segment as a raised capsule with label-colored text, not in the accent color.
+    override var tintsWithTheme: Bool { false }
     override func applyTint(_ color: UIColor) {
         control.selectedSegmentTintColor = color
         control.setTitleTextAttributes([.foregroundColor: themeColor("primary_foreground")], for: .selected)
+    }
+    override func resetTint() {
+        control.selectedSegmentTintColor = nil
+        control.setTitleTextAttributes(nil, for: .selected)
     }
 
     private var items: [String] = []

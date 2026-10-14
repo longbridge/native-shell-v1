@@ -749,7 +749,7 @@ final class MountingTests: XCTestCase {
         XCTAssertNil(h.view(3, as: NSHImageView.self).imageView.image, "relative paths are not resolved against the cwd")
     }
 
-    func testControlsUsePrimaryTintButSwitchStaysGreen() {
+    func testControlsUsePrimaryTintWhereIOSDoes() {
         h.apply { b in
             b.create(1, .slider, parent: 0, frame: CGRect(x: 0, y: 0, width: 200, height: 44))
             b.create(2, .progress, parent: 0, frame: CGRect(x: 0, y: 0, width: 200, height: 8))
@@ -764,11 +764,30 @@ final class MountingTests: XCTestCase {
         for style in [UIUserInterfaceStyle.light, .dark] {
             XCTAssertTrue(primary(h.view(1, as: NSHSliderView.self).control.minimumTrackTintColor, style), "slider")
             XCTAssertTrue(primary(h.view(2, as: NSHProgressView.self).control.progressTintColor, style), "progress")
-            XCTAssertTrue(primary(h.view(3, as: NSHSpinnerView.self).control.color, style), "spinner")
-            XCTAssertTrue(primary(h.view(4, as: NSHSegmentedView.self).control.selectedSegmentTintColor, style), "segmented")
             XCTAssertTrue(primary(h.view(6, as: NSHSelectView.self).subviews.compactMap { $0 as? UIImageView }.first?.tintColor, style), "select chevron")
         }
         XCTAssertNil(h.view(5, as: NSHSwitchView.self).control.onTintColor, "switch keeps the system green")
+        // The segmented control and the spinner keep the system look: a raised capsule with label-colored text, a gray spinner.
+        let seg = h.view(4, as: NSHSegmentedView.self).control, spinner = h.view(3, as: NSHSpinnerView.self).control
+        let systemSpinnerColor = UIActivityIndicatorView(style: .medium).color
+        XCTAssertNil(seg.selectedSegmentTintColor, "segmented keeps the system capsule")
+        XCTAssertNil(seg.titleTextAttributes(for: .selected)?[.foregroundColor], "segmented keeps label-colored text")
+        XCTAssertEqual(spinner.color, systemSpinnerColor, "spinner stays gray")
+        // ... until the script tints them, and back on reset.
+        h.apply { b in
+            b.prop(3, .tintColor, .color(0xFFFF_0000))
+            b.prop(4, .tintColor, .color(0xFFFF_0000))
+        }
+        XCTAssertEqual(seg.selectedSegmentTintColor, Colors.argb(0xFFFF_0000))
+        XCTAssertNotNil(seg.titleTextAttributes(for: .selected)?[.foregroundColor])
+        XCTAssertEqual(spinner.color, Colors.argb(0xFFFF_0000))
+        h.apply { b in
+            b.prop(3, .tintColor, .null)
+            b.prop(4, .tintColor, .null)
+        }
+        XCTAssertNil(seg.selectedSegmentTintColor)
+        XCTAssertNil(seg.titleTextAttributes(for: .selected)?[.foregroundColor])
+        XCTAssertEqual(spinner.color, systemSpinnerColor)
         // An explicit TintColor overrides the theme; resetting it brings primary back.
         h.apply { $0.prop(1, .tintColor, .color(0xFF00_FF00)) }
         XCTAssertEqual(h.view(1, as: NSHSliderView.self).control.minimumTrackTintColor, Colors.argb(0xFF00_FF00))
