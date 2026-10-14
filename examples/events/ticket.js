@@ -7,7 +7,7 @@ import { SuccessAlert } from "gpui-component";
 import { eventById } from "./catalog.js";
 import { dayDate, formatPrice, longDate, timeRange } from "./dates.js";
 import { cancelTicket, ticketById } from "./store.js";
-import { appToast, emptyState, navBar, poster, ticketCode } from "./ui.js";
+import { emptyState, navBar, poster, ticketCode } from "./ui.js";
 /** @import { Context } from "native-shell" */
 
 const UNDO_MS = 6000;
@@ -37,7 +37,7 @@ export default class TicketPage extends View {
             const restore = cancelTicket(ticket);
             cx.haptic("warning");
             cx.navigator.pop();
-            appToast(cx, {
+            cx.push_toast({
               id: "booking-cancelled",
               title: "Booking cancelled",
               description: event.title,

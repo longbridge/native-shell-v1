@@ -6,8 +6,11 @@
 // on screen and says how old it is.
 
 import { div, h_flex, v_flex, Button } from "native-shell";
-import { Marker, Skeleton, Tag, WarningAlert } from "gpui-component";
-import { CATEGORIES, CITY, FEW_SEATS, category } from "./catalog.js";
+import {
+  Carousel, CarouselContent, CarouselItem, CarouselPagination, CarouselPaginationItem, CarouselState, Marker, Skeleton, Tag,
+  WarningAlert,
+} from "gpui-component";
+import { CATEGORIES, CITY, EVENTS, FEW_SEATS, category } from "./catalog.js";
 import { formatPrice, formatTime, relativeDay } from "./dates.js";
 import { fromPrice, seatsLeft } from "./store.js";
 import { categoryIcon, icon, largeTitle, poster, statusBar } from "./ui.js";
@@ -19,6 +22,7 @@ export class Discover {
     this.app = app;
     /** The category filter, or null for everything. */
     this.filter = null;
+    this.carousel = CarouselState(EVENTS.filter((e) => e.featured).length);
   }
 
   /** @param {Context} cx */
@@ -78,49 +82,54 @@ export class Discover {
   /** @param {Context} cx @param {Event[]} events */
   featured(cx, events) {
     const t = cx.theme();
-    const width = cx.window().width - 48;
+    const s = this.carousel;
     return v_flex()
       .gap_2()
       .child(div().role("header").px_4().text_xl().font_bold().text_color(t.foreground).child("Featured"))
       .child(
-        h_flex()
-          .id("featured")
+        Carousel.new("featured", s)
           .test_id("featured")
-          .overflow_x_scroll()
-          .gap_3()
+          .accessibility_label("Featured events")
           .px_4()
-          .children(
-            events.map((e) =>
-              Button.new(`featured-${e.id}`)
-                .test_id(`featured-${e.id}`)
-                .accessibility_label(`${e.title}, ${relativeDay(e.day)} at ${formatTime(e.time)}, ${e.venue.name}`)
-                .w(width)
-                .flex_none()
-                .flex()
-                .flex_col()
-                .rounded_xl()
-                .bg(t.surface)
-                .overflow_hidden()
-                .active((s) => s.opacity(0.7))
-                .on_click((_e, cx) => this.app.open(e, cx))
-                .child(poster(cx, e, { height: 150, rounded: false }))
-                .child(
-                  v_flex()
-                    .gap_0p5()
-                    .px_4()
-                    .py_3()
-                    .child(div().text_xs().font_semibold().text_color(t.primary).child(category(e.category).label.toUpperCase()))
-                    .child(div().text_lg().font_semibold().text_color(t.foreground).truncate().child(e.title))
-                    .child(
-                      div()
-                        .text_sm()
-                        .text_color(t.muted_foreground)
-                        .truncate()
-                        .child(`${relativeDay(e.day)} · ${formatTime(e.time)} · ${e.venue.name}`),
-                    ),
+          .child(
+            CarouselContent.new(s)
+              .rounded_xl()
+              .children(
+                events.map((e, i) =>
+                  CarouselItem.new(`slide-${e.id}`, i, s).child(
+                    Button.new(`featured-${e.id}`)
+                      .test_id(`featured-${e.id}`)
+                      .accessibility_label(`${e.title}, ${relativeDay(e.day)} at ${formatTime(e.time)}, ${e.venue.name}`)
+                      .flex()
+                      .flex_col()
+                      .rounded_xl()
+                      .bg(t.surface)
+                      .overflow_hidden()
+                      .active((st) => st.opacity(0.7))
+                      .on_click((_e, cx) => this.app.open(e, cx))
+                      .child(poster(cx, e, { height: 150, rounded: false }))
+                      .child(
+                        v_flex()
+                          .gap_0p5()
+                          .px_4()
+                          .pt_3()
+                          // Room for the page dots, which sit over the bottom of the slide.
+                          .pb_10()
+                          .child(div().text_xs().font_semibold().text_color(t.primary).child(category(e.category).label.toUpperCase()))
+                          .child(div().text_lg().font_semibold().text_color(t.foreground).truncate().child(e.title))
+                          .child(
+                            div()
+                              .text_sm()
+                              .text_color(t.muted_foreground)
+                              .truncate()
+                              .child(`${relativeDay(e.day)} · ${formatTime(e.time)} · ${e.venue.name}`),
+                          ),
+                      ),
+                  ),
                 ),
-            ),
-          ),
+              ),
+          )
+          .child(CarouselPagination.new().children(events.map((e, i) => CarouselPaginationItem.new(`dot-${e.id}`, i, s).test_id(`dot-${e.id}`)))),
       );
   }
 

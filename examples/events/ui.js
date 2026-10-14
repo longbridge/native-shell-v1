@@ -9,7 +9,7 @@
 // the keyboard) and for drawings that have a fixed aspect.
 
 import { div, h_flex, v_flex, shape, Button, Spinner } from "native-shell";
-import { Badge, Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "gpui-component";
+import { Badge, DescriptionList, Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "gpui-component";
 import { category } from "./catalog.js";
 import { dayDate } from "./dates.js";
 /** @import { ClickEvent, Color, Context, Element } from "native-shell" */
@@ -513,13 +513,17 @@ export function emptyState(cx, { id, icon: name, title, body, action }) {
 }
 
 /**
- * A toast whose action outlives the page that raised it: the user may leave
- * the page (or it may close itself) before tapping Undo.
+ * Facts about one object as label–value rows. At large text sizes a label
+ * beside its value leaves room for neither, so each label sits above its value.
  * @param {Context} cx
- * @param {import("native-shell").ToastOptions} options
+ * @param {string} id
+ * @param {[label: string, value: string][]} items
  */
-export function appToast(cx, options) {
-  cx.spawn(async (cx) => cx.push_toast(options), { owner: null });
+export function details(cx, id, items) {
+  const list = DescriptionList.new().test_id(id);
+  if (cx.window().font_scale > 1.35) list.vertical().columns(1);
+  for (const [label, value] of items) list.item(label, value);
+  return list;
 }
 
 /**

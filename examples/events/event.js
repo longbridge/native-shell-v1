@@ -8,8 +8,7 @@ import { dayDate, formatPrice, longDate, timeRange } from "./dates.js";
 import BookingPage from "./booking.js";
 import TicketPage from "./ticket.js";
 import { fromPrice, isSaved, seatsLeft, setSaved, ticketsFor } from "./store.js";
-import { appToast, barIcon, icon, navBar, poster, primaryButton, streetPlan, tintedButton } from "./ui.js";
-import { descriptionList } from "./kit.js";
+import { barIcon, details, icon, navBar, poster, primaryButton, streetPlan, tintedButton } from "./ui.js";
 /** @import { Context } from "native-shell" */
 /** @import { Event } from "./catalog.js" */
 
@@ -30,7 +29,7 @@ export default class EventPage extends View {
     const on = !isSaved(this.event);
     setSaved(this.event, on);
     cx.haptic(on ? "success" : "light");
-    appToast(cx, {
+    cx.push_toast({
       id: "calendar",
       title: on ? "Added to Calendar" : "Removed from Calendar",
       level: on ? "success" : "info",
@@ -112,11 +111,11 @@ export default class EventPage extends View {
                 ),
               )
               .child(
-                descriptionList(cx, "details", [
-                  { label: "Date", value: longDate(dayDate(e.day)) },
-                  { label: "Time", value: timeRange(e.time, e.minutes) },
-                  { label: "Venue", value: `${e.venue.name}, ${e.venue.district}` },
-                  { label: "Price", value: priceLine(e) },
+                details(cx, "details", [
+                  ["Date", longDate(dayDate(e.day))],
+                  ["Time", timeRange(e.time, e.minutes)],
+                  ["Venue", `${e.venue.name}, ${e.venue.district}`],
+                  ["Price", priceLine(e)],
                 ]),
               )
               .child(

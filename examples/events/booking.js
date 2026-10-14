@@ -10,8 +10,7 @@ import { dayDate, formatPrice, formatTime, longDate, relativeDay } from "./dates
 import { pay } from "./service.js";
 import { addTicket, left } from "./store.js";
 import TicketPage from "./ticket.js";
-import { categoryIcon, icon, navBar, primaryButton, section } from "./ui.js";
-import { descriptionList } from "./kit.js";
+import { categoryIcon, details, icon, navBar, primaryButton, section } from "./ui.js";
 /** @import { Context } from "native-shell" */
 /** @import { Event, Tier } from "./catalog.js" */
 
@@ -402,13 +401,13 @@ export default class BookingPage extends View {
             .test_id("payment-failed")
             .title("Payment didn’t go through")
         : null,
-      descriptionList(cx, "review", [
-        { label: "Event", value: e.title },
-        { label: "Date", value: `${longDate(dayDate(e.day))}, ${formatTime(e.time)}` },
-        { label: "Venue", value: e.venue.name },
-        { label: "Tickets", value: `${this.count} × ${this.tier.name}` },
-        { label: "Name", value: this.name.value().trim() },
-        { label: "Email", value: this.email.value().trim() },
+      details(cx, "review", [
+        ["Event", e.title],
+        ["Date", `${longDate(dayDate(e.day))}, ${formatTime(e.time)}`],
+        ["Venue", e.venue.name],
+        ["Tickets", `${this.count} × ${this.tier.name}`],
+        ["Name", this.name.value().trim()],
+        ["Email", this.email.value().trim()],
       ]),
       this.total === 0
         ? null

@@ -108,6 +108,12 @@ fn discover_event_booking_and_ticket() {
     assert!(h.find("day-1").is_none(), "no section for a day without events");
     assert!(h.text_of("event-quiet-hours").contains("4 left"), "few seats left are called out");
 
+    // Featured events page with the dots.
+    assert_eq!(h.prop("featured", Prop::A11yValue), Some(PropValue::Str("Item 1 of 3".into())));
+    h.tap("dot-glass-garden");
+    assert_eq!(h.prop("featured", Prop::A11yValue), Some(PropValue::Str("Item 3 of 3".into())));
+    h.tap("dot-night-market");
+
     // Category filter.
     h.tap("category-theater");
     assert!(selected(&h, "category-theater") && !selected(&h, "category-all"));
@@ -119,8 +125,8 @@ fn discover_event_booking_and_ticket() {
     h.tap("event-harbor-lights");
     assert_eq!(h.surfaces().len(), 2);
     assert_eq!(h.text_of("event-title"), "Harbor Lights Orchestra");
-    assert_eq!(h.text_of("details-time"), "7:30 – 10:00 PM");
-    assert_eq!(h.text_of("details-price"), "$28 – $120");
+    let details = h.text_of("details");
+    assert!(details.contains("7:30 – 10:00 PM") && details.contains("$28 – $120"), "{details}");
     assert_eq!(h.text_of("from-price"), "$28");
     assert!(h.find("availability").is_none());
     assert!(h.find("map").is_some());
