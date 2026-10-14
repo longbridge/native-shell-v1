@@ -4,6 +4,7 @@
 // system focus ring around it while it is being edited.
 
 import AppKit
+import NativeShellShared
 
 final class NSHTextInputView: NSHComponentView, NSTextFieldDelegate, NSTextViewDelegate {
     private(set) var field: NSTextField?

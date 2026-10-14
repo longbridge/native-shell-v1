@@ -4,6 +4,7 @@
 // Environment in sync with size, safe area, backing scale and appearance.
 
 import AppKit
+import NativeShellShared
 
 @objcMembers
 public class NSHSurfaceView: NSView, SurfacePresenter, RootCommandHandler {

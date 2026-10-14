@@ -1,6 +1,7 @@
 // System alerts and toasts.
 
 import AppKit
+import NativeShellShared
 
 enum AlertPresenter {
     /// Presents the dialog's alert once, as a sheet on `window`; choosing a button

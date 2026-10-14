@@ -4,6 +4,7 @@
 
 import os.log
 import AppKit
+import NativeShellShared
 
 @objcMembers
 public final class NSHRuntime: NSObject {

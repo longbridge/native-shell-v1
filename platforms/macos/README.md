@@ -6,6 +6,10 @@ Objective-C. The same programs that run on iOS and Android run here unchanged;
 see [docs/platform-macos.md](../../docs/platform-macos.md) for how each part of
 the protocol maps to AppKit.
 
+The protocol, batch codec, controlled-input protocol, JSON helpers and SVG
+path parser come from `../apple/NativeShellShared`, the Swift package shared
+with the iOS renderer.
+
 Build the Rust core first: `scripts/build-macos.sh` writes
 `Frameworks/NativeShellFFI.xcframework` (arm64 + x86_64). Without it, the
 package compiles against a stub of the C ABI (`Sources/NativeShellFFIStub`) so
@@ -41,7 +45,6 @@ app so text fields get their standard shortcuts, and a Go menu item with the
 
 | Path | What |
 | --- | --- |
-| `Sources/NativeShellMac/Protocol` | Wire enums, validating batch decoder, test encoder (same as iOS) |
 | `Sources/NativeShellMac/Mounting` | Node table, view pool, base view (`View` type), animations, key routing |
 | `Sources/NativeShellMac/Components` | One view per view type; controlled text input; offset-placed list |
 | `Sources/NativeShellMac/Text` | `AttributedText` → TextKit 1, measurement shared by layout and drawing |
@@ -55,6 +58,7 @@ app so text fields get their standard shortcuts, and a Go menu item with the
 ```sh
 scripts/build-macos.sh
 cd platforms/macos && swift test
+cd platforms/apple/NativeShellShared && swift test   # the shared protocol code
 
 cd Example && ./capture-screenshots.sh   # builds the app, writes ../screenshots/
 ```

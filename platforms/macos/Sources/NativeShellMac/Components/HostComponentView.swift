@@ -3,6 +3,7 @@
 // reused only for the same name, after `prepareForReuse`.
 
 import AppKit
+import NativeShellShared
 
 final class NSHHostComponentView: NSHComponentView {
     private(set) var component: NSHHostComponent?

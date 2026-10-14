@@ -11,6 +11,7 @@
 // pooled view comes back exactly as a fresh one.
 
 import AppKit
+import NativeShellShared
 
 /// Where a component sends events and asks for renderer services.
 protocol ComponentContext: AnyObject {

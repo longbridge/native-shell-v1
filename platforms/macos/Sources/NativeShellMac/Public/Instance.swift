@@ -4,6 +4,7 @@
 
 import NativeShellFFI
 import AppKit
+import NativeShellShared
 
 @objc public protocol NSHInstanceDelegate: AnyObject {
     /// Unrecoverable instance error; the instance keeps showing its last good frame.

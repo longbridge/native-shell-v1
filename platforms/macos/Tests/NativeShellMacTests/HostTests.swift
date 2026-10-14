@@ -2,6 +2,7 @@
 import AppKit
 import NativeShellFFI
 import XCTest
+import NativeShellShared
 
 // MARK: - Test doubles of what a host app registers
 

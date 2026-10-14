@@ -1,6 +1,7 @@
 @testable import NativeShellMac
 import AppKit
 import XCTest
+import NativeShellShared
 
 /// Records sheets instead of showing them: the tests never put windows on screen.
 final class SheetRecordingWindow: NSWindow {

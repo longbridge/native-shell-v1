@@ -6,6 +6,7 @@
 // as dynamic colors.
 
 import AppKit
+import NativeShellShared
 
 enum ThemeTokens {
     private static let light: [String: String] = [

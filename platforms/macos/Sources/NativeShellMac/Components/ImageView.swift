@@ -4,6 +4,7 @@
 
 import AppKit
 import ImageIO
+import NativeShellShared
 
 final class NSHImageView: NSHComponentView {
     let imageLayer = CALayer()

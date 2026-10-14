@@ -1,6 +1,7 @@
 @testable import NativeShellMac
 import AppKit
 import XCTest
+import NativeShellShared
 
 /// Measurement and rendering go through the same TextKit configuration: a Text
 /// view given the measured frame draws at the measured size.

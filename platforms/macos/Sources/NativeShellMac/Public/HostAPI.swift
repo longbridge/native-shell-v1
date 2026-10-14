@@ -3,6 +3,7 @@
 // scripts). Every type is Objective-C compatible.
 
 import AppKit
+import NativeShellShared
 
 @objc public enum NSHMethodKind: Int {
     case sync

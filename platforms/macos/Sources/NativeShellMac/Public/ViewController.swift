@@ -8,6 +8,7 @@
 // `CanGoBack` is false cannot be left natively.
 
 import AppKit
+import NativeShellShared
 
 @objcMembers
 open class NSHViewController: NSViewController, SurfacePresenter, SurfaceObserver, RootCommandHandler, NSMenuItemValidation {

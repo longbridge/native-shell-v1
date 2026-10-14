@@ -4,6 +4,7 @@
 // that gets drawn.
 
 import AppKit
+import NativeShellShared
 
 /// The parsed form of one `AttributedText` value. Immutable, so one instance is
 /// shared by the measurer on the JS thread and the views on the main thread.

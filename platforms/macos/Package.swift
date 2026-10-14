@@ -23,17 +23,20 @@ let package = Package(
     products: [
         .library(name: "NativeShellMac", targets: ["NativeShellMac"]),
     ],
+    dependencies: [
+        .package(path: "../apple/NativeShellShared"),
+    ],
     targets: [
         ffiTarget,
         .target(
             name: "NativeShellMac",
-            dependencies: ["NativeShellFFI"],
+            dependencies: ["NativeShellFFI", .product(name: "NativeShellShared", package: "NativeShellShared")],
             path: "Sources/NativeShellMac",
             linkerSettings: [.linkedLibrary("c++"), .linkedFramework("Security"), .linkedFramework("SystemConfiguration")]
         ),
         .testTarget(
             name: "NativeShellMacTests",
-            dependencies: ["NativeShellMac"],
+            dependencies: ["NativeShellMac", .product(name: "NativeShellShared", package: "NativeShellShared")],
             path: "Tests/NativeShellMacTests"
         ),
     ]

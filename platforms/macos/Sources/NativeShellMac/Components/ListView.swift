@@ -6,6 +6,7 @@
 // `RangeChange` whenever it changes, which moves the core's window.
 
 import AppKit
+import NativeShellShared
 
 final class NSHListRowView: NSHComponentView {
     private(set) var rowIndex: Int = -1

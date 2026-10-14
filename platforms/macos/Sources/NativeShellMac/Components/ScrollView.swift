@@ -2,6 +2,7 @@
 // with throttled scroll events. Children live in a flipped document view.
 
 import AppKit
+import NativeShellShared
 
 /// A flipped plain view: the document of scroll and list views.
 final class FlippedView: NSView {

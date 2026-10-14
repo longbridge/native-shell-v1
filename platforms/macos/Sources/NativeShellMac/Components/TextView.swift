@@ -3,6 +3,7 @@
 // switches to a TextKit 1 `NSTextView` configured identically.
 
 import AppKit
+import NativeShellShared
 
 final class NSHTextView: NSHComponentView {
     private let canvas = TextCanvas()

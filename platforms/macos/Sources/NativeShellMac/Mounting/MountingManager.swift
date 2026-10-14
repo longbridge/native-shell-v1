@@ -6,6 +6,7 @@
 // than trusted: a renderer bug or a hostile buffer must never crash the app.
 
 import AppKit
+import NativeShellShared
 
 /// Presents the surfaces the core attaches to the root node: pages, sheets and
 /// dialogs. `NSHViewController` implements it with a page stack and window sheets; a

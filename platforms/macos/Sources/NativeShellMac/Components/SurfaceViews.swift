@@ -3,6 +3,7 @@
 // they appear.
 
 import AppKit
+import NativeShellShared
 
 /// Something that wants to hear when a surface's props change.
 protocol SurfaceObserver: AnyObject {

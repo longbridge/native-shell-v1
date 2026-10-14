@@ -3,6 +3,7 @@
 // transition for that property animate to their new value.
 
 import AppKit
+import NativeShellShared
 
 enum Animator {
     /// `Anim = {kind: "timing"|"spring", duration, delay (ms), easing, response, damping}`.

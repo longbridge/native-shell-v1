@@ -2,6 +2,7 @@
 // and reports user changes with the payloads of `EventType::Change`.
 
 import AppKit
+import NativeShellShared
 
 /// A component that hosts one control.
 class NSHControlView: NSHComponentView {

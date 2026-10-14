@@ -1,6 +1,7 @@
 @testable import NativeShellMac
 import AppKit
 import XCTest
+import NativeShellShared
 
 /// Builds batches the way the core would, for driving the renderer without it.
 struct Batch {

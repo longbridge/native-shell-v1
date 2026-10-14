@@ -1,6 +1,7 @@
 @testable import NativeShellMac
 import AppKit
 import XCTest
+import NativeShellShared
 
 final class MountingTests: XCTestCase {
     var h: Harness!

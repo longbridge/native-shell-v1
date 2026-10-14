@@ -5,6 +5,7 @@
 
 import AppKit
 import Carbon.HIToolbox
+import NativeShellShared
 
 enum KeyEvents {
     /// The component a key event goes to: the nearest KEY listener above

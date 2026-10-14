@@ -3,6 +3,7 @@
 // parsed text. Measurement and drawing both go through it.
 
 import AppKit
+import NativeShellShared
 
 final class TextLayout {
     let storage = NSTextStorage()

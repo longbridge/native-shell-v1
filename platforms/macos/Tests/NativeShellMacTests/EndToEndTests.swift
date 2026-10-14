@@ -1,6 +1,7 @@
 @testable import NativeShellMac
 import AppKit
 import XCTest
+import NativeShellShared
 
 // MARK: - Host doubles for examples/watchlist (host.json is the contract)
 
