@@ -1387,7 +1387,7 @@ declare module "gpui-component" {
     /** Sets the horizontal form label width in pixels. */
     label_width(width: number): this;
     /** Sets the form density. */
-    size(size: FormSize): this;
+    size(size: FormSize | import("native-shell").Length): this;
   }
   /**
    * A vertical or horizontal form accepting Field children. Mobile: a vertical
@@ -1408,7 +1408,7 @@ declare module "gpui-component" {
     /** Marks the field as required. */
     required(required: boolean): this;
     /** Controls field visibility. */
-    visible(visible: boolean): this;
+    visible(visible?: boolean): this;
     /** Keeps unlabeled horizontal fields aligned with labeled fields. */
     label_indent(label_indent: boolean): this;
     /** Aligns the label and control within the field. */
@@ -1435,7 +1435,7 @@ declare module "gpui-component" {
     /** Names the group independently of its text control. */
     aria_label(label: string): this;
     /** Sets the group's semantic control size. */
-    size(size: FormSize): this;
+    size(size: FormSize | import("native-shell").Length): this;
   }
   /** A themed frame around one text control and any number of addons. */
   export const InputGroup: FormConstructor<[id: string], InputGroupElement>;
@@ -1505,7 +1505,7 @@ declare module "gpui-component" {
     /** Uses the outlined button treatment. */
     outline(): this;
     /** Sets the button size; xsmall and small are the compact input-group sizes. */
-    size(size: FormSize): this;
+    size(size: FormSize | import("native-shell").Length): this;
     /** Selects a semantic button variant. */
     variant(variant: "default" | "primary" | "secondary" | "danger" | "warning" | "success" | "info" | "ghost" | "link" | "text"): this;
   }
@@ -1526,7 +1526,7 @@ declare module "gpui-component" {
     /** Sets the active star color. */
     color(color: import("native-shell").Color): this;
     /** Sets the rating's semantic size. */
-    size(size: FormSize): this;
+    size(size: FormSize | import("native-shell").Length): this;
   }
   /** An interactive star rating with configurable value and maximum. */
   export const Rating: FormConstructor<[id: string], RatingElement>;
@@ -1546,11 +1546,11 @@ declare module "gpui-component" {
     /** Switches between vertical and horizontal layout. */
     vertical(vertical: boolean): this;
     /** Centers each step's text in horizontal layouts. */
-    text_center(text_center: boolean): this;
+    text_center(text_center?: boolean): this;
     /** Disables every step. */
     disabled(disabled: boolean): this;
     /** Sets the stepper's semantic size. */
-    size(size: FormSize): this;
+    size(size: FormSize | import("native-shell").Length): this;
     /** Reports the newly selected zero-based index. */
     on_change(handler: (index: number, cx: FormContext) => void): this;
     /** gpui-component's Rust spelling: adds steps. */
@@ -1625,7 +1625,7 @@ declare module "gpui-component" {
     /** Mobile (gpui-component's Rust API): an asset icon, drawn in the chosen color, in place of the swatch. */
     icon(path: string): this;
     disabled(disabled: boolean): this;
-    size(size: FormSize): this;
+    size(size: FormSize | import("native-shell").Length): this;
     /** Accepted; the picker is a sheet on a phone. */
     anchor(anchor: string): this;
   }
@@ -1654,7 +1654,7 @@ declare module "gpui-component" {
     bordered(bordered: boolean): this;
     /** Sets the vertical layout's column count, 1 through 10 (default 2 on a phone). */
     columns(columns: number): this;
-    size(size: DataSize): this;
+    size(size: DataSize | import("native-shell").Length): this;
     /** gpui-component's `item(label, value, span)`. */
     item(label: string, value: string | Element, span?: number): this;
   }
@@ -1700,7 +1700,7 @@ declare module "gpui-component" {
     variant(variant: "tab" | "outline" | "pill" | "segmented" | "underline"): this;
     /** Accepted; the row scrolls instead of an overflow menu. */
     menu(menu: boolean): this;
-    size(size: DataSize): this;
+    size(size: DataSize | import("native-shell").Length): this;
     /** Reports the newly selected zero-based index. */
     on_change(handler: (index: number, cx: DataContext) => void): this;
   }
@@ -1711,6 +1711,8 @@ declare module "gpui-component" {
   export interface BreadcrumbElement extends Element {
     /** Mobile: `(index, cx)` when an earlier place in the path is tapped. */
     on_click(handler: (index: number, cx: DataContext) => void): this;
+    /** Declared so the element stays an `Element`; the handler receives `(index, cx)`. */
+    on_click(handler: (event: import("native-shell").ClickEvent, cx: import("native-shell").Context) => void): this;
   }
   /** A path of places, the current one last. */
   export const Breadcrumb: DataConstructor<[labels: string[]], BreadcrumbElement>;
@@ -1742,7 +1744,7 @@ declare module "gpui-component" {
   }
   export const SettingPage: DataConstructor<[title: string], SettingPageElement>;
   export interface SettingsElement extends Element {
-    size(size: DataSize): this;
+    size(size: DataSize | import("native-shell").Length): this;
     /** Accepted; a phone has no sidebar. */
     sidebar_width(pixels: number): this;
     sidebar_size_range(minimum: number, maximum: number): this;
@@ -1824,7 +1826,7 @@ declare module "gpui-component" {
   /** One indexed slide. */
   export const CarouselItem: DataConstructor<[id: string, index: number, state: CarouselState], Element>;
   export interface CarouselControlElement extends Element {
-    size(size: DataSize): this;
+    size(size: DataSize | import("native-shell").Length): this;
   }
   export const CarouselPrevious: DataConstructor<[state: CarouselState], CarouselControlElement>;
   export const CarouselNext: DataConstructor<[state: CarouselState], CarouselControlElement>;
@@ -1857,7 +1859,7 @@ declare module "gpui-component" {
     /** iOS's tinted button. */
     outline(): this;
     variant(variant: "primary" | "secondary" | "danger" | "ghost"): this;
-    size(size: DataSize): this;
+    size(size: DataSize | import("native-shell").Length): this;
     disabled(disabled: boolean): this;
     selected(selected: boolean): this;
     /** Accepted; the platform places the menu. */
@@ -1872,7 +1874,7 @@ declare module "gpui-component" {
 
   export interface IconElement extends Element {
     /** `xsmall` 12, `small` 16, `medium` 20 (default), `large` 24; mobile also takes points. */
-    size(size: DataSize | number): this;
+    size(size: DataSize | import("native-shell").Length): this;
     /** The glyph's color: a theme token or a color literal. */
     color(color: import("native-shell").Color): this;
     /** Rotates the icon by radians. */
