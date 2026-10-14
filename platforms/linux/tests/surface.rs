@@ -16,6 +16,7 @@ fn main() -> ExitCode {
         ("the frame clock runs at full rate", the_frame_clock_runs_at_full_rate),
         ("the clipboard round-trips", the_clipboard_round_trips),
         ("click and long press reach the right gesture", click_and_long_press_reach_the_right_gesture),
+        ("a node that appears later can be clicked at once", a_node_that_appears_later_can_be_clicked_at_once),
     ])
 }
 
@@ -154,4 +155,24 @@ export default class App extends View {
     f.expect("log-click");
     f.long_press("row");
     f.expect("log-click-long");
+}
+
+/// `wait_for` hands back a laid-out widget even when its batch arrived during the wait.
+fn a_node_that_appears_later_can_be_clicked_at_once() {
+    let f = Fixture::new(
+        r#"
+import { View, div, Button } from "native-shell";
+export default class App extends View {
+  init(_p, cx) { this.ready = false; this.clicked = false; setTimeout(() => { this.ready = true; cx.notify(); }, 700); }
+  render() {
+    return div().size_full()
+      .child(this.ready ? Button.new("late").test_id("late").label("Continue").on_click((_e, cx) => { this.clicked = true; cx.notify(); }) : null)
+      .child(div().test_id(this.clicked ? "clicked" : "waiting").h(10));
+  }
+}"#,
+    );
+    let late = f.wait_for("late");
+    assert!(late.width() > 0 && late.height() > 0, "allocated: {}x{}", late.width(), late.height());
+    f.click("late");
+    f.expect("clicked");
 }

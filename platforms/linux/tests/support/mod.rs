@@ -286,7 +286,11 @@ impl Fixture {
             found = self.find(test_id);
             found.is_some()
         });
-        found.unwrap_or_else(|| panic!("no node with test id {test_id:?} appeared"))
+        assert!(found.is_some(), "no node with test id {test_id:?} appeared");
+        // It may have come in a batch applied during the wait: lay it out
+        // (and apply whatever followed) before handing it to a click.
+        self.settle();
+        self.expect(test_id)
     }
 
     /// The widget of the node with `test_id` (`.test_id(...)` in script), if mounted and visible in the tree.
@@ -310,6 +314,8 @@ impl Fixture {
 
     /// Taps the node with `test_id` through GTK ([`click_widget`]), then settles.
     pub fn click(&self, test_id: &str) {
+        // A 0×0 widget would take the press at its origin and lose the click.
+        self.layout();
         let widget = self.expect(test_id);
         assert!(click_widget(&widget, self.surface.upcast_ref()), "nothing clickable at {test_id:?}");
         self.settle();
@@ -317,6 +323,7 @@ impl Fixture {
 
     /// Long-presses the node with `test_id` through GTK ([`long_press_widget`]), then settles.
     pub fn long_press(&self, test_id: &str) {
+        self.layout();
         let widget = self.expect(test_id);
         assert!(long_press_widget(&widget, self.surface.upcast_ref()), "nothing to long-press at {test_id:?}");
         self.settle();
