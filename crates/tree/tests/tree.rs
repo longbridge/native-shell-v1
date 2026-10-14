@@ -11,7 +11,7 @@ use native_shell_core::protocol::{
 };
 
 /// One line of 16 pt text: GPUI's default line height is φ × size.
-const LINE: f32 = 16.0 * 1.618_034;
+const LINE: f32 = 16.0 * std::f32::consts::GOLDEN_RATIO;
 
 /// Equal up to the pixel grid (scale 3).
 fn approx(a: f32, b: f32) -> bool {
