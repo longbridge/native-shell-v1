@@ -35,3 +35,7 @@ panic = "unwind"
 [[test]]
 name = "surface"
 harness = false
+
+[[test]]
+name = "scroll_list"
+harness = false
