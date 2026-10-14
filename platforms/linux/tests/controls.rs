@@ -278,9 +278,20 @@ fn screenshots(f: &Fixture, name: &str) {
     f.set_dark(false);
 }
 
+/// The accent the iOS and Android example apps give the shell through their
+/// theme providers, so example screenshots compare with theirs.
+fn example_runtime() -> native_shell_gtk::Runtime {
+    let tokens = |c: &str| std::iter::once(("primary".to_string(), c.to_string())).collect();
+    let theme = native_shell_gtk::ThemeConfig { light: tokens("#2563eb"), dark: tokens("#60a5fa") };
+    let runtime = native_shell_gtk::Runtime::new();
+    runtime.set_theme(Some(theme)).expect("theme");
+    runtime
+}
+
 fn settings_example() {
     gtk::Settings::default().expect("settings").set_gtk_enable_animations(false);
-    let f = Fixture::open_dir("../../examples/settings");
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/settings");
+    let f = Fixture::start_with(&example_runtime(), Default::default(), |i| i.load_dir(&dir));
     screenshots(&f, "settings");
     // Notifications are on by default, so is the daily summary and its time.
     f.expect("summary-time");
@@ -314,7 +325,7 @@ fn components_page(page: &str) -> Fixture {
         files.push((name, text));
     }
     let files: Vec<(&str, &str)> = files.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
-    Fixture::with_files(&read("native-shell.json"), &files)
+    Fixture::with_runtime(&example_runtime(), &read("native-shell.json"), &files)
 }
 
 fn components_pages() {
@@ -336,6 +347,8 @@ fn components_pages() {
     drop(f);
 
     let f = components_page("pickers");
+    let b = f.bounds(&f.expect("request"));
+    assert_eq!(f.pixel((b.x() + 8.0) as i32, (b.y() + b.height() / 2.0) as i32), 0xff2563eb, "the example app's accent");
     let sitting = controls(&f, "sitting");
     tap(&f, &sitting[1]);
     let guests = control(&f, "guests");
