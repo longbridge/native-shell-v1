@@ -101,6 +101,11 @@ fn browse_to_order() {
     f.click("promo-apply");
     f.wait_for("promo-error");
     shoot(&f, "cart");
+    f.long_press("line-1");
+    f.wait_for("line-menu");
+    shoot(&f, "cart-menu");
+    f.click("line-menu-view");
+    f.click("back");
 
     type_text(&f, "promo", "WELCOME10");
     f.click("promo-apply");

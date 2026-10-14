@@ -1,9 +1,10 @@
 // The Cart tab: what's in the cart, how much it comes to, and the way to
 // checkout.
 //
-// Each line has a quantity stepper and a visible Remove button; swiping a
-// line left reveals the same Remove, as iOS lists do. Removing is immediate
-// and undoable from the toast. A promo code is checked when applied and the
+// Each line has a quantity stepper and a visible Remove button; a long press
+// opens the line's actions. Removing is immediate and undoable from the
+// toast. (No swipe: a pan on a row inside the scroll view would take the
+// vertical scroll from it.) A promo code is checked when applied and the
 // reason it doesn't apply sits under the field. The free-delivery bar says
 // how far the cart is from free shipping.
 
@@ -13,11 +14,7 @@ import { productById, photo } from "./catalog.js";
 import CheckoutPage from "./checkout.js";
 import ProductPage from "./product.js";
 import { store, money, MAX_QUANTITY, FREE_DELIVERY } from "./store.js";
-import { icon, largeTitle, photoFrame, quantityStepper, section, text, valueRow } from "./ui.js";
-
-/** How far a line slides to reveal Remove, and how far a swipe must travel to leave it open. */
-const REVEAL = 96;
-const SWIPE = 48;
+import { actionSheet, icon, largeTitle, photoFrame, quantityStepper, section, text, valueRow } from "./ui.js";
 
 export default class CartTab extends View {
   init(props) {
@@ -29,9 +26,6 @@ export default class CartTab extends View {
     });
     this.code.on("submit", (_e, cx) => this.applyPromo(cx));
     this.promoError = null;
-    /** The line swiped open, and the drag in progress. */
-    this.open = null;
-    this.drag = null;
   }
 
   release() {
@@ -54,7 +48,6 @@ export default class CartTab extends View {
   remove(index, cx) {
     const product = productById(store.cart[index].product);
     const undo = store.remove(index);
-    this.open = null;
     cx.push_toast({
       id: "removed",
       title: `Removed ${product?.name ?? "item"}`,
@@ -125,110 +118,86 @@ export default class CartTab extends View {
     const key = `${line.product}-${line.color}-${line.size ?? ""}`;
     const color = p.colors.find((c) => c.id === line.color)?.label ?? "";
     const size = p.sizes?.find((s) => s.id === line.size)?.label;
-    const offset = this.drag?.key === key ? Math.min(0, this.drag.base + this.drag.dx) : this.open === key ? -REVEAL : 0;
     // At large text sizes the line total moves under the name, which keeps the width to wrap in.
     const large = cx.window().font_scale >= 1.5;
     const total = text(cx, "body", money(p.price * line.quantity)).font_semibold().test_id(`line-total-${index}`);
-    // Remove sits behind the line, drawn only while the line is moved aside.
-    return div()
+    const variant = size ? `${color} · ${size}` : color;
+    return h_flex()
       .key(key)
-      .relative()
-      .overflow_hidden()
-      .when(offset < 0, (el) => el.bg(t.destructive))
-      .when(offset < 0, (el) => el.child(
-        Button.new(`swipe-remove-${index}`)
-          .test_id(`swipe-remove-${index}`)
-          .accessibility_hidden()
-          .absolute()
-          .top_0()
-          .bottom_0()
-          .right_0()
-          .w(REVEAL)
-          .flex()
-          .flex_col()
-          .items_center()
-          .justify_center()
-          .gap_1()
-          .active((s) => s.opacity(0.7))
-          .on_click((_e, cx) => this.remove(index, cx))
-          .child(icon("trash", t.destructive_foreground, 20))
-          .child(text(cx, "footnote", "Remove", t.destructive_foreground).font_semibold()),
-      ))
+      .test_id(`line-${index}`)
+      .accessibility_hint("Long press for more actions")
+      .items_start()
+      .gap_3()
+      .px_4()
+      .py_3()
+      .bg(t.surface)
+      .on_long_press((_e, cx) => this.lineMenu(cx, p, variant, index))
       .child(
-        h_flex()
-          .test_id(`line-${index}`)
-          .relative()
-          .left(offset)
-          .items_start()
-          .gap_3()
-          .px_4()
-          .py_3()
-          .bg(t.surface)
-          .on_pan((e, cx) => this.swipe(key, e, cx))
+        Button.new(`line-photo-${index}`)
+          .accessibility_label(`Open ${p.name}`)
+          .active((s) => s.opacity(0.6))
+          .on_click((_e, cx) => cx.navigator.push(ProductPage, { productId: p.id, back: "Cart" }, { title: p.name }))
+          .child(photoFrame(cx, photo(p, line.color), 76, { radius: 10 })),
+      )
+      .child(
+        v_flex()
+          .flex_1()
+          .min_w_0()
+          .gap_1()
           .child(
-            Button.new(`line-photo-${index}`)
-              .accessibility_label(`Open ${p.name}`)
-              .active((s) => s.opacity(0.6))
-              .on_click((_e, cx) => cx.navigator.push(ProductPage, { productId: p.id, back: "Cart" }, { title: p.name }))
-              .child(photoFrame(cx, photo(p, line.color), 76, { radius: 10 })),
+            h_flex()
+              .items_start()
+              .gap_2()
+              .child(text(cx, "body", p.name).flex_1().min_w_0())
+              .when(!large, (el) => el.child(total)),
           )
+          .child(text(cx, "footnote", variant, t.muted_foreground))
+          .when(large, (el) => el.child(total))
           .child(
-            v_flex()
-              .flex_1()
-              .min_w_0()
-              .gap_1()
+            h_flex()
+              .flex_wrap()
+              .gap_2()
+              .pt_1()
+              .justify_between()
               .child(
-                h_flex()
-                  .items_start()
-                  .gap_2()
-                  .child(text(cx, "body", p.name).flex_1().min_w_0())
-                  .when(!large, (el) => el.child(total)),
+                quantityStepper(cx, {
+                  id: `line-${index}-quantity`,
+                  value: line.quantity,
+                  max: MAX_QUANTITY,
+                  label: `Quantity of ${p.name}`,
+                  on_change: (value) => store.setQuantity(index, value),
+                }),
               )
-              .child(text(cx, "footnote", size ? `${color} · ${size}` : color, t.muted_foreground))
-              .when(large, (el) => el.child(total))
               .child(
-                h_flex()
-                  .flex_wrap()
-                  .gap_2()
-                  .pt_1()
-                  .justify_between()
-                  .child(
-                    quantityStepper(cx, {
-                      id: `line-${index}-quantity`,
-                      value: line.quantity,
-                      max: MAX_QUANTITY,
-                      label: `Quantity of ${p.name}`,
-                      on_change: (value) => store.setQuantity(index, value),
-                    }),
-                  )
-                  .child(
-                    Button.new(`remove-${index}`)
-                      .test_id(`remove-${index}`)
-                      .accessibility_label(`Remove ${p.name}`)
-                      .ghost()
-                      .size("small")
-                      .text_color(t.destructive)
-                      .on_click((_e, cx) => this.remove(index, cx))
-                      .child("Remove"),
-                  ),
+                Button.new(`remove-${index}`)
+                  .test_id(`remove-${index}`)
+                  .accessibility_label(`Remove ${p.name}`)
+                  .ghost()
+                  .size("small")
+                  .text_color(t.destructive)
+                  .on_click((_e, cx) => this.remove(index, cx))
+                  .child("Remove"),
               ),
           ),
       );
   }
 
-  /** A horizontal drag on a line: follows the finger, then settles open or closed. */
-  swipe(key, e, cx) {
-    if (e.phase === "began") {
-      if (this.open !== null && this.open !== key) this.open = null;
-      this.drag = { key, base: this.open === key ? -REVEAL : 0, dx: 0 };
-    } else if (e.phase === "changed" && this.drag?.key === key) {
-      this.drag.dx = e.dx;
-    } else if (this.drag?.key === key) {
-      const end = this.drag.base + this.drag.dx;
-      this.open = e.phase === "ended" && end < -SWIPE ? key : null;
-      this.drag = null;
-    }
-    cx.notify();
+  /** The line's actions, for a long press: the same Remove as the button, and the way to the product. */
+  lineMenu(cx, product, variant, index) {
+    actionSheet(cx, {
+      id: "line-menu",
+      title: product.name,
+      message: variant,
+      actions: [
+        {
+          id: "line-menu-view",
+          label: "View Product",
+          icon: "chevron_right",
+          run: (cx) => cx.navigator.push(ProductPage, { productId: product.id, back: "Cart" }, { title: product.name }),
+        },
+        { id: "line-menu-remove", label: "Remove from Cart", icon: "trash", destructive: true, run: (cx) => this.remove(index, cx) },
+      ],
+    });
   }
 
   freeDelivery(cx) {

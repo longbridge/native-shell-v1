@@ -37,9 +37,10 @@ and returns cost. The cart shows how far it is from free delivery.
 
 - Adding to the cart: a success haptic and a toast naming what was added,
   with *Undo*.
-- Removing from the cart (the *Remove* button, or a swipe left on the line):
-  immediate, with an *Undo* toast. Reversible work gets undo, not a
-  confirmation.
+- Removing from the cart (the *Remove* button, or *Remove from Cart* in the
+  menu a long press on the line opens): immediate, with an *Undo* toast.
+  Reversible work gets undo, not a confirmation. There is no swipe: a pan on
+  a line would take the vertical scroll from the cart.
 - Steppers disable at their limits (1 and 10) instead of doing nothing.
 - Promo codes say why they don't apply under the field: unknown, expired, or
   below the code's minimum.
