@@ -57,6 +57,10 @@ pub trait Component {
         child.detach();
     }
 
+    /// The theme tokens changed (`shared.theme` holds the new ones), for
+    /// chrome styled from tokens that no prop of this node carries.
+    fn theme_changed(&mut self, _cx: &NodeCx) {}
+
     /// Every mutation of the batch has been applied.
     fn batch_applied(&mut self, _cx: &NodeCx) {}
 

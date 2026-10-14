@@ -323,6 +323,10 @@ impl MountingManager {
                     self.shared.theme.replace(tokens);
                     // Chrome drawn from tokens (control tints…) has no prop that changed.
                     queue_draw_tree(self.shared.root.upcast_ref());
+                    let ids: Vec<u32> = self.nodes.keys().copied().collect();
+                    for id in ids {
+                        self.with_node(id, |component, cx| component.theme_changed(cx));
+                    }
                 }
             }
         }

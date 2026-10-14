@@ -289,9 +289,12 @@ impl Component for Text {
         self.mask.set(mask);
     }
 
+    fn theme_changed(&mut self, cx: &NodeCx) {
+        self.sync_selection_color(cx);
+    }
+
     fn batch_applied(&mut self, cx: &NodeCx) {
         self.sync_a11y_label(cx.view);
-        self.sync_selection_color(cx);
     }
 }
 
