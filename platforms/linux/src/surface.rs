@@ -35,6 +35,8 @@ mod imp {
         pub applied_batches: Cell<u64>,
         /// Handlers on process-wide objects, disconnected on dispose.
         pub watchers: RefCell<Vec<(glib::Object, glib::SignalHandlerId)>>,
+        /// The window's `suspended` handler while mapped.
+        pub suspended_handler: RefCell<Option<(gtk::Window, glib::SignalHandlerId)>>,
     }
 
     #[glib::object_subclass]
@@ -69,6 +71,29 @@ mod imp {
         fn size_allocate(&self, width: i32, height: i32, baseline: i32) {
             self.root.allocate(width, height, baseline, None);
             self.obj().sync_environment();
+        }
+
+        fn map(&self) {
+            self.parent_map();
+            let obj = self.obj();
+            if let Some(window) = obj.root().and_downcast::<gtk::Window>() {
+                let weak = obj.downgrade();
+                let id = window.connect_suspended_notify(move |_| {
+                    if let Some(surface) = weak.upgrade() {
+                        surface.sync_active();
+                    }
+                });
+                self.suspended_handler.replace(Some((window, id)));
+            }
+            obj.sync_active();
+        }
+
+        fn unmap(&self) {
+            if let Some((window, id)) = self.suspended_handler.take() {
+                window.disconnect(id);
+            }
+            self.parent_unmap();
+            self.obj().sync_active();
         }
     }
 }
@@ -197,6 +222,14 @@ impl SurfaceView {
         // Fractional scales (125 %…) are only known to the realized surface.
         let scale = self.native().and_then(|n| n.surface()).map_or(self.scale_factor() as f64, |s| s.scale());
         Environment { width: self.width() as f32, height: self.height() as f32, scale: scale as f32, ..initial_environment() }
+    }
+
+    /// Pauses the program's timers and frames while it cannot be seen (its
+    /// page is covered, its window hidden or minimized) and resumes them after.
+    fn sync_active(&self) {
+        let Some(instance) = self.instance() else { return };
+        let suspended = self.imp().suspended_handler.borrow().as_ref().is_some_and(|(w, _)| w.is_suspended());
+        instance.set_active(self.is_mapped() && !suspended);
     }
 
     fn sync_environment(&self) {
