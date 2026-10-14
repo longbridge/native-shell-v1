@@ -33,7 +33,11 @@ pub enum ElementKind {
     Segmented,
     DatePicker,
     Select,
-    Shape,
+    /// A vector path. With `stretch`, the path fills its laid-out frame: the
+    /// tree scales its view box to the frame on each axis apart (renderers
+    /// otherwise fit it uniformly), so a chart's line spans whatever width the
+    /// layout gives it.
+    Shape { stretch: bool },
     /// A virtualized list. `children` are the rendered rows, each a
     /// [`ElementKind::ListRow`] carrying its index.
     List(ListSpec),

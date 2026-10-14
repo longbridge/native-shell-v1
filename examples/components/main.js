@@ -13,7 +13,10 @@ import FieldsPage from "./pages/fields.js";
 import SelectionPage from "./pages/selection.js";
 import ProgressPage from "./pages/progress.js";
 import PickersPage from "./pages/pickers.js";
+import FormsPage from "./pages/forms.js";
 import OverlaysPage from "./pages/overlays.js";
+import StatusPage from "./pages/status.js";
+import ChartsPage from "./pages/charts.js";
 import OrderPage from "./pages/order.js";
 import FilesPage from "./pages/files.js";
 import BookingPage from "./pages/booking.js";
@@ -22,7 +25,7 @@ import NotificationsPage from "./pages/notifications.js";
 import { row, scrollScreen, section, tile } from "./ui.js";
 /** @import { Color } from "native-shell" */
 
-/** @typedef {{ id: string, icon: "pointer" | "text" | "toggle" | "sliders" | "calendar" | "layers" | "receipt" | "folder" | "photo" | "bell", tint: "primary" | "success" | "warning" | "info" | "destructive", title: string, detail: string, page: import("native-shell").ViewClass }} Entry */
+/** @typedef {{ id: string, icon: "pointer" | "text" | "toggle" | "sliders" | "calendar" | "file" | "layers" | "status" | "chart" | "receipt" | "folder" | "photo" | "bell", tint: "primary" | "success" | "warning" | "info" | "destructive", title: string, detail: string, page: import("native-shell").ViewClass }} Entry */
 
 /** @type {{ header: string, pages: Entry[] }[]} */
 const SECTIONS = [
@@ -44,14 +47,16 @@ const SECTIONS = [
         page: ProgressPage,
       },
       { id: "pickers", icon: "calendar", tint: "destructive", title: "Pickers", detail: "A table booking", page: PickersPage },
+      { id: "forms", icon: "file", tint: "primary", title: "Forms", detail: "A flower delivery checkout", page: FormsPage },
     ],
   },
   {
-    header: "Data and Navigation",
+    header: "Data",
     pages: [
+      { id: "charts", icon: "chart", tint: "info", title: "Charts", detail: "A health and money dashboard", page: ChartsPage },
       { id: "order", icon: "receipt", tint: "success", title: "Description List", detail: "An order's details", page: OrderPage },
-      { id: "files", icon: "folder", tint: "info", title: "Tree", detail: "A project's files", page: FilesPage },
-      { id: "booking", icon: "calendar", tint: "primary", title: "Calendar", detail: "A cabin booking", page: BookingPage },
+      { id: "files", icon: "folder", tint: "primary", title: "Tree", detail: "A project's files", page: FilesPage },
+      { id: "booking", icon: "calendar", tint: "destructive", title: "Calendar", detail: "A cabin booking", page: BookingPage },
       { id: "photos", icon: "photo", tint: "warning", title: "Carousel", detail: "A trip's photo album", page: PhotosPage },
       { id: "notifications", icon: "bell", tint: "destructive", title: "Settings", detail: "Notification preferences", page: NotificationsPage },
     ],
@@ -60,6 +65,7 @@ const SECTIONS = [
     header: "Feedback",
     pages: [
       { id: "overlays", icon: "layers", tint: "primary", title: "Overlays", detail: "Sheet, dialog, toast and alert", page: OverlaysPage },
+      { id: "status", icon: "status", tint: "warning", title: "Status", detail: "Order banners, badges and empty states", page: StatusPage },
     ],
   },
 ];

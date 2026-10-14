@@ -76,7 +76,7 @@ fn kind_of(desc: &Desc) -> Kind {
         ElementKind::Segmented => Kind::Segmented,
         ElementKind::DatePicker => Kind::DatePicker,
         ElementKind::Select => Kind::Select,
-        ElementKind::Shape => Kind::Shape,
+        ElementKind::Shape { .. } => Kind::Shape,
         ElementKind::List(_) => Kind::List,
         ElementKind::ListRow(_) => Kind::ListRow,
         ElementKind::HostComponent(name) => Kind::Host(name.clone()),
@@ -125,7 +125,7 @@ fn native_type(desc: &Desc) -> Option<ViewType> {
         ElementKind::Segmented => ViewType::Segmented,
         ElementKind::DatePicker => ViewType::DatePicker,
         ElementKind::Select => ViewType::Select,
-        ElementKind::Shape => ViewType::Shape,
+        ElementKind::Shape { .. } => ViewType::Shape,
         ElementKind::List(_) => ViewType::List,
         ElementKind::ListRow(_) => ViewType::ListRow,
         ElementKind::HostComponent(_) => ViewType::HostComponent,
@@ -923,6 +923,27 @@ impl Tree {
             }
         }
         self.apply_props(b, id, props, mask);
+        // A laid-out stretched shape whose path changed is redrawn at its current size;
+        // a new one, or one whose size changes, is drawn when layout emits its frame.
+        if matches!(desc.kind, ElementKind::Shape { stretch: true }) {
+            if let Some(n) = self.nodes.get(&id).filter(|n| n.frame.is_some()) {
+                let (w, h) = (n.abs.width, n.abs.height);
+                self.stretch_to(b, id, w, h);
+            }
+        }
+    }
+
+    /// Sends a stretched shape its path and view box for a `w` × `h` frame.
+    pub(crate) fn stretch_to(&mut self, b: &mut Batch, id: u32, w: f32, h: f32) {
+        let Some(n) = self.nodes.get(&id) else {
+            return;
+        };
+        let (path, view_box) = match crate::stretch::stretched_props(&n.src_props, w, h) {
+            Some((p, v)) => (p, v),
+            None => (PropValue::Null, PropValue::Null),
+        };
+        self.set_layout_prop(b, id, Prop::PathData, path);
+        self.set_layout_prop(b, id, Prop::ViewBox, view_box);
     }
 
     /// Removes a subtree. With `emit`, sends `Delete` for its topmost native views (the

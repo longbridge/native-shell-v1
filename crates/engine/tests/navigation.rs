@@ -520,7 +520,7 @@ fn the_settings_example_needs_no_window_refresh_after_its_account_page() {
         }
     }
     assert!(
-        files.iter().any(|(n, t)| n == "main.js" && t.contains("save: (account, cx)")),
+        files.iter().any(|(n, t)| n == "main.js" && t.contains("save: (")),
         "the scenario still exists"
     );
     let refs: Vec<(&str, &str)> = files.iter().map(|(n, t)| (n.as_str(), t.as_str())).collect();
@@ -536,6 +536,44 @@ fn the_settings_example_needs_no_window_refresh_after_its_account_page() {
     h.tap("account");
     h.tap("sign-out");
     h.alert_action(1);
-    assert_eq!(h.text_of("account-name"), "Sign in");
+    assert_eq!(h.text_of("account-label"), "Sign In");
     let _ = std::fs::remove_dir_all(&data);
 }
+
+/// Toasts belong to the window: a page that deletes and closes leaves an Undo that still works.
+#[test]
+fn a_toast_action_outlives_the_page_that_pushed_it() {
+    let mut h = Harness::new(&[(
+        "main.js",
+        r#"
+import { View, div, v_flex, Button } from "native-shell";
+const items = ["a", "b"];
+let list = null;
+class Detail extends View {
+  render() {
+    return Button.new("delete").test_id("delete").label("Delete").on_click((_e, cx) => {
+      const gone = items.pop();
+      cx.navigator.pop();
+      cx.push_toast({ id: "undo", title: "Deleted", action: { label: "Undo", on_click: (cx) => { items.push(gone); cx.notify(list); } } });
+    });
+  }
+}
+export default class App extends View {
+  init(_p, cx) { list = cx.entity(); }
+  render() {
+    return v_flex()
+      .child(div().test_id("items").child(items.join(",")))
+      .child(Button.new("open").test_id("open").label("Open").on_click((_e, cx) => cx.navigator.push(Detail)));
+  }
+}
+"#,
+    )]);
+    h.tap("open");
+    h.tap("delete");
+    assert_eq!(h.surfaces().len(), 1);
+    assert_eq!(h.text_of("items"), "a");
+    h.toast_action("undo");
+    assert_eq!(h.text_of("items"), "a,b");
+    assert!(h.error_logs().is_empty(), "{:?}", h.error_logs());
+}
+

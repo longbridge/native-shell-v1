@@ -4,11 +4,12 @@
 //! The names are gpui-shell's (18 roles) with three status pairs added for
 //! toasts, badges and validation (`success`, `warning`, `info`) and
 //! `grouped_background`, the page behind inset grouped lists (whose cells are
-//! `surface`). The default
+//! `surface`), and gpui-component's `chart_1`…`chart_5` series colors. The default
 //! values are not gpui-shell's neutral desktop palette: native-shell's visual
 //! language is iOS, so the defaults are the iOS system colors (system blue
 //! tint, label / secondary label, grouped backgrounds, separators, system
-//! red / green / orange) in their light and dark variants. A program that
+//! red / green / orange, and blue, green, orange, purple and teal for chart
+//! series) in their light and dark variants. A program that
 //! sets its own tokens with `set_theme` gets exactly what it asked for.
 //!
 //! Colors are resolved to ARGB in Rust when a style is interned, so a theme
@@ -18,7 +19,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-pub const COLOR_TOKENS: [&str; 25] = [
+pub const COLOR_TOKENS: [&str; 30] = [
     "background",
     "foreground",
     "surface",
@@ -44,6 +45,11 @@ pub const COLOR_TOKENS: [&str; 25] = [
     "info",
     "info_foreground",
     "grouped_background",
+    "chart_1",
+    "chart_2",
+    "chart_3",
+    "chart_4",
+    "chart_5",
 ];
 
 // iOS system colors. Translucent iOS colors (secondary label, fills,
@@ -51,7 +57,7 @@ pub const COLOR_TOKENS: [&str; 25] = [
 // tokens are also used as text and border colors where blending would differ
 // per platform. `accent`, `ring` and `selection` stay translucent: they are
 // tints laid over content.
-const LIGHT: [&str; 25] = [
+const LIGHT: [&str; 30] = [
     "#ffffff",   // background: systemBackground
     "#000000",   // foreground: label
     "#ffffff",   // surface: secondarySystemGroupedBackground (cells, cards)
@@ -77,8 +83,13 @@ const LIGHT: [&str; 25] = [
     "#007aff",   // info: systemBlue
     "#ffffff",   // info_foreground
     "#f2f2f7",   // grouped_background: systemGroupedBackground, behind inset lists
+    "#007aff",   // chart_1: systemBlue
+    "#34c759",   // chart_2: systemGreen
+    "#ff9500",   // chart_3: systemOrange
+    "#af52de",   // chart_4: systemPurple
+    "#30b0c7",   // chart_5: systemTeal
 ];
-const DARK: [&str; 25] = [
+const DARK: [&str; 30] = [
     "#000000",   // background: systemBackground
     "#ffffff",   // foreground: label
     "#1c1c1e",   // surface: secondarySystemGroupedBackground
@@ -104,6 +115,11 @@ const DARK: [&str; 25] = [
     "#0a84ff",   // info: systemBlue
     "#ffffff",   // info_foreground
     "#000000",   // grouped_background: systemGroupedBackground
+    "#0a84ff",   // chart_1: systemBlue
+    "#30d158",   // chart_2: systemGreen
+    "#ff9f0a",   // chart_3: systemOrange
+    "#bf5af2",   // chart_4: systemPurple
+    "#40c8e0",   // chart_5: systemTeal
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -259,6 +275,8 @@ mod tests {
         assert_eq!(dark.colors.len(), COLOR_TOKENS.len());
         assert_eq!(light.color("success"), Some(0xFF34_C759));
         assert_eq!(dark.color("grouped_background"), Some(0xFF00_0000));
+        assert_eq!(light.color("chart_4"), Some(0xFFAF_52DE));
+        assert_eq!(dark.color("chart_5"), Some(0xFF40_C8E0));
         assert_eq!(dark.color("surface"), Some(0xFF1C_1C1E));
         assert_eq!(light.color("rgba(255, 0, 0, 0.5)"), Some(0x80FF_0000));
         assert_eq!(light.color("nope"), None);
