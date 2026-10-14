@@ -41,7 +41,7 @@ public enum Prop: UInt16 {
          textStyle, contentType, placeholderColor, autoCapitalize, contentInsets
     case checked = 70, enabled, checkStyle
     case value = 80, min, max, step, indeterminate
-    case itemCount = 90, rowOffsets, rowIndex, prefetch
+    case itemCount = 90, rowOffsets, rowIndex, prefetch, listAlignment
     case title = 100, canGoBack, navBarHidden, detents, dismissable, alertSpec
     case items = 110, selectedIndex, date, dateMode, menu
     case pathData = 120, fillColor, strokeColor, strokeWidth, viewBox, fillRule

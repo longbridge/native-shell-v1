@@ -26,7 +26,7 @@ has not been built.
 | `Image` | Layer contents with a contents gravity per content mode; ImageIO downsampling |
 | `Shape` | `CAShapeLayer`, round caps and joins |
 | `Scroll` | `NSScrollView` with a flipped document view sized by `ContentSize` |
-| `List` | `NSScrollView` whose document is as tall as `RowOffsets`; rendered rows are placed at their offsets (the core already recycles row nodes as `RangeChange` moves its window) |
+| `List` | `NSScrollView` whose document is as tall as `RowOffsets`; rendered rows are placed at their offsets (the core already recycles row nodes as `RangeChange` moves its window); `ListAlignment` bottom opens at the end and keeps it in view while the user is there |
 | `Switch` | `NSSwitch` |
 | `Checkbox` | `NSButton` checkbox or radio style |
 | `Slider` | `NSSlider` (continuous; changes throttled to 50 ms while dragging, final value on mouse up) |

@@ -125,4 +125,39 @@ final class ListTests: XCTestCase {
         // Range events are throttled to one per 16 ms; the latest always goes out.
         XCTAssertTrue(wait { self.h.events(.rangeChange).last?.payload.int("end") == 20 })
     }
+
+    func testBottomAlignedListOpensAtTheEndAndFollowsIt() {
+        h.apply { b in
+            b.create(1, .list, parent: 0, frame: CGRect(x: 0, y: 0, width: 390, height: 440), props: [
+                (.itemCount, .i32(100)), (.rowOffsets, .f32Array(offsets(100))), (.listAlignment, .i32(1)),
+            ])
+        }
+        let list = h.view(1, as: NSHListView.self)
+        let y = { list.scrollView.contentView.bounds.minY }
+        XCTAssertEqual(y(), 4400 - 440, "opens at its end")
+        XCTAssertEqual(h.events(.rangeChange).first?.payload.int("end"), 100, "the first range covers the last rows")
+        // A row arrives while the user is at the end: the end stays in view.
+        h.apply { b in
+            b.prop(1, .itemCount, .i32(101))
+            b.prop(1, .rowOffsets, .f32Array(offsets(101)))
+        }
+        XCTAssertEqual(y(), 4444 - 440)
+        // The viewport shrinks (a panel opens below): still pinned.
+        h.apply { $0.frame(1, CGRect(x: 0, y: 0, width: 390, height: 300)) }
+        XCTAssertEqual(y(), 4444 - 300)
+        // Scrolled away, the position is kept as for any list.
+        list.scroll(toY: 1000, animated: false)
+        h.apply { b in
+            b.prop(1, .itemCount, .i32(102))
+            b.prop(1, .rowOffsets, .f32Array(offsets(102)))
+        }
+        XCTAssertEqual(y(), 1000)
+        // A top-aligned list opens at the top.
+        h.apply { b in
+            b.create(2, .list, parent: 0, frame: CGRect(x: 0, y: 0, width: 390, height: 440), props: [
+                (.itemCount, .i32(100)), (.rowOffsets, .f32Array(offsets(100))),
+            ])
+        }
+        XCTAssertEqual(h.view(2, as: NSHListView.self).scrollView.contentView.bounds.minY, 0)
+    }
 }

@@ -36,6 +36,10 @@ final class NSHListView: NSHComponentView {
     let offsets = RowOffsets()
     private(set) var itemCount = 0
     private var prefetch = 0
+    /// GPUI's `ListAlignment::Bottom`: open at the end and keep the end in view while the user is there.
+    private(set) var bottomAligned = false
+    /// Whether the end was in view before the current change (rows added, viewport resized).
+    private var pinnedToEnd = true
     private(set) var reportedRange: (first: Int, last: Int)?
     private var needsPlacement = false
     private var lastRangeEvent: TimeInterval = 0
@@ -59,8 +63,10 @@ final class NSHListView: NSHComponentView {
     override func layout() {
         super.layout()
         if scrollView.frame != bounds {
+            let pinned = bottomAligned && isAtEnd
             scrollView.frame = bounds
             placeRows()
+            if pinned { scrollToEnd() }
             reportRange()
         }
     }
@@ -74,6 +80,8 @@ final class NSHListView: NSHComponentView {
     func rowIndexChanged(_ row: NSHListRowView) { setNeedsPlacement() }
 
     func setNeedsPlacement() {
+        // Remember where the user was before this batch changes the geometry.
+        if !needsPlacement { pinnedToEnd = isAtEnd }
         needsPlacement = true
         context?.needsBatchEnd(self)
     }
@@ -87,6 +95,8 @@ final class NSHListView: NSHComponentView {
             offsets.offsets = (value.floats ?? []).map { CGFloat($0) }
         case .prefetch:
             prefetch = max(0, value.int ?? 0)
+        case .listAlignment:
+            bottomAligned = value.int == 1
         case .showsIndicators:
             scrollView.hasVerticalScroller = value.bool ?? true
         default:
@@ -100,7 +110,18 @@ final class NSHListView: NSHComponentView {
         guard needsPlacement else { return }
         needsPlacement = false
         placeRows()
+        if bottomAligned, pinnedToEnd { scrollToEnd() }
         reportRange()
+    }
+
+    /// Within a few points of the last row (an empty or unscrolled list counts).
+    private var isAtEnd: Bool {
+        let clip = scrollView.contentView.bounds
+        return clip.maxY >= document.frame.height - 4 || document.frame.height <= clip.height
+    }
+
+    private func scrollToEnd() {
+        scroll(toY: offsets.total - scrollView.contentView.bounds.height, animated: false)
     }
 
     /// Sizes the document and puts every rendered row at its offset.
@@ -200,6 +221,7 @@ final class NSHListView: NSHComponentView {
     override func resetForReuse() {
         super.resetForReuse()
         reportedRange = nil
+        pinnedToEnd = true
         scroll(toY: 0, animated: false)
     }
 }
