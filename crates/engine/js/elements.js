@@ -556,9 +556,41 @@ export function shape(path, opts = {}) {
     if (opts.fit !== "contain" && opts.fit !== "fill") {
       throw new TypeError(`shape(): fit must be "contain" or "fill", got ${JSON.stringify(opts.fit)}`);
     }
-    if (opts.fit === "fill") el._stretch = true;
+    if (opts.fit === "fill") {
+      checkStretchable(String(path));
+      el._stretch = true;
+    }
   }
   return el;
+}
+
+/**
+ * A path the tree can stretch: every SVG command scales per axis exactly
+ * except an arc whose ellipse is rotated (it would need re-fitting), so those
+ * are refused here rather than drawn wrong.
+ */
+function checkStretchable(path) {
+  const tokens = path.match(/[A-Za-z]|[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/g) ?? [];
+  const rest = path.replace(/[A-Za-z]|[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?|[\s,]/g, "");
+  if (rest !== "") throw new TypeError(`shape(): cannot read the path near ${JSON.stringify(rest.slice(0, 12))}`);
+  let command = "";
+  let arg = 0;
+  for (const token of tokens) {
+    if (/[A-Za-z]/.test(token)) {
+      if (!"MmLlHhVvCcSsQqTtAaZz".includes(token)) throw new TypeError(`shape(): unknown path command \`${token}\``);
+      command = token;
+      arg = 0;
+      continue;
+    }
+    if (command === "A" || command === "a") {
+      if (arg % 7 === 2 && Number(token) % 180 !== 0) {
+        throw new TypeError(
+          `shape(): a rotated arc (\`${command}\` with rotation ${token}) cannot stretch with fit: "fill"; draw it with curves (C) or leave the shape at fit: "contain"`,
+        );
+      }
+    }
+    arg++;
+  }
 }
 
 class ListElement extends Element {

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+<defs>
+<radialGradient id="backdrop" cx="0.5" cy="0.4" r="0.75">
+<stop offset="0" stop-color="#f8f4ee"/><stop offset="1" stop-color="#e8e0d4"/></radialGradient>
+<linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#3a2f22" stop-opacity="0"/><stop offset="1" stop-color="#3a2f22" stop-opacity="0.05"/></linearGradient>
+<filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="12"/></filter>
+<filter id="blur-s" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
+</defs>
+<rect width="600" height="600" fill="url(#backdrop)"/>
+<rect y="360" width="600" height="240" fill="url(#floor)"/>
+<g transform="translate(-45 -45) scale(1.15)">
+<defs>
+<linearGradient id="brass" x1="0" y1="285" x2="0" y2="315" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#7d5f20"/><stop offset="0.3" stop-color="#f6e09b"/>
+<stop offset="0.6" stop-color="#c9a14a"/><stop offset="1" stop-color="#7d5f20"/></linearGradient>
+<pattern id="knurl" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+<path d="M0 0.6 H6 M0.6 0 V6" stroke="#7d5f20" stroke-opacity="0.75" stroke-width="1.2"/></pattern>
+</defs>
+<g transform="translate(0 22) rotate(-34 300 300)">
+<rect x="78" y="290" width="452" height="20" rx="10" fill="#3a2f22" opacity="0.22" filter="url(#blur)"/>
+<rect x="110" y="294" width="400" height="12" rx="6" fill="#3a2f22" opacity="0.2" filter="url(#blur-s)"/>
+</g>
+<g transform="rotate(-34 300 300)">
+<path d="M72 300 L78 297 L78 303 Z" fill="#2e2a24"/>
+<path d="M78 296.5 L118 287 L118 313 L78 303.5 Z" fill="url(#brass)"/>
+<rect x="116" y="286" width="96" height="28" rx="2" fill="url(#brass)"/>
+<rect x="116" y="286" width="96" height="28" rx="2" fill="url(#knurl)"/>
+<rect x="210" y="285" width="8" height="30" fill="#7d5f20"/>
+<rect x="216" y="285" width="300" height="30" rx="3" fill="url(#brass)"/>
+<path d="M514 285 Q532 285 532 300 Q532 315 514 315 Z" fill="url(#brass)"/>
+<path d="M420 285 V315" stroke="#7d5f20" stroke-width="1.6" opacity="0.8"/>
+<rect x="430" y="279" width="92" height="10" rx="5" fill="url(#brass)"/>
+<path d="M340 282 L436 279 L436 289 L340 286 Z" fill="#c9a14a"/>
+<path d="M342 283 L436 281" stroke="#f6e09b" stroke-width="1.4"/>
+<rect x="220" y="291" width="290" height="4" rx="2" fill="#ffffff" opacity="0.45"/>
+</g>
+</g>
+</svg>
