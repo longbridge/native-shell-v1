@@ -182,6 +182,16 @@ impl SurfaceView {
         instance.dispatch_event(node, event, payload_json, seq);
     }
 
+    /// The system back action, for hosts with a back control of their own:
+    /// closes the top sheet or dialog if it is dismissable, else pops the top
+    /// page, or sends it `BackPressed` when it cannot go back. Escape, Alt+Left
+    /// and the mouse back button do the same inside the surface. `false` when
+    /// there was nothing to go back from.
+    pub fn go_back(&self) -> bool {
+        let presenter = self.imp().manager.borrow().as_ref().and_then(|m| m.shared().overlays.presenter());
+        presenter.is_some_and(|p| p.go_back())
+    }
+
     /// The Environment the surface currently reports.
     pub fn environment(&self) -> Environment {
         // Fractional scales (125 %…) are only known to the realized surface.

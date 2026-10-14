@@ -215,7 +215,7 @@ fn pages_push_pop_and_user_back() {
         assert_eq!(rig.surfaces().len(), 2);
 
         // The user goes back: the renderer pops and reports Dismiss; the core follows.
-        pages::perform_back(&rig.presenter());
+        assert!(pages::perform_back(&rig.presenter()));
         rig.pump();
         assert_eq!(rig.nav_titles(), ["Home"]);
         assert_eq!(rig.surfaces().len(), 1);
@@ -233,7 +233,7 @@ fn a_page_that_cannot_go_back_gets_back_pressed() {
         let page = rig.presenter().nav.visible_page().expect("a page");
         assert!(!page.can_pop(), "gestures and shortcuts are off");
 
-        pages::perform_back(&rig.presenter());
+        assert!(pages::perform_back(&rig.presenter()));
         rig.pump();
         assert_eq!(rig.nav_titles(), ["Home", "Detail 1"], "the page stays");
         assert_eq!(rig.h.text_of("detail"), "detail 1 n=100", "the page's back handler ran");

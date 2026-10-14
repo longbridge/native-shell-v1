@@ -186,6 +186,24 @@ impl Presenter {
         }
     }
 
+    /// System back: the top sheet or dialog first, then the top page.
+    pub(crate) fn go_back(&self) -> bool {
+        let top_modal = {
+            let surfaces = self.surfaces.borrow();
+            self.order.borrow().iter().rev().find_map(|v| match surfaces.get(v) {
+                Some(Surface::Modal(m)) if m.is_open() => Some(m.clone()),
+                _ => None,
+            })
+        };
+        match top_modal {
+            Some(modal) => {
+                modal.back();
+                true
+            }
+            None => pages::perform_back(self),
+        }
+    }
+
     /// The batch is complete: bring the navigation stack and the modals in line.
     fn batch_applied(self: &Rc<Self>) {
         if self.pages_changed.replace(false) {

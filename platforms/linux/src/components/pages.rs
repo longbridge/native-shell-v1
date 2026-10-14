@@ -251,10 +251,10 @@ pub(crate) fn back_refused(presenter: &Presenter) -> bool {
     }
 }
 
-/// System back on the top page, as the input handlers above would do it.
-#[cfg(test)]
-pub(crate) fn perform_back(presenter: &Presenter) {
-    if !back_refused(presenter) && stack(&presenter.nav).len() > 1 {
-        presenter.nav.pop();
+/// System back on the top page; `false` when only the root content is shown.
+pub(crate) fn perform_back(presenter: &Presenter) -> bool {
+    if back_refused(presenter) {
+        return true;
     }
+    stack(&presenter.nav).len() > 1 && presenter.nav.pop()
 }

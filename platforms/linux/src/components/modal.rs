@@ -149,6 +149,23 @@ impl ModalState {
         }
     }
 
+    /// On screen and not leaving.
+    pub fn is_open(&self) -> bool {
+        !self.closing.get() && (self.alert.borrow().is_some() || self.host.borrow().is_some())
+    }
+
+    /// System back: an alert answers as Escape would, a sheet or dialog
+    /// closes when it is dismissable.
+    pub fn back(&self) {
+        let alert = self.alert.borrow().clone();
+        match alert {
+            Some(alert) => {
+                alert.close();
+            }
+            None => self.user_dismiss(),
+        }
+    }
+
     /// The user asked to close it (Escape, backdrop, drag down).
     fn user_dismiss(&self) {
         if !self.dismissable.get() || self.closing.get() {
@@ -382,7 +399,17 @@ mod imp {
                         snapshot.append_border(&rounded, &[1.0, 0.0, 0.0, 0.0], &[rgba(edge); 4]);
                     }
                 }
-                ModalKind::Dialog => obj.snapshot_child(&state.view, snapshot),
+                ModalKind::Dialog => {
+                    obj.snapshot_child(&state.view, snapshot);
+                    // As for sheets: the card's edge on a dimmed dark page. The
+                    // card is the dialog's content view, which has the corners.
+                    let card = state.view.first_child().and_downcast::<NodeView>().unwrap_or_else(|| state.view.clone());
+                    if let (Some(edge), Some(bounds)) = (state.dark_edge_color(), card.compute_bounds(&*obj)) {
+                        let c = rgba(edge);
+                        let c = gtk::gdk::RGBA::new(c.red(), c.green(), c.blue(), c.alpha() * shown);
+                        snapshot.append_border(&rounded_rect(bounds, card.style().radii), &[1.0; 4], &[c; 4]);
+                    }
+                }
             }
         }
     }

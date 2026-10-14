@@ -66,6 +66,10 @@ impl MountingManager {
         }
     }
 
+    pub fn shared(&self) -> &Rc<Shared> {
+        &self.shared
+    }
+
     pub fn seq(&self) -> u32 {
         self.seq
     }
