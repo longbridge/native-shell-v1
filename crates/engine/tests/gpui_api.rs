@@ -1,7 +1,7 @@
 //! gpui-shell's script surface, as gpui-shell programs use it.
 
 use native_shell::core::host::{HostMethod, HostModuleDescriptor, HostRegistry, MethodKind};
-use native_shell::core::protocol::{Command, Prop, PropValue, ViewType, ROOT_NODE};
+use native_shell::core::protocol::{Command, EventType, Prop, PropValue, ViewType, ROOT_NODE};
 use native_shell::testing::Harness;
 
 fn app(main: &str) -> Harness {
@@ -245,4 +245,26 @@ export default class S extends View { render() { return null; } }"#,
     )]);
     let e = h.load_error().expect("a name from gpui-shell does not link").to_string();
     assert!(e.contains("View"), "{e}");
+}
+
+#[test]
+fn clicks_carry_the_modifiers_a_pointer_platform_reports() {
+    let mut h = app(r#"
+import { View, div } from "gpui-kit";
+export default class M extends View {
+  init() { this.seen = ""; }
+  render() {
+    return div().test_id("t").child(this.seen).on_click((e, cx) => {
+      const m = e.modifiers;
+      this.seen = `${e.click_count} ${m.shift} ${m.control} ${m.alt} ${m.platform} ${m.function}`;
+      cx.notify();
+    });
+  }
+}
+"#);
+    let node = h.find("t").unwrap();
+    h.dispatch(node, EventType::Click, r#"{"x":1,"y":1,"count":2,"modifiers":{"shift":true,"cmd":true}}"#);
+    assert_eq!(h.text_of("t"), "2 true false false true false");
+    h.dispatch(node, EventType::Click, r#"{"x":1,"y":1,"count":1}"#);
+    assert_eq!(h.text_of("t"), "1 false false false false false", "a touch reports none held");
 }

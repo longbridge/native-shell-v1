@@ -141,7 +141,7 @@ The script's props object, verbatim.
 
 | Event | Payload |
 | --- | --- |
-| `Click` | `{"x": 10, "y": 20, "count": 1}` (point in the view) |
+| `Click` | `{"x": 10, "y": 20, "count": 1, "modifiers"?: {"shift", "ctrl", "alt", "cmd"}}` (point in the view; `modifiers` from pointer platforms, absent = none held) |
 | `DoubleClick`, `LongPress`, `PressIn`, `PressOut` | `{"x", "y"}` |
 | `Change` (TextInput) | `{"text", "selection": [start, end], "composing": false, "count": 4}` |
 | `Change` (Switch, Checkbox) | `{"checked": true}` |

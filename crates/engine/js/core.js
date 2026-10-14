@@ -536,13 +536,18 @@ export function keystrokeOf(e) {
 }
 
 /** gpui's `KeyEvent` from a renderer Key payload. */
+/** The renderer's `{shift, ctrl, alt, cmd}` as gpui's `Modifiers`; absent keys are up. */
+function modifiersOf(m) {
+  if (!m) return NO_MODIFIERS;
+  return { shift: !!m.shift, control: !!m.ctrl, alt: !!m.alt, platform: !!m.cmd, function: false };
+}
+
 export function keyEvent(e) {
-  const m = e?.modifiers ?? {};
   return {
     key: String(e?.key ?? "").toLowerCase(),
     keystroke: keystrokeOf(e),
     key_char: e?.key_char ?? undefined,
-    modifiers: { shift: !!m.shift, control: !!m.ctrl, alt: !!m.alt, platform: !!m.cmd, function: false },
+    modifiers: modifiersOf(e?.modifiers),
   };
 }
 
@@ -1211,7 +1216,7 @@ export const engine = {
     // gpui-shell's ClickEvent, plus the touch point.
     const arg =
       event === "click"
-        ? { click_count: payload?.count ?? 1, modifiers: NO_MODIFIERS, x: payload?.x ?? 0, y: payload?.y ?? 0 }
+        ? { click_count: payload?.count ?? 1, modifiers: modifiersOf(payload?.modifiers), x: payload?.x ?? 0, y: payload?.y ?? 0 }
         : event === "key"
           ? { ...keyEvent(payload), phase: payload?.phase ?? "down" }
           : payload;
