@@ -86,9 +86,14 @@ fn scroll_to() {
     let vadj = scrolled(&f, "scroller").vadjustment();
     vadj.set_value(7.0);
     f.wait_for("y-7");
-    // Animated with a spring; on a frame clock Broadway throttles, it may take a second or two.
-    let done = pump_until(Duration::from_secs(5), || vadj.value() == 500.0);
+    // A spring: it passes through offsets between start and target, and settles within a second.
+    let mut seen = Vec::new();
+    let done = pump_until(Duration::from_secs(1), || {
+        seen.push(vadj.value());
+        vadj.value() == 500.0
+    });
     assert!(done, "scrolled to the end of the content (500), at {}", vadj.value());
+    assert!(seen.iter().any(|y| *y > 7.0 && *y < 500.0), "animated: {seen:?}");
     f.wait_for("y-500");
 }
 
@@ -125,7 +130,7 @@ fn pull_to_refresh() {
     // A second pull while refreshing is not another refresh.
     window.emit_by_name::<()>("edge-overshot", &[&gtk::PositionType::Top]);
     f.wait_for("refreshes-1");
-    assert!(pump_until(Duration::from_secs(5), || {
+    assert!(pump_until(Duration::from_secs(2), || {
         f.settle();
         !revealer.reveals_child()
     }));
@@ -163,7 +168,7 @@ fn scroll_to_item() {
     let vadj = scrolled(&f, "items").vadjustment();
     f.tap("jump");
     let target = 900.0 * 50.0 - (vadj.page_size() - 50.0) / 2.0;
-    let done = pump_until(Duration::from_secs(5), || vadj.value() == target);
+    let done = pump_until(Duration::from_secs(1), || vadj.value() == target);
     assert!(done, "row 900 centered: {} != {target}", vadj.value());
     f.wait_for("row-900");
 }
@@ -203,8 +208,7 @@ fn rows(content: &gtk::Widget) -> usize {
 fn chat_opens_at_the_newest_message() {
     let f = Fixture::open_dir("../../examples/chat");
     let vadj = scrolled(&f, "messages").vadjustment();
-    // scroll_to_item animates; on Broadway's throttled frame clock that takes a few seconds.
-    let at_end = pump_until(Duration::from_secs(10), || {
+    let at_end = pump_until(Duration::from_secs(2), || {
         f.settle();
         vadj.value() > 0.0 && vadj.value() == vadj.upper() - vadj.page_size()
     });
