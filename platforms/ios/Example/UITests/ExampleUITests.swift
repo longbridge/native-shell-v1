@@ -151,6 +151,8 @@ final class ExampleUITests: XCTestCase {
             wait(app, "actions")
             snap("chat-actions")
             tap(app, "action-copy")
+            // The "Copied" toast sits over the composer until it times out.
+            sleep(2)
             let field = wait(app, "draft")
             field.tap()
             field.typeText("Great, see you at the station")
