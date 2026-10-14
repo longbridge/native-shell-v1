@@ -50,6 +50,44 @@ jobs:
             cargo run -q -p native-shell-cli -- check "$d" "${registry[@]}"
           done
 
+  linux:
+    name: Linux (GTK 4 renderer)
+    runs-on: ubuntu-latest
+    # The renderer needs GTK 4.18 and libadwaita 1.7, newer than the runner's own.
+    container: ubuntu:26.04
+    env:
+      GDK_BACKEND: broadway
+      BROADWAY_DISPLAY: ":5"
+    steps:
+      - name: Install GTK, libadwaita, Broadway and fonts
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates curl git build-essential pkg-config \
+            libgtk-4-dev libgtk-4-bin libadwaita-1-dev adwaita-icon-theme \
+            fonts-noto-core fonts-noto-cjk fonts-noto-color-emoji
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: platforms/linux
+      - name: Start a headless Broadway display
+        run: |
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/xdg"
+          mkdir -p -m 700 "$XDG_RUNTIME_DIR"
+          echo "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" >> "$GITHUB_ENV"
+          echo "TMPDIR=$RUNNER_TEMP" >> "$GITHUB_ENV"
+          nohup gtk4-broadwayd :5 > "$RUNNER_TEMP/broadwayd.log" 2>&1 &
+          for _ in $(seq 50); do [ -S "$XDG_RUNTIME_DIR/broadway6.socket" ] && break; sleep 0.1; done
+      - name: Test
+        working-directory: platforms/linux
+        run: cargo test
+      - name: Clippy
+        working-directory: platforms/linux
+        run: cargo clippy --all-targets -- -D warnings
+
   ios:
     name: iOS (xcframework + XCTest)
     runs-on: macos-15
