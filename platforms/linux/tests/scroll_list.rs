@@ -14,9 +14,11 @@ fn main() -> ExitCode {
         ("scroll content follows the core's content size", content_size),
         ("scrolling reports scroll events", scroll_events),
         ("scroll_to scrolls to the clamped target", scroll_to),
+        ("a mouse wheel scrolls a horizontal scroller sideways", sideways_wheel),
         ("pull to refresh shows the spinner until the script ends it", pull_to_refresh),
         ("lists render the visible range plus prefetch", list_range),
         ("scroll_to_item positions the row", scroll_to_item),
+        ("chat opens at the newest message", chat_opens_at_the_newest_message),
     ])
 }
 
@@ -47,16 +49,16 @@ export default class App extends View {
   }
 }"#;
 
-const LIST: &str = r#"
+const LIST: &str = r##"
 import { View, div, v_flex, list } from "native-shell";
 export default class App extends View {
   render(cx) {
     return v_flex().size_full()
       .child(div().test_id("jump").h(44).on_click((_e, cx) => cx.scroll_to_item("items", 900, "center")))
-      .child(list("items", 1000, (i) => `k${i}`, (i) => div().h(50).test_id(`row-${i}`))
+      .child(list("items", 1000, (i) => `k${i}`, (i) => div().h(50).px(16).justify_center().border_b_1().border_color("#e5e5ea").test_id(`row-${i}`).child(`Row ${i}`))
         .test_id("items").flex_1().estimated_row_height(50));
   }
-}"#;
+}"##;
 
 fn content_size() {
     let f = Fixture::new(SCROLL);
@@ -90,6 +92,29 @@ fn scroll_to() {
     f.wait_for("y-500");
 }
 
+fn sideways_wheel() {
+    let f = Fixture::new(
+        r#"
+import { View, div, h_flex, v_flex } from "native-shell";
+export default class App extends View {
+  render() {
+    return v_flex().size_full().child(h_flex().test_id("strip").overflow_x_scroll().h(100)
+      .children([0, 1, 2, 3, 4].map((i) => div().flex_none().w(200).h(100))));
+  }
+}"#,
+    );
+    let window = scrolled(&f, "strip");
+    assert_eq!(window.hadjustment().upper(), 1000.0);
+    let controllers = window.observe_controllers();
+    let wheel = (0..controllers.n_items())
+        .filter_map(|i| controllers.item(i).and_downcast::<gtk::EventControllerScroll>())
+        .find(|c| c.flags() == gtk::EventControllerScrollFlags::VERTICAL)
+        .expect("the sideways wheel controller");
+    wheel.emit_by_name::<bool>("scroll", &[&0.0f64, &1.0f64]);
+    assert!(window.hadjustment().value() > 0.0, "one notch down scrolled right");
+    assert_eq!(window.vadjustment().value(), 0.0);
+}
+
 fn pull_to_refresh() {
     let f = Fixture::new(SCROLL);
     let window = scrolled(&f, "scroller");
@@ -120,6 +145,10 @@ fn list_range() {
     assert_eq!(rows(&content), visible + 10, "visible rows plus the default prefetch");
 
     vadj.set_value(400.0 * 50.0);
+    // Before the core answers the new range, visible rows are placeholders.
+    f.layout();
+    assert!(f.find("row-400").is_none());
+    f.screenshot("target/agents/linux-scroll/list-placeholders.png");
     f.wait_for("row-400");
     assert!(f.find("row-0").is_none() && f.find("row-389").is_none() && f.find("row-390").is_some());
     assert_eq!(rows(&content), visible + 20);
@@ -168,4 +197,19 @@ fn rows(content: &gtk::Widget) -> usize {
         child = c.next_sibling();
     }
     n
+}
+
+/// The chat example opens at its newest message, in both appearances.
+fn chat_opens_at_the_newest_message() {
+    let f = Fixture::open_dir("../../examples/chat");
+    let vadj = scrolled(&f, "messages").vadjustment();
+    // scroll_to_item animates; on Broadway's throttled frame clock that takes a few seconds.
+    let at_end = pump_until(Duration::from_secs(10), || {
+        f.settle();
+        vadj.value() > 0.0 && vadj.value() == vadj.upper() - vadj.page_size()
+    });
+    assert!(at_end, "at {} of {} - {}", vadj.value(), vadj.upper(), vadj.page_size());
+    f.screenshot("screenshots/chat-light.png");
+    f.set_dark(true);
+    f.screenshot("screenshots/chat-dark.png");
 }

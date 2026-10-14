@@ -260,7 +260,7 @@ pub struct Scroll {
     /// Holds the children; sized to `ContentSize`.
     content: NodeView,
     refresh: Rc<Refresh>,
-    horizontal: bool,
+    horizontal: Rc<Cell<bool>>,
     indicators: bool,
     content_size: (f64, f64),
     viewport: (f64, f64),
@@ -276,7 +276,6 @@ impl Scroll {
         spinner.set_size_request(24, 24);
         spinner.set_halign(gtk::Align::Center);
         spinner.set_valign(gtk::Align::Center);
-        spinner.add_css_class("dimmed");
         let band = gtk::Box::new(gtk::Orientation::Vertical, 0);
         band.set_size_request(-1, REFRESH_BAND);
         band.append(&spinner);
@@ -318,11 +317,14 @@ impl Scroll {
         keys.add_shortcut(gtk::Shortcut::new(trigger, Some(action)));
         container.add_controller(keys);
 
+        let horizontal = Rc::new(Cell::new(false));
+        scroller.window.add_controller(sideways_wheel(&scroller.window, horizontal.clone()));
+
         let mut scroll = Scroll {
             scroller,
             content,
             refresh,
-            horizontal: false,
+            horizontal,
             indicators: true,
             content_size: (0.0, 0.0),
             viewport: (0.0, 0.0),
@@ -338,6 +340,26 @@ impl Scroll {
     }
 }
 
+/// A mouse wheel only turns vertically: on a horizontal scroller with nothing
+/// to scroll vertically it scrolls sideways (touchpads scroll sideways anyway).
+fn sideways_wheel(window: &gtk::ScrolledWindow, horizontal: Rc<Cell<bool>>) -> gtk::EventControllerScroll {
+    let wheel = gtk::EventControllerScroll::new(gtk::EventControllerScrollFlags::VERTICAL);
+    wheel.set_propagation_phase(gtk::PropagationPhase::Capture);
+    let window = window.downgrade();
+    wheel.connect_scroll(move |c, _dx, dy| {
+        let Some(window) = window.upgrade() else { return glib::Propagation::Proceed };
+        let v = window.vadjustment();
+        if !horizontal.get() || c.unit() != gdk::ScrollUnit::Wheel || v.upper() > v.page_size() {
+            return glib::Propagation::Proceed;
+        }
+        let h = window.hadjustment();
+        // GTK's own step for one wheel notch.
+        h.set_value(h.value() + dy * h.page_size().powf(2.0 / 3.0));
+        glib::Propagation::Stop
+    });
+    wheel
+}
+
 impl Component for Scroll {
     fn set_prop(&mut self, _cx: &NodeCx, prop: Prop, value: &PropValue) -> bool {
         match prop {
@@ -350,9 +372,9 @@ impl Component for Scroll {
                 self.content.set_size_request(size.0.ceil() as i32, size.1.ceil() as i32);
             }
             Prop::Horizontal => {
-                self.horizontal = bool_prop(value, false);
+                self.horizontal.set(bool_prop(value, false));
                 // Pull to refresh only belongs to a vertical scroller.
-                if self.horizontal && self.refresh.refreshing.get() {
+                if self.horizontal.get() && self.refresh.refreshing.get() {
                     self.refresh.show(false);
                 }
             }
@@ -362,13 +384,13 @@ impl Component for Scroll {
             }
             Prop::RefreshEnabled => {
                 let on = bool_prop(value, false);
-                self.refresh.enabled.set(on && !self.horizontal);
+                self.refresh.enabled.set(on && !self.horizontal.get());
                 if !on {
                     self.refresh.show(false);
                 }
             }
             Prop::Refreshing => {
-                let on = bool_prop(value, false) && !self.horizontal;
+                let on = bool_prop(value, false) && !self.horizontal.get();
                 if on != self.refresh.refreshing.get() {
                     self.refresh.show(on);
                 }
