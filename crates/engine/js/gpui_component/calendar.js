@@ -65,6 +65,7 @@ class CalendarStateObject {
     this._year = y;
     this._month = m;
     this._disabled = null;
+    this._marker = null;
     this._listeners = [];
     this._owner = scope.owner;
     this._shownBy = null;
@@ -125,6 +126,18 @@ class CalendarStateObject {
     this._changed();
   }
 
+  /**
+   * Mobile: a dot under a day's number, `(date) => null | "default" | "tinted"`:
+   * "default" in the secondary color (say, a day with events), "tinted" in the
+   * tint (the reader's own plans). `null` clears it.
+   */
+  set_marker_matcher(matcher) {
+    this.#live("state.set_marker_matcher(matcher)");
+    if (matcher !== null && typeof matcher !== "function") throw new TypeError("state.set_marker_matcher(matcher) expects a function or null");
+    this._marker = matcher;
+    this._changed();
+  }
+
   on(event, fn) {
     this.#live("state.on(event, fn)");
     if (event !== "change") throw new TypeError(`CalendarState.on(): unknown event ${JSON.stringify(event)}; use "change"`);
@@ -142,6 +155,13 @@ class CalendarStateObject {
 
   _isDisabled(date) {
     return this._disabled !== null && !!this._disabled(date);
+  }
+
+  _markerOf(date) {
+    const m = this._marker === null ? null : this._marker(date);
+    if (m === null || m === undefined || m === false) return null;
+    if (m !== "default" && m !== "tinted") throw new TypeError(`set_marker_matcher: answer null, "default" or "tinted", got ${JSON.stringify(m)}`);
+    return m;
   }
 
   /** A tap on a day: single mode selects it; range mode starts a range, then ends it (or restarts it before the start). */
@@ -172,7 +192,9 @@ export function CalendarState() {
 CalendarState.new = CalendarState;
 
 const CELL_KEY = chainKey([["relative"], ["flex"], ["items_center"], ["justify_center"], ["w", `${100 / 7}%`], ["min_h", "2.75rem"]]);
-const DISC_KEY = chainKey([["flex"], ["items_center"], ["justify_center"], ["size", "2.5rem"], ["rounded_full"]]);
+// The disc keeps to its column at large text sizes: 40 pt, or the column's width if that is less.
+const DISC_KEY = chainKey([["relative"], ["flex"], ["items_center"], ["justify_center"], ["w_full"], ["max_w", "2.5rem"], ["aspect_ratio", 1], ["rounded_full"]]);
+const DOT_KEY = chainKey([["absolute"], ["bottom", "12%"], ["left", "50%"], ["ml", -3], ["size", 6], ["rounded_full"]]);
 const NAV_KEY = chainKey([["flex"], ["items_center"], ["justify_center"], ["size", "2.75rem"], ["rounded_full"], ["@active", [["bg", "muted"]]]]);
 
 /**
@@ -192,8 +214,16 @@ export class Calendar extends Element {
     state._shownBy = scope.owner;
     this._months = 1;
     this._firstDay = firstDayOfWeek(windowInfo().locale);
+    this._tid = null;
     this._preset([["flex"], ["flex_col"], ["gap_4"]]);
     this._sync();
+  }
+
+  /** Mobile: the parts get ids too, `<id>-YYYY-MM-DD` for each day and `<id>-prev` / `<id>-next` for the month buttons. */
+  test_id(id) {
+    this._tid = String(id);
+    super.test_id(id);
+    return this._sync();
   }
 
   number_of_months(count) {
@@ -228,11 +258,12 @@ export class Calendar extends Element {
       .when(first, (el) =>
         el.child(
           h_flex()
-            .child(this._nav("previous", "Previous month", "icons/chevron-left.svg", -1))
+            .child(this._nav("prev", "Previous month", "icons/chevron-left.svg", -1))
             .child(this._nav("next", "Next month", "icons/chevron-right.svg", 1)),
         ),
       );
     const days = Array.from({ length: 7 }, (_, i) => (this._firstDay + i) % 7);
+    const narrow = windowInfo().font_scale >= 1.5;
     const heads = h_flex().children(
       days.map((d) =>
         div()
@@ -242,7 +273,8 @@ export class Calendar extends Element {
           .font_semibold()
           .text_color("muted_foreground")
           .accessibility_label(WEEKDAYS[d])
-          .child(WEEKDAYS[d].slice(0, 3).toUpperCase()),
+          // At the largest text sizes a column has room for one letter, as iOS's narrow weekday symbols.
+          .child(WEEKDAYS[d].slice(0, narrow ? 1 : 3).toUpperCase()),
       ),
     );
     const lead = (weekday(year, month, 1) - this._firstDay + 7) % 7;
@@ -266,6 +298,7 @@ export class Calendar extends Element {
       ._preset(NAV_KEY)
       .role("button")
       .accessibility_label(label)
+      .when(this._tid !== null, (el) => el.test_id(`${this._tid}-${key}`))
       .child(new IconElement(icon).color("primary"))
       .on_click((_e, cx) => {
         this._cal._shift(step);
@@ -285,17 +318,19 @@ export class Calendar extends Element {
     const disc = isStart || isEnd;
     const today = date === s._today;
     const disabled = s._isDisabled(date);
+    const marker = s._markerOf(date);
     // The range's band runs behind the discs, from the middle of its first day to the middle of its last.
     if (complete && (inside || isStart || isEnd)) {
       const band = div().absolute().top(4).bottom(4).bg("accent");
       cell.child(isStart ? band.left("50%").right_0() : isEnd ? band.left_0().right("50%") : band.left_0().right_0());
     }
-    const label = `${WEEKDAYS[weekday(year, month, day)]}, ${MONTHS[month - 1]} ${day}, ${year}${today ? ", today" : ""}`;
+    const label = `${WEEKDAYS[weekday(year, month, day)]}, ${MONTHS[month - 1]} ${day}, ${year}${today ? ", today" : ""}${marker ? ", has events" : ""}`;
     cell
       .key(date)
       .role("button")
       .accessibility_label(label)
       .selected(disc || inside)
+      .when(this._tid !== null, (el) => el.test_id(`${this._tid}-${date}`))
       .child(
         div()
           ._preset(DISC_KEY)
@@ -308,6 +343,9 @@ export class Calendar extends Element {
               .when(disc || today, (el) => el.font_semibold())
               .when(disabled, (el) => el.opacity(0.5))
               .child(String(day)),
+          )
+          .when(marker !== null, (el) =>
+            el.child(div()._preset(DOT_KEY).bg(disc ? "primary_foreground" : marker === "tinted" ? "primary" : "muted_foreground")),
           ),
       );
     if (disabled) return cell.disabled(true);
