@@ -235,9 +235,11 @@ impl Text {
             return;
         }
         let theme = cx.shared.theme.borrow();
-        // Without the token (an older core), a light wash of the tint.
-        let color = theme.color("selection").or_else(|| theme.color("primary").map(|c| (c & 0x00ff_ffff) | 0x4000_0000));
-        let color = color.unwrap_or(0x400a_84ff);
+        // Before tokens arrive, the platform default, as TextInput does.
+        let color = theme.color("selection").or_else(|| {
+            native_shell_core::theme::Theme::default_for(theme.appearance).colors.get("selection").copied()
+        });
+        let color = color.unwrap_or(0x3300_7aff);
         let a = f32::from((color >> 24) as u8) / 255.0;
         let rule = format!(
             "label.nsh-text > selection {{ background-color: rgba({},{},{},{a:.3}); }}",
@@ -289,9 +291,12 @@ impl Component for Text {
         self.mask.set(mask);
     }
 
+    fn theme_changed(&mut self, cx: &NodeCx) {
+        self.sync_selection_color(cx);
+    }
+
     fn batch_applied(&mut self, cx: &NodeCx) {
         self.sync_a11y_label(cx.view);
-        self.sync_selection_color(cx);
     }
 }
 

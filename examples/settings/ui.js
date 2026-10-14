@@ -7,6 +7,7 @@
 // values appear only for platform geometry: safe areas and the keyboard.
 
 import { div, h_flex, v_flex, shape, Button } from "native-shell";
+/** @import { ClickEvent, Color, Context, Element } from "native-shell" */
 
 /** Outline icons on a 24-unit grid, drawn with a 2-unit round stroke. */
 const ICONS = {
@@ -25,7 +26,7 @@ const ICONS = {
   alert: "M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0ZM12 8v4M12 16h.01",
 };
 
-/** @param {keyof typeof ICONS} name @param {string} color */
+/** @param {keyof typeof ICONS} name @param {Color} color */
 export function icon(name, color, size = 20) {
   return shape(ICONS[name], { view_box: [0, 0, 24, 24] })
     .stroke(color, 2)
@@ -56,6 +57,8 @@ export function largeTitle(cx, title) {
  * A pushed page's bar, drawn the way each platform draws its own: iOS centers
  * the title and labels the back button with the previous page; Android leads
  * with an arrow and the title.
+ * @param {Context} cx
+ * @param {{ title: string, back: { label: string, on_click: (e: ClickEvent, cx: Context) => void }, trailing?: Element }} opts
  */
 export function navBar(cx, { title, back, trailing }) {
   const t = cx.theme();
@@ -103,7 +106,11 @@ export function navBar(cx, { title, back, trailing }) {
     );
 }
 
-/** A labeled group of rows: hairline-bordered, rows divided at the text column. */
+/**
+ * A labeled group of rows: hairline-bordered, rows divided at the text column.
+ * @param {Context} cx
+ * @param {{ title?: string, footer?: string, rows: (Element | null)[], id?: string }} opts
+ */
 export function section(cx, { title, footer, rows, id }) {
   const t = cx.theme();
   const items = rows.filter(Boolean);
@@ -126,6 +133,8 @@ export function section(cx, { title, footer, rows, id }) {
 /**
  * One settings row: an icon in a fixed lane, the label, then a trailing value
  * or control. Pass `on_click` to make the whole row pressable.
+ * @param {Context} cx
+ * @param {{ id: string, icon?: keyof typeof ICONS, label: string, detail?: string, value?: string, trailing?: Element, on_click?: (e: ClickEvent, cx: Context) => void, chevron?: boolean, disabled?: boolean }} opts
  */
 export function row(cx, { id, icon: name, label, detail, value, trailing, on_click, chevron, disabled }) {
   const t = cx.theme();
@@ -174,19 +183,21 @@ export function avatar(cx, name, size = 48) {
     .slice(0, 2)
     .map((w) => w[0].toUpperCase())
     .join("");
-  return div()
-    .flex_none()
-    // The initials scale with the user's text size, so the circle does too.
-    .size(size * Math.min(cx.window().font_scale, 2))
-    .rounded_full()
-    .bg(t.primary)
-    .flex()
-    .items_center()
-    .justify_center()
-    .text_color(t.primary_foreground)
-    .font_semibold()
-    .text_lg()
-    .child(initials);
+  return (
+    div()
+      .flex_none()
+      // The initials scale with the user's text size, so the circle does too.
+      .size(size * Math.min(cx.window().font_scale, 2))
+      .rounded_full()
+      .bg(t.primary)
+      .flex()
+      .items_center()
+      .justify_center()
+      .text_color(t.primary_foreground)
+      .font_semibold()
+      .text_lg()
+      .child(initials)
+  );
 }
 
 /**

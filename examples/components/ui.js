@@ -9,6 +9,7 @@
 // the keyboard.
 
 import { div, h_flex, v_flex, shape, Button, Input, Spinner } from "native-shell";
+/** @import { ClickEvent, Color, Context, Element } from "native-shell" */
 
 /** Outline icons on a 24-unit grid, drawn with a 2-unit round stroke. */
 const ICONS = {
@@ -34,7 +35,7 @@ const ICONS = {
   check: "M20 6 9 17l-5-5",
 };
 
-/** @param {keyof typeof ICONS} name @param {string} color */
+/** @param {keyof typeof ICONS} name @param {Color} color */
 export function icon(name, color, size = 20) {
   return shape(ICONS[name], { view_box: [0, 0, 24, 24] })
     .stroke(color, 2)
@@ -67,6 +68,8 @@ export function largeTitle(cx, title, subtitle) {
  * A pushed page's bar, drawn the way each platform draws its own: iOS centers
  * the title and labels the back button with the previous page; Android leads
  * with an arrow and the title.
+ * @param {Context} cx
+ * @param {{ title: string, back: { label: string, on_click: (e: ClickEvent, cx: Context) => void }, trailing?: Element }} opts
  */
 function navBar(cx, { title, back, trailing }) {
   const t = cx.theme();
@@ -117,6 +120,8 @@ function navBar(cx, { title, back, trailing }) {
 /**
  * A pushed page: its bar, then content that scrolls under it and clears the
  * home indicator and the keyboard. `intro` says what the scenario is.
+ * @param {Context} cx
+ * @param {{ title: string, intro?: string, children: (Element | null)[], footer?: Element }} opts
  */
 export function page(cx, { title, intro, children, footer }) {
   const t = cx.theme();
@@ -170,7 +175,11 @@ export function card(cx) {
   return v_flex().rounded_xl().border_1().border_color(t.border).bg(t.surface).overflow_hidden();
 }
 
-/** A labeled group of rows: hairline-bordered, rows divided at the text column. */
+/**
+ * A labeled group of rows: hairline-bordered, rows divided at the text column.
+ * @param {Context} cx
+ * @param {{ title?: string, footer?: string, rows: (Element | null)[], id?: string }} opts
+ */
 export function section(cx, { title, footer, rows, id }) {
   const t = cx.theme();
   const items = rows.filter(Boolean);
@@ -185,7 +194,11 @@ export function section(cx, { title, footer, rows, id }) {
     .when(Boolean(footer), (el) => el.child(div().px_4().text_sm().text_color(t.muted_foreground).child(footer)));
 }
 
-/** One row: an optional icon in a fixed lane, the label and detail, then a trailing value or control. */
+/**
+ * One row: an optional icon in a fixed lane, the label and detail, then a trailing value or control.
+ * @param {Context} cx
+ * @param {{ id: string, icon?: keyof typeof ICONS, label: string, detail?: string, trailing?: Element, on_click?: (e: ClickEvent, cx: Context) => void, chevron?: boolean, disabled?: boolean }} opts
+ */
 export function row(cx, { id, icon: name, label, detail, trailing, on_click, chevron, disabled }) {
   const t = cx.theme();
   const body = h_flex()
@@ -224,6 +237,10 @@ export function row(cx, { id, icon: name, label, detail, trailing, on_click, che
  * for a destructive commit); this only sets the 44 pt height and body text.
  * `danger` colors a quieter button's label for an action that destroys data
  * but still asks first.
+ * @param {Context} cx
+ * @param {string} id
+ * @param {string} label
+ * @param {{ variant?: "primary" | "secondary" | "outline" | "ghost" | "destructive", danger?: boolean, disabled?: boolean, loading?: boolean, icon?: keyof typeof ICONS, on_click?: (e: ClickEvent, cx: Context) => void, full?: boolean }} [opts]
  */
 export function button(
   cx,
@@ -259,7 +276,11 @@ export function button(
     .when(!disabled && !loading && Boolean(on_click), (el) => el.on_click(on_click));
 }
 
-/** A labeled text field with optional help and an error that replaces it. */
+/**
+ * A labeled text field with optional help and an error that replaces it.
+ * @param {Context} cx
+ * @param {{ id: string, label: string, state?: import("native-shell").InputState, help?: string, error?: string | null, multiline?: boolean, input?: Element }} opts
+ */
 export function field(cx, { id, label, state, help, error, multiline = false, input }) {
   const t = cx.theme();
   const control = (input ?? Input.new(state))

@@ -12,6 +12,7 @@ fn main() -> ExitCode {
         ("drawn text fits its measured frames", drawn_text_fits_its_measured_frames),
         ("a link tap reaches the script", a_link_tap_reaches_the_script),
         ("selectable text is a label wrapped like the measurement", selectable_text_is_a_label_wrapped_like_the_measurement),
+        ("the selection color follows the theme alone", the_selection_color_follows_the_theme_alone),
         ("text follows the desktop text size", text_follows_the_desktop_text_size),
         ("text screenshots", text_screenshots),
     ])
@@ -151,19 +152,44 @@ export default class App extends View {
     assert_eq!(copied.ok().flatten().as_deref(), Some("Refunds"));
 }
 
-/// Pixels of a rendering clearly bluer than gray (the selection wash; text
-/// is neutral), and the most common of them.
+/// Tinted pixels of a rendering (the selection wash) and the most common of them.
 fn tinted_pixels(widget: &gtk::Widget) -> (usize, [u8; 4]) {
     let texture = render(widget);
     let mut downloader = gtk::gdk::TextureDownloader::new(&texture);
     downloader.set_format(gtk::gdk::MemoryFormat::R8g8b8a8);
     let (bytes, _) = downloader.download_bytes();
     let mut counts = std::collections::HashMap::<[u8; 4], usize>::new();
-    for p in bytes.chunks(4).filter(|p| p[3] > 20 && i32::from(p[2]) - i32::from(p[0]) > 20) {
+    // Saturated pixels: text is neutral, the wash is a tint.
+    let saturated = |p: &[u8]| p[..3].iter().max().unwrap_or(&0) - p[..3].iter().min().unwrap_or(&0) > 40;
+    for p in bytes.chunks(4).filter(|p| p[3] > 20 && saturated(p)) {
         *counts.entry([p[0], p[1], p[2], p[3]]).or_default() += 1;
     }
     let common = counts.iter().max_by_key(|(_, n)| **n).map_or([0; 4], |(c, _)| *c);
     (counts.values().sum(), common)
+}
+
+fn the_selection_color_follows_the_theme_alone() {
+    // Changing only `selection` re-sends no prop of the text node.
+    let f = Fixture::new(
+        r##"
+import { View, div, v_flex, set_theme } from "native-shell";
+import { TextView } from "gpui-base";
+export default class App extends View {
+  render(cx) {
+    return v_flex().size_full().p_4()
+      .child(div().test_id("tint").h(44).on_click(() => set_theme({ tokens: { selection: "#ff000040" } })))
+      .child(TextView.markdown("quote", "Ships within two business days.").selectable(true));
+  }
+}"##,
+    );
+    let label = f.find_where(|w| w.is::<gtk::Label>()).and_downcast::<gtk::Label>().expect("a selectable label");
+    label.select_region(0, -1);
+    let (_, before) = tinted_pixels(label.upcast_ref());
+    assert!(before[2] > 200 && before[0] < 30, "the default blue wash: {before:?}");
+    f.tap("tint");
+    let (_, after) = tinted_pixels(label.upcast_ref());
+    let expected = [255u8, 0, 0, 64];
+    assert!(after.iter().zip(expected).all(|(a, b)| a.abs_diff(b) <= 3), "the new wash: {after:?}");
 }
 
 fn text_follows_the_desktop_text_size() {
