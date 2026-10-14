@@ -2,7 +2,9 @@
 //! radius scales.
 //!
 //! The names are gpui-shell's (18 roles) with three status pairs added for
-//! toasts, badges and validation (`success`, `warning`, `info`). The default
+//! toasts, badges and validation (`success`, `warning`, `info`) and
+//! `grouped_background`, the page behind inset grouped lists (whose cells are
+//! `surface`). The default
 //! values are not gpui-shell's neutral desktop palette: native-shell's visual
 //! language is iOS, so the defaults are the iOS system colors (system blue
 //! tint, label / secondary label, grouped backgrounds, separators, system
@@ -16,7 +18,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-pub const COLOR_TOKENS: [&str; 24] = [
+pub const COLOR_TOKENS: [&str; 25] = [
     "background",
     "foreground",
     "surface",
@@ -41,6 +43,7 @@ pub const COLOR_TOKENS: [&str; 24] = [
     "warning_foreground",
     "info",
     "info_foreground",
+    "grouped_background",
 ];
 
 // iOS system colors. Translucent iOS colors (secondary label, fills,
@@ -48,7 +51,7 @@ pub const COLOR_TOKENS: [&str; 24] = [
 // tokens are also used as text and border colors where blending would differ
 // per platform. `accent`, `ring` and `selection` stay translucent: they are
 // tints laid over content.
-const LIGHT: [&str; 24] = [
+const LIGHT: [&str; 25] = [
     "#ffffff",   // background: systemBackground
     "#000000",   // foreground: label
     "#ffffff",   // surface: secondarySystemGroupedBackground (cells, cards)
@@ -73,8 +76,9 @@ const LIGHT: [&str; 24] = [
     "#000000",   // warning_foreground: white on orange fails contrast
     "#007aff",   // info: systemBlue
     "#ffffff",   // info_foreground
+    "#f2f2f7",   // grouped_background: systemGroupedBackground, behind inset lists
 ];
-const DARK: [&str; 24] = [
+const DARK: [&str; 25] = [
     "#000000",   // background: systemBackground
     "#ffffff",   // foreground: label
     "#1c1c1e",   // surface: secondarySystemGroupedBackground
@@ -99,6 +103,7 @@ const DARK: [&str; 24] = [
     "#000000",   // warning_foreground
     "#0a84ff",   // info: systemBlue
     "#ffffff",   // info_foreground
+    "#000000",   // grouped_background: systemGroupedBackground
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -253,6 +258,8 @@ mod tests {
         assert_eq!(light.colors.len(), COLOR_TOKENS.len());
         assert_eq!(dark.colors.len(), COLOR_TOKENS.len());
         assert_eq!(light.color("success"), Some(0xFF34_C759));
+        assert_eq!(dark.color("grouped_background"), Some(0xFF00_0000));
+        assert_eq!(dark.color("surface"), Some(0xFF1C_1C1E));
         assert_eq!(light.color("rgba(255, 0, 0, 0.5)"), Some(0x80FF_0000));
         assert_eq!(light.color("nope"), None);
     }
