@@ -13,8 +13,6 @@ import android.view.View
 import android.view.accessibility.AccessibilityEvent
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.core.content.ContextCompat
-import dev.nativeshell.R
 import dev.nativeshell.NativeShell
 
 /**
@@ -116,9 +114,9 @@ internal class ToastStack(context: Context) : LinearLayout(context) {
         }
         val iconColor = when (t.level) {
             "error" -> c.destructive
-            "success" -> ContextCompat.getColor(context, R.color.nsh_status_success)
-            "warning" -> ContextCompat.getColor(context, R.color.nsh_status_warning)
-            else -> ContextCompat.getColor(context, R.color.nsh_status_info)
+            "success" -> c.success
+            "warning" -> c.warning
+            else -> c.info
         }
         val iconSize = (20 * dp).toInt()
         box.addView(StatusIcon(context, t.level, iconColor), LayoutParams(iconSize, iconSize).apply {

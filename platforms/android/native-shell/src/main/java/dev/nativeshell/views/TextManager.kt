@@ -59,6 +59,13 @@ internal class ShellTextView(context: Context) : ViewGroup(context), LinkTarget,
         }
     var onLink: ((String) -> Unit)? = null
 
+    /** Highlight of selected text (the `selection` token). */
+    var selectionHighlight: Int = 0x33007AFF
+        set(value) {
+            field = value
+            textView?.highlightColor = value
+        }
+
     private var textView: AppCompatTextView? = null
     private var pressedLink: LinkSpan? = null
 
@@ -96,6 +103,7 @@ internal class ShellTextView(context: Context) : ViewGroup(context), LinkTarget,
             if (a.justify && Build.VERSION.SDK_INT >= 26) tv.justificationMode = Layout.JUSTIFICATION_MODE_INTER_WORD
             tv.maxLines = if (a.maxLines > 0) a.maxLines else Int.MAX_VALUE
             tv.ellipsize = if (a.ellipsize) TextUtils.TruncateAt.END else null
+            tv.highlightColor = selectionHighlight
             tv.setTextIsSelectable(true)
             tv.text = a.text
             tv.visibility = VISIBLE

@@ -61,7 +61,7 @@ class ToastDesignTest : ActivityTest() {
         val card = onMain { stack.getChildAt(0) }
         val d = onMain { card.resources.displayMetrics.density }
         val fill = bmp.getPixel(card.left + card.width - (8 * d).toInt(), card.top + card.height / 2)
-        assertEquals(Integer.toHexString(if (dark) 0xFF0A0A0A.toInt() else 0xFFFFFFFF.toInt()), Integer.toHexString(fill))
+        assertEquals(Integer.toHexString(if (dark) 0xFF000000.toInt() else 0xFFFFFFFF.toInt()), Integer.toHexString(fill))
         onMain { h.batch { command(0, Command.DISMISS_TOAST, "{}") } }
         return bmp
     }

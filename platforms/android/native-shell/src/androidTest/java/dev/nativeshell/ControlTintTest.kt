@@ -34,7 +34,7 @@ class ControlTintTest : ActivityTest() {
     private fun near(a: Int, b: Int) = Math.abs(Color.red(a) - Color.red(b)) < 12 &&
         Math.abs(Color.green(a) - Color.green(b)) < 12 && Math.abs(Color.blue(a) - Color.blue(b)) < 12
 
-    /** The most common opaque, non-background color of a bitmap region: the track. */
+    /** The most common opaque color of a bitmap region that is not the background: the track. */
     private fun trackColor(b: Bitmap, background: Int): Int {
         val counts = HashMap<Int, Int>()
         for (y in b.height / 3 until b.height * 2 / 3) for (x in 0 until b.width / 2) {

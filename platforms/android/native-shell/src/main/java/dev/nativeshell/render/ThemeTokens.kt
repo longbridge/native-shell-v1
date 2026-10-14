@@ -3,23 +3,53 @@ package dev.nativeshell.render
 import android.content.Context
 import android.content.res.Configuration
 import dev.nativeshell.NativeShell
+import dev.nativeshell.util.Json
 
 /**
- * The shell color tokens native chrome (toasts, picker fields) draws with: the
- * app's theme provider when set, else the defaults of crates/core/src/theme.rs.
+ * The shell color tokens native chrome (control tints, toasts, picker fields,
+ * sheet and dialog backgrounds, text selection) draws with: the core's
+ * `ThemeTokens` prop once it arrived, else the app's theme provider, else the
+ * defaults of crates/core/src/theme.rs. Unknown keys are ignored.
  */
-internal class ThemeTokens(
-    val background: Int,
-    val foreground: Int,
-    val muted: Int,
-    val mutedForeground: Int,
-    val border: Int,
-    val destructive: Int,
-    val primary: Int,
-    val primaryForeground: Int,
-    val dark: Boolean = false,
-) {
+internal class ThemeTokens(private val colors: Map<String, Int>, val dark: Boolean) {
+    private fun c(name: String): Int = colors[name] ?: defaults(dark).getValue(name)
+
+    val background get() = c("background")
+    val foreground get() = c("foreground")
+    val muted get() = c("muted")
+    val mutedForeground get() = c("muted_foreground")
+    val border get() = c("border")
+    val destructive get() = c("destructive")
+    val primary get() = c("primary")
+    val primaryForeground get() = c("primary_foreground")
+    val selection get() = c("selection")
+    val success get() = c("success")
+    val warning get() = c("warning")
+    val info get() = c("info")
+
     companion object {
+        /** crates/core/src/theme.rs (iOS system colors), as `#rrggbb[aa]`. */
+        private val LIGHT = mapOf(
+            "background" to "#ffffff", "foreground" to "#000000", "surface" to "#ffffff", "surface_foreground" to "#000000",
+            "primary" to "#007aff", "primary_foreground" to "#ffffff", "secondary" to "#e5e5ea", "secondary_foreground" to "#000000",
+            "muted" to "#f2f2f7", "muted_foreground" to "#8a8a8e", "accent" to "#007aff1f", "accent_foreground" to "#007aff",
+            "destructive" to "#ff3b30", "destructive_foreground" to "#ffffff", "border" to "#c6c6c8", "input" to "#d1d1d6",
+            "ring" to "#007aff80", "selection" to "#007aff33", "success" to "#34c759", "success_foreground" to "#ffffff",
+            "warning" to "#ff9500", "warning_foreground" to "#000000", "info" to "#007aff", "info_foreground" to "#ffffff",
+        )
+        private val DARK = mapOf(
+            "background" to "#000000", "foreground" to "#ffffff", "surface" to "#1c1c1e", "surface_foreground" to "#ffffff",
+            "primary" to "#0a84ff", "primary_foreground" to "#ffffff", "secondary" to "#2c2c2e", "secondary_foreground" to "#ffffff",
+            "muted" to "#1c1c1e", "muted_foreground" to "#8d8d93", "accent" to "#0a84ff2e", "accent_foreground" to "#0a84ff",
+            "destructive" to "#ff453a", "destructive_foreground" to "#ffffff", "border" to "#38383a", "input" to "#3a3a3c",
+            "ring" to "#0a84ff80", "selection" to "#0a84ff40", "success" to "#30d158", "success_foreground" to "#000000",
+            "warning" to "#ff9f0a", "warning_foreground" to "#000000", "info" to "#0a84ff", "info_foreground" to "#ffffff",
+        )
+        private val parsedLight = LIGHT.mapValues { Json.parseHex(it.value)!! }
+        private val parsedDark = DARK.mapValues { Json.parseHex(it.value)!! }
+
+        private fun defaults(dark: Boolean) = if (dark) parsedDark else parsedLight
+
         fun isDark(context: Context) =
             context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
 
@@ -40,28 +70,15 @@ internal class ThemeTokens(
 
         /** The `ThemeTokens` prop JSON; missing tokens fall back to the defaults of its appearance. */
         fun parse(json: String?): ThemeTokens? {
-            val o = dev.nativeshell.util.Json.obj(json) ?: return null
-            val d = of(dev.nativeshell.util.Json.string(o, "appearance") == "dark")
-            fun c(k: String, def: Int) = dev.nativeshell.util.Json.color(o, k, def)
-            return ThemeTokens(
-                c("background", d.background), c("foreground", d.foreground), c("muted", d.muted),
-                c("muted_foreground", d.mutedForeground), c("border", d.border), c("destructive", d.destructive),
-                c("primary", d.primary), c("primary_foreground", d.primaryForeground), dark = d.dark,
-            )
+            val o = Json.obj(json) ?: return null
+            val dark = Json.string(o, "appearance") == "dark"
+            val colors = HashMap<String, Int>()
+            for (k in o.keys()) Json.colorOf(o.opt(k))?.let { if (k != "appearance") colors[k] = it }
+            return ThemeTokens(colors, dark)
         }
 
-        fun of(dark: Boolean): ThemeTokens {
-            val t = NativeShell.themeProvider?.colors(dark).orEmpty()
-            return if (dark) ThemeTokens(
-                t["background"] ?: 0xFF0A0A0A.toInt(), t["foreground"] ?: 0xFFFAFAFA.toInt(), t["muted"] ?: 0xFF262626.toInt(),
-                t["muted_foreground"] ?: 0xFFA3A3A3.toInt(), t["border"] ?: 0xFF262626.toInt(), t["destructive"] ?: 0xFFF87171.toInt(),
-                t["primary"] ?: 0xFFFAFAFA.toInt(), t["primary_foreground"] ?: 0xFF171717.toInt(), dark = true,
-            ) else ThemeTokens(
-                t["background"] ?: 0xFFFFFFFF.toInt(), t["foreground"] ?: 0xFF0A0A0A.toInt(), t["muted"] ?: 0xFFF5F5F5.toInt(),
-                t["muted_foreground"] ?: 0xFF737373.toInt(), t["border"] ?: 0xFFE5E5E5.toInt(), t["destructive"] ?: 0xFFEF4444.toInt(),
-                t["primary"] ?: 0xFF171717.toInt(), t["primary_foreground"] ?: 0xFFFAFAFA.toInt(),
-            )
-        }
+        /** Before the core's tokens arrive: the app's theme provider over the defaults. */
+        fun of(dark: Boolean): ThemeTokens = ThemeTokens(NativeShell.themeProvider?.colors(dark).orEmpty(), dark)
     }
 }
 

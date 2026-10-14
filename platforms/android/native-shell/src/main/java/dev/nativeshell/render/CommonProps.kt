@@ -66,6 +66,20 @@ internal object CommonProps {
                 TouchHandler.sync(node, host)
                 return true
             }
+            Prop.HOVER_OPACITY -> {
+                node.hoverOpacity = if (v.isNull) Float.NaN else v.number().coerceIn(0f, 1f)
+                Pointer.syncHover(node, host)
+                Pointer.applyFeedback(node)
+                return true
+            }
+            Prop.HOVER_BACKGROUND -> {
+                node.hoverBackground = if (v.kind == ValueKind.COLOR) v.int else null
+                Pointer.syncHover(node, host)
+                Pointer.applyFeedback(node)
+                return true
+            }
+            Prop.CURSOR -> { Pointer.setCursor(view, if (v.isNull) null else v.intValue()); return true }
+            Prop.TOOLTIP -> { Pointer.setTooltip(view, if (v.isNull) null else v.string); return true }
             Prop.HIT_SLOP -> {
                 val a = v.floats
                 view.setTag(R.id.nsh_hit_slop, if (a != null && a.size >= 4) IntArray(4) { (a[it] * d).roundToInt().coerceAtLeast(0) } else null)

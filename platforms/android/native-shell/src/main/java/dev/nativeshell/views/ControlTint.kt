@@ -48,6 +48,9 @@ internal object ControlTint {
                 view.haloTintList = ColorStateList.valueOf((accent and 0x00FFFFFF) or 0x33000000)
                 view.tickTintList = ColorStateList.valueOf(t.mutedForeground)
             }
+            // Text selection highlight (fields and selectable text).
+            is android.widget.EditText -> view.highlightColor = t.selection
+            is ShellTextView -> view.selectionHighlight = t.selection
             is BaseProgressIndicator<*> -> {
                 view.setIndicatorColor(accent)
                 view.trackColor = t.muted
@@ -64,5 +67,5 @@ internal object ControlTint {
 
     /** View types [apply] knows. */
     fun handles(view: View) = view is MaterialSwitch || view is CheckContainer || view is Slider ||
-        view is BaseProgressIndicator<*> || view is MaterialButtonToggleGroup
+        view is BaseProgressIndicator<*> || view is MaterialButtonToggleGroup || view is android.widget.EditText || view is ShellTextView
 }

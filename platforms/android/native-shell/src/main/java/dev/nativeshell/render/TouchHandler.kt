@@ -112,7 +112,8 @@ internal class TouchHandler private constructor(private val node: Node, private 
         ) tapCount + 1 else 1
         lastTapTime = now; lastTapX = ev.x; lastTapY = ev.y
         if (mask and EventMask.CLICK != 0) {
-            send(EventType.CLICK, "{\"x\":${pt(ev.x)},\"y\":${pt(ev.y)},\"count\":$tapCount}")
+            val mods = Pointer.modifiers(ev)?.let { ",\"modifiers\":$it" } ?: ""
+            send(EventType.CLICK, "{\"x\":${pt(ev.x)},\"y\":${pt(ev.y)},\"count\":$tapCount$mods}")
         }
         if (tapCount == 2 && mask and EventMask.DOUBLE_CLICK != 0) {
             send(EventType.DOUBLE_CLICK, point(ev.x, ev.y))
@@ -157,14 +158,8 @@ internal class TouchHandler private constructor(private val node: Node, private 
     private fun setPressed(p: Boolean) {
         if (pressed == p) return
         pressed = p
-        val ao = node.activeOpacity
-        if (!ao.isNaN()) view.alpha = if (p) node.baseAlpha * ao else node.baseAlpha
-        val ab = node.activeBackground
-        if (ab != null) {
-            val box = node.box ?: BoxDrawable().also { node.box = it }
-            box.pressedFill = if (p) ab else null
-            CommonProps.applyBox(node)
-        }
+        node.pressed = p
+        Pointer.applyFeedback(node)
     }
 
     private fun point(x: Float, y: Float) = "{\"x\":${pt(x)},\"y\":${pt(y)}}"

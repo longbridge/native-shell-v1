@@ -41,6 +41,27 @@ internal class ShellListView(context: Context) : RecyclerView(context) {
     private var lastFirst = -1
     private var lastLast = -1
     var onRange: ((first: Int, end: Int) -> Unit)? = null
+
+    /**
+     * GPUI's `ListAlignment::Bottom` (a chat thread): the list opens at its end and,
+     * while the user is at the end, keeps the end in view as rows arrive or the
+     * viewport shrinks (the keyboard). Scrolled away, the position is kept.
+     */
+    var bottomAligned = false
+        set(value) {
+            if (field == value) return
+            field = value
+            lm.stackFromEnd = value
+            pinnedToEnd = value
+            if (value && count > 0) lm.scrollToPositionWithOffset(count - 1, 0)
+        }
+
+    /** The end is in view (bottom-aligned lists only). */
+    private var pinnedToEnd = false
+
+    private fun keepEndInView() {
+        if (bottomAligned && pinnedToEnd && count > 0) lm.scrollToPosition(count - 1)
+    }
     var onScrolled: (() -> Unit)? = null
     private val density = context.resources.displayMetrics.density
     private val lm = LinearLayoutManager(context)
@@ -66,6 +87,9 @@ internal class ShellListView(context: Context) : RecyclerView(context) {
         clipToPadding = false
         addOnScrollListener(object : OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                // Whether the end is in view after any scroll or relayout; appends and
+                // shrinking keep it there (stackFromEnd anchors layout at the end).
+                if (bottomAligned) pinnedToEnd = !canScrollVertically(1)
                 reportRange()
                 onScrolled?.invoke()
             }
@@ -105,10 +129,18 @@ internal class ShellListView(context: Context) : RecyclerView(context) {
         if (n == count) return
         count = n.coerceAtLeast(0)
         cellAdapter.notifyDataSetChanged()
+        keepEndInView()
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        // The viewport shrank (keyboard) or grew: a pinned end stays in view.
+        if (h != oldh) post { keepEndInView() }
     }
 
     fun setOffsets(o: FloatArray?) {
         offsets = o
+        post { keepEndInView() }
         for (i in 0 until childCount) {
             val holder = getChildViewHolder(getChildAt(i)) as Cell
             val pos = holder.bindingAdapterPosition
@@ -178,6 +210,7 @@ internal class ShellListView(context: Context) : RecyclerView(context) {
 
     fun resetForReuse() {
         rows.clear()
+        bottomAligned = false
         offsets = null
         prefetch = 0
         lastFirst = -1
@@ -229,6 +262,7 @@ internal class ListManager : ViewManager(ViewType.LIST) {
             Prop.ROW_OFFSETS -> v.setOffsets(if (value.isNull) null else value.floats)
             Prop.PREFETCH -> { v.prefetch = if (value.isNull) 0 else value.number().roundToInt().coerceIn(0, 1000); v.reportRange() }
             Prop.SHOWS_INDICATORS -> v.isVerticalScrollBarEnabled = value.isNull || value.bool
+            Prop.LIST_ALIGNMENT -> v.bottomAligned = !value.isNull && value.intValue() == 1
             else -> return false
         }
         return true

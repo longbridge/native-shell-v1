@@ -34,6 +34,10 @@ internal class Node(
     @JvmField var animation: AnimationSpec? = null
     @JvmField var activeOpacity = Float.NaN
     @JvmField var activeBackground: Int? = null
+    @JvmField var hoverOpacity = Float.NaN
+    @JvmField var hoverBackground: Int? = null
+    @JvmField var pressed = false
+    @JvmField var hovered = false
     @JvmField var touch: TouchHandler? = null
     @JvmField var a11y: A11yState? = null
     @JvmField var baseAlpha = 1f

@@ -31,8 +31,8 @@ class ThemeTokensTest {
             create(2, ViewType.SELECT); insert(2, 0, 1); frame(2, 0f, 40f, 160f, 40f)
         }
         val sw = h.view(1) as MaterialSwitch
-        // Before the core's tokens arrive: the defaults (light primary #171717).
-        assertEquals(0xFF171717.toInt(), sw.checkedTrack())
+        // Before the core's tokens arrive: the defaults (light primary, iOS systemBlue).
+        assertEquals(0xFF007AFF.toInt(), sw.checkedTrack())
 
         h.batch {
             prop(Protocol.ROOT_NODE, Prop.THEME_TOKENS, PropValue.json(
@@ -49,8 +49,11 @@ class ThemeTokensTest {
         }
         assertEquals(0xFFF5F5F5.toInt(), sw.checkedTrack())
         val dark = ThemeTokens.of(h.view(2).context)
-        assertEquals(0xFF0A0A0A.toInt(), dark.background)
-        assertEquals(0xFF171717.toInt(), dark.primaryForeground)
+        assertEquals(0xFF000000.toInt(), dark.background)
+        assertEquals(0xFFFFFFFF.toInt(), dark.primaryForeground)
+        // New tokens and unknown keys: status colors and selection default per appearance, extra keys ignored.
+        assertEquals(0xFF30D158.toInt(), dark.success)
+        assertEquals(0x400A84FF, dark.selection)
 
         // Controls created afterwards get the current tokens; a new ValueField reads them too.
         h.batch { create(3, ViewType.SWITCH); insert(3, 0, 2); create(4, ViewType.DATE_PICKER); insert(4, 0, 3) }

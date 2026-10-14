@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <color name="nsh_status_info">#8AB4F8</color>
-    <color name="nsh_status_success">#81C995</color>
-    <color name="nsh_status_warning">#FDD663</color>
-</resources>

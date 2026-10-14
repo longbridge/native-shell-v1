@@ -98,6 +98,7 @@ internal class MountingManager(
                 val n = require(m.node) ?: return
                 n.eventMask = m.mask
                 TouchHandler.sync(n, host)
+                Pointer.syncHover(n, host)
                 n.manager.onEventMask(n, host)
             }
             is Mutation.Command -> command(m.node, m.command, m.payload)
@@ -199,6 +200,7 @@ internal class MountingManager(
         if (node.eventMask != 0) {
             node.eventMask = 0
             TouchHandler.sync(node, host)
+            Pointer.syncHover(node, host)
             node.manager.onEventMask(node, host)
         }
         node.manager.onRecycle(node, host)

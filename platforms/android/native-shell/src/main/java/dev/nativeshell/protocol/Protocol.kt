@@ -143,6 +143,8 @@ object Prop {
     const val ROW_OFFSETS = 91
     const val ROW_INDEX = 92
     const val PREFETCH = 93
+    /** I32, GPUI's `ListAlignment`: 0 top, 1 bottom (opens at the end, keeps the end in view). */
+    const val LIST_ALIGNMENT = 94
 
     const val TITLE = 100
     const val CAN_GO_BACK = 101
@@ -177,6 +179,11 @@ object Prop {
     const val ACTIVE_BACKGROUND = 141
     const val HIT_SLOP = 142
     const val FOCUSABLE = 143
+    const val HOVER_OPACITY = 144
+    const val HOVER_BACKGROUND = 145
+    /** I32: GPUI's `CursorStyle`. */
+    const val CURSOR = 146
+    const val TOOLTIP = 147
 
     const val HOST_COMPONENT = 150
     const val HOST_PROPS = 151
@@ -190,8 +197,8 @@ object Prop {
         intArrayOf(
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 20, 21, 22, 30, 31, 32, 40, 41, 42, 43, 44,
             50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 70, 71, 72, 80, 81, 82, 83, 84,
-            90, 91, 92, 93, 100, 101, 102, 103, 104, 105, 110, 111, 112, 113, 114,
-            120, 121, 122, 123, 124, 125, 130, 131, 132, 133, 134, 135, 136, 140, 141, 142, 143, 150, 151, 152,
+            90, 91, 92, 93, 94, 100, 101, 102, 103, 104, 105, 110, 111, 112, 113, 114,
+            120, 121, 122, 123, 124, 125, 130, 131, 132, 133, 134, 135, 136, 140, 141, 142, 143, 144, 145, 146, 147, 150, 151, 152,
         ).forEach { k[it] = true }
     }
 
@@ -256,6 +263,8 @@ object EventMask {
     const val PRESS_IN = 1 shl 15
     const val PRESS_OUT = 1 shl 16
     const val HOST_EVENT = 1 shl 17
+    /** Pointer platforms: entry and exit of the pointer. */
+    const val HOVER = 1 shl 18
 
     /** Bits that need a touch listener on a plain view. */
     const val TOUCH = CLICK or DOUBLE_CLICK or LONG_PRESS or PAN or PINCH or PRESS_IN or PRESS_OUT
@@ -285,4 +294,6 @@ object EventType {
     const val HOST_EVENT = 21
     /** `{id}` on the root: a toast's action button was tapped. */
     const val TOAST_ACTION = 22
+    /** `{entered, x, y}`: the pointer entered or left the node. */
+    const val HOVER = 23
 }
