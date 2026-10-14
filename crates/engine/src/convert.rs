@@ -107,6 +107,7 @@ fn prop_spec(name: &str) -> Option<(Prop, Kind)> {
         "tint" => (Prop::TintColor, Color),
         "refreshing" => (Prop::Refreshing, Bool),
         "refresh_enabled" => (Prop::RefreshEnabled, Bool),
+        "paging" => (Prop::Paging, Bool),
         "host_props" => (Prop::HostProps, Json),
         "selectable" => (Prop::Selectable, Bool),
         _ => return None,
@@ -870,6 +871,11 @@ mod tests {
         assert_eq!(ops[3].nested.as_ref().unwrap().1, vec![StyleOp::new("opacity", vec![Arg::Num(0.5)])]);
         assert_eq!(ops[4].args.len(), 4);
         assert!(parse_chain("junk").is_err());
+    }
+
+    #[test]
+    fn paging_is_a_bool_prop() {
+        assert!(matches!(prop_spec("paging"), Some((Prop::Paging, Kind::Bool))));
     }
 
     #[test]

@@ -176,6 +176,9 @@ closed_enum! {
         ShowsIndicators = 43,
         /// Pull-to-refresh control is attached.
         RefreshEnabled = 44,
+        /// Bool, on a horizontal `Scroll`: it comes to rest on whole pages, a
+        /// page being the viewport's width (UIScrollView's `isPagingEnabled`).
+        Paging = 45,
 
         /// JSON `{text, count}`: controlled value with the event count the script had seen.
         TextValue = 50,

@@ -63,6 +63,16 @@ General rules:
 `{"size": 16, "weight": 400, "color": 4278848010, "family": "Menlo", "align": "left", "line_height": 22.4}`
 with the same rules as a run (`size`, `weight`, `color` always present).
 
+### `Paging` (45), on a horizontal `Scroll`
+
+`true`: the scroll view comes to rest on whole pages, a page being the
+viewport's width, as UIScrollView's `isPagingEnabled`; a fling moves at most
+one page. The content's `Scroll` events report the offset as usual, so the
+page is `round(x / viewport_width)`; `ScrollTo` with `animated` moves to a
+page. Gpui-component's `Carousel` uses it. A renderer that does not page yet
+shows a plain horizontal scroll. The scroll is horizontal only, so it never
+takes vertical drags from the page around it.
+
 ### `Shadow` (6)
 
 `{"color": 436207616, "x": 0, "y": 4, "blur": 6, "spread": 0}` — CSS box-shadow
