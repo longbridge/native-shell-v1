@@ -41,6 +41,8 @@ final class LauncherSplitController: NSSplitViewController {
     required init?(coder: NSCoder) { fatalError("not supported") }
 
     var program: ProgramController? { detail.program }
+    /// The example the detail pane shows.
+    private(set) var current: String?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -62,6 +64,7 @@ final class LauncherSplitController: NSSplitViewController {
 
     private func open(_ name: String) {
         guard let example = Example.all.first(where: { $0.name == name }) else { return }
+        current = name
         view.window?.title = example.title
         detail.show(example, dataRoot: dataRoot, reset: reset)
     }

@@ -170,12 +170,29 @@ final class Automation {
         exit(0)
     }
 
-    /// The window (with its shadow trimmed) as a PNG, through the system screenshot tool.
+    /// This process's window (with its shadow trimmed) as a PNG, through the system
+    /// screenshot tool. Another instance of the app (someone using it) has a window
+    /// of the same size in the same place: before writing anything, the capture
+    /// checks that the window ID belongs to this process and that it shows the
+    /// example the script asked for, and fails the run otherwise.
     private func capture(_ path: String) {
+        let id = CGWindowID(window.windowNumber)
+        let info = (CGWindowListCopyWindowInfo([.optionIncludingWindow], id) as? [[String: Any]])?.first
+        guard (info?[kCGWindowOwnerPID as String] as? Int32) == ProcessInfo.processInfo.processIdentifier else {
+            return Self.fail("window \(id) is not this process's; not capturing \(path)")
+        }
+        if let wanted = AppDelegate.argument("-example"), split.current != wanted {
+            return Self.fail("showing \(split.current ?? "nothing") instead of \(wanted); not capturing \(path)")
+        }
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-        p.arguments = ["-x", "-o", "-l", String(window.windowNumber), path]
+        p.arguments = ["-x", "-o", "-l", String(id), path]
         try? p.run()
         p.waitUntilExit()
+    }
+
+    private static func fail(_ message: String) {
+        FileHandle.standardError.write(Data("capture failed: \(message)\n".utf8))
+        exit(1)
     }
 }
