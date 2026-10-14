@@ -3,7 +3,7 @@
 A personal task list: capture what needs doing, tick it off, fix it later.
 
 ```bash
-nshell check examples/tasks
+native-shell check examples/tasks
 ```
 
 ## Design notes
