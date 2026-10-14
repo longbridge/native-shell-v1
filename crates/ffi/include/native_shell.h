@@ -99,7 +99,8 @@ typedef struct NSHHostCallbacks {
 //   "registry": {"modules": [HostModuleDescriptor…], "components": [HostComponentDescriptor…]},
 //   "environment": Environment,
 //   "trusted_keys": [{"id": "release-2026", "public_key": "<base64 ed25519>"}],
-//   "revoked": ["<bundle sha256 hex>"…]
+//   "revoked": ["<bundle sha256 hex>"…],
+//   "wall_clock": 1791971460000            // optional, tests: Date.now()/new Date() start here (Unix ms)
 // }
 // Returns 0 on failure; nsh_last_error() tells why.
 NSHInstance nsh_instance_create(const NSHHostCallbacks *callbacks, const uint8_t *config_json, size_t len);

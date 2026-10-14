@@ -94,6 +94,10 @@ pub struct InstanceConfig {
     pub dev: bool,
     /// The host's design tokens per appearance, on top of the defaults; `cx.set_theme` applies over them.
     pub theme: Option<ThemeConfig>,
+    /// Pins `Date` for tests and screenshots: `Date.now()` and `new Date()`
+    /// start at this Unix time (ms) and advance with the engine's time, so
+    /// timers and dates agree. `None` reads the system clock.
+    pub wall_clock: Option<f64>,
 }
 
 impl InstanceConfig {
@@ -107,6 +111,7 @@ impl InstanceConfig {
             environment: Environment::default(),
             dev: false,
             theme: None,
+            wall_clock: None,
         }
     }
 }
@@ -287,6 +292,7 @@ impl Instance {
             host_theme,
             Clock::real(),
         )));
+        shared.borrow_mut().wall_clock = config.wall_clock.filter(|t| t.is_finite());
         if let Some(fg) = shared.borrow().theme.color("foreground") {
             tree.set_default_text_color(fg);
         }
