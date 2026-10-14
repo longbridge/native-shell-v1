@@ -8,3 +8,11 @@ rustflags = ["-C", "link-arg=-Wl,-z,max-page-size=16384"]
 
 [target.x86_64-linux-android]
 rustflags = ["-C", "link-arg=-Wl,-z,max-page-size=16384"]
+
+# Shortcuts from the repository root. The Linux (GTK 4) renderer is its own
+# workspace under platforms/linux, so these pass its manifest explicitly.
+[alias]
+linux = "run --manifest-path platforms/linux/Cargo.toml --example launcher --"
+linux-run = "run --manifest-path platforms/linux/Cargo.toml --example run --"
+linux-test = "test --manifest-path platforms/linux/Cargo.toml"
+linux-clippy = "clippy --manifest-path platforms/linux/Cargo.toml --all-targets -- -D warnings"

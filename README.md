@@ -33,6 +33,19 @@ export default class Counter extends View {
   bundles are Ed25519-signed with key rotation and revocation.
 * **Tooling**: `nshell new | check | types | bundle | keygen | verify | dev`.
 
+## Quick start
+
+From the repository root:
+
+```bash
+cargo run -- check examples/tasks     # `cargo run` is the nshell CLI
+cargo run -- dev examples/tasks       # serve a program with hot reload
+cargo linux                           # Linux example app (GTK 4)
+cargo linux-run examples/tasks        # open one program on Linux
+cargo linux-run --dev http://IP:PORT  # Linux client of `nshell dev`
+cargo linux-test                      # Linux renderer tests (headless)
+```
+
 ## Layout
 
 | Path | What |
