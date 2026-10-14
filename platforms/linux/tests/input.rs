@@ -18,6 +18,7 @@ fn main() -> ExitCode {
         ("filters limit what is typed", filters_limit_what_is_typed),
         ("submit, done and focus", submit_done_and_focus),
         ("multiline editor", multiline_editor),
+        ("selection uses the theme's selection color", selection_uses_the_theme_token),
         ("chat composer sends and clears", chat_composer_sends_and_clears),
         ("address form: return moves on, validation", address_form),
     ])
@@ -184,6 +185,32 @@ fn multiline_editor() {
     f.expect("notes=Gate code 1234\nLeave at the door");
     assert_eq!(log(&f), "notes.change,notes.change");
     assert!(notes.wrap_mode() != gtk::WrapMode::None, "long notes wrap");
+}
+
+fn selection_uses_the_theme_token() {
+    let f = Fixture::new(
+        r##"
+import { View, v_flex, Input, InputState } from "native-shell";
+export default class App extends View {
+  init(_p, cx) {
+    cx.set_theme({ tokens: { selection: "#ff000080", background: "#ffffff" } });
+    this.state = InputState.new({ value: "                " });
+  }
+  render(cx) {
+    return v_flex().size_full().bg(cx.theme().background).p(16)
+      .child(Input.new(this.state).test_id("field").h(44).bg(cx.theme().background));
+  }
+}"##,
+    );
+    let field = line(&f, "field");
+    let bounds = f.bounds(&f.expect("field"));
+    let (x, y) = ((bounds.x() + 20.0) as i32, (bounds.y() + bounds.height() / 2.0) as i32);
+    assert_eq!(f.pixel(x, y), 0xffffffff);
+    f.click("field");
+    field.select_region(0, -1);
+    // Spaces only, so no glyph covers the sampled pixel: white under 50% red.
+    let [_, r, g, b] = f.pixel(x, y).to_be_bytes();
+    assert!(r == 0xff && (0x70..=0x90).contains(&g) && g == b, "selection color {:#x}", f.pixel(x, y));
 }
 
 fn chat_composer_sends_and_clears() {

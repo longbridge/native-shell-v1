@@ -575,7 +575,7 @@ impl Inner {
         }
 
         let theme = self.shared.theme.borrow();
-        let css = stylesheet(&c, crate::text::font_scale(), theme.color("foreground"), theme.color("muted_foreground"), theme.color("primary"));
+        let css = stylesheet(&c, crate::text::font_scale(), &Palette::from_theme(&theme));
         drop(theme);
         drop(c);
         if *self.css_text.borrow() != css {
@@ -745,17 +745,41 @@ fn css_color(c: u32) -> String {
     format!("rgba({},{},{},{:.3})", (c >> 16) & 0xff, (c >> 8) & 0xff, c & 0xff, a)
 }
 
+/// The theme tokens the editor's own chrome uses.
+#[derive(Default)]
+struct Palette {
+    foreground: Option<u32>,
+    muted: Option<u32>,
+    /// The caret, as UIKit's tint and AppKit's insertion point.
+    tint: Option<u32>,
+    /// The selection highlight (`selection`, translucent).
+    selection: Option<u32>,
+}
+
+impl Palette {
+    fn from_theme(theme: &crate::theme::ThemeTokens) -> Palette {
+        Palette {
+            foreground: theme.color("foreground"),
+            muted: theme.color("muted_foreground"),
+            tint: theme.color("primary"),
+            selection: theme.color("selection"),
+        }
+    }
+}
+
 /// The editor's CSS: no GTK entry chrome (the node paints the box), the
-/// `TextStyle` font (scaled by the user's text size) and colors, and the tint
-/// on caret and selection.
-fn stylesheet(c: &Config, scale: f32, foreground: Option<u32>, muted: Option<u32>, tint: Option<u32>) -> String {
+/// `TextStyle` font (scaled by the user's text size) and colors, the tint on
+/// the caret and the theme's selection color behind selected text.
+fn stylesheet(c: &Config, scale: f32, palette: &Palette) -> String {
     let s = &c.style;
     let num = |k: &str| s.get(k).and_then(|v| v.as_f64()).map(|v| v as f32);
     let size = num("size").unwrap_or(DEFAULT_SIZE) * scale;
     let weight = num("weight").unwrap_or(400.0).clamp(100.0, 900.0).round();
-    let color = s.get("color").and_then(|v| v.as_u64()).map(|v| v as u32).or(foreground).unwrap_or(0xff00_0000);
-    let placeholder = c.placeholder_color.or(muted).unwrap_or(0xff73_7373);
-    let tint = tint.unwrap_or(color);
+    let color = s.get("color").and_then(|v| v.as_u64()).map(|v| v as u32).or(palette.foreground).unwrap_or(0xff00_0000);
+    let placeholder = c.placeholder_color.or(palette.muted).unwrap_or(0xff73_7373);
+    let tint = palette.tint.unwrap_or(color);
+    // Without the token (an older core), a light wash of the tint.
+    let selection = palette.selection.unwrap_or((tint & 0x00ff_ffff) | 0x4000_0000);
     let mut font = format!("font-size: {size:.2}px; font-weight: {weight};");
     // The same face list `Text` draws with (the system UI face by default).
     let families = crate::text::families(s.get("family").and_then(|v| v.as_str()));
@@ -776,7 +800,7 @@ fn stylesheet(c: &Config, scale: f32, foreground: Option<u32>, muted: Option<u32
          label.nsh-placeholder {{ color: {placeholder}; {font} }}\n",
         color = css_color(color),
         tint = css_color(tint),
-        selection = css_color((tint & 0x00ff_ffff) | 0x4000_0000),
+        selection = css_color(selection),
         placeholder = css_color(placeholder),
     )
 }
