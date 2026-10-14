@@ -148,7 +148,8 @@ export default class C extends View {
       .child(new Marker("unread").variant("separator").test_id("unread").child("2 unread messages"))
       .child(new Marker("start").variant("separator").alignment("start").test_id("lead").child("Earlier"))
       .child(new Marker("notice").variant("border").test_id("notice").child("Messages are end-to-end encrypted"))
-      .child(new Marker("typing").loading(true).test_id("typing").child("Maya is typing"));
+      .child(new Marker("typing").loading(true).test_id("typing").child("Maya is typing"))
+      .child(new Marker("thinking").loading(true).loading_style("shimmer").test_id("thinking").child("Summarizing"));
   }
 }
 "#,
@@ -182,8 +183,12 @@ export default class C extends View {
         Some(PropValue::F32Array(w)) => assert_eq!(w, vec![0.0, 0.0, 1.0, 0.0]),
         other => panic!("{other:?}"),
     }
-    // Loading puts a spinner before the words.
+    // Loading puts a spinner before the words; the shimmer style keeps the words alone. Both announce busy.
     assert_eq!(h.nodes_of(ViewType::Spinner).len(), 1);
+    for id in ["typing", "thinking"] {
+        assert_eq!(h.prop(id, Prop::A11yState), Some(PropValue::Json(r#"{"busy":true}"#.into())), "{id}");
+    }
+    assert_eq!(h.prop("day", Prop::A11yState), None);
 }
 
 #[test]
