@@ -13,7 +13,6 @@ export default class OverlaysPage extends View {
   }
 
   share(cx) {
-    const t = cx.theme();
     const target = (id, name, label) =>
       row(cx, {
         id: `share-${id}`,
@@ -24,9 +23,11 @@ export default class OverlaysPage extends View {
           cx.push_toast({ title: `Shared by ${label.toLowerCase()}`, level: "success", timeout: 2000 });
         },
       });
+    // The content is re-evaluated on theme changes; read the theme inside it.
     cx.open_sheet(
-      () =>
-        v_flex()
+      (cx) => {
+        const t = cx.theme();
+        return v_flex()
           .test_id("share-sheet")
           .size_full()
           .bg(t.background)
@@ -45,13 +46,13 @@ export default class OverlaysPage extends View {
               .child(target("message", "message", "Message"))
               .child(div().h(1).ml(48).bg(t.border))
               .child(target("mail", "mail", "Mail")),
-          ),
+          );
+      },
       { detents: ["medium"] },
     );
   }
 
   rename(cx) {
-    const t = cx.theme();
     const dot = this.name.lastIndexOf(".");
     const ext = dot > 0 ? this.name.slice(dot) : "";
     const state = InputState.new({
@@ -70,8 +71,9 @@ export default class OverlaysPage extends View {
     state.on("change", (_e, cx) => cx.notify());
     state.on("submit", (_e, cx) => commit(cx));
     window.open_dialog(
-      () =>
-        v_flex()
+      (cx) => {
+        const t = cx.theme();
+        return v_flex()
           .test_id("rename-dialog")
           .w(Math.min(340, cx.window().width - 48))
           .p_5()
@@ -112,7 +114,8 @@ export default class OverlaysPage extends View {
                   on_click: (_e, cx) => commit(cx),
                 }),
               ),
-          ),
+          );
+      },
       { on_dismiss: () => state.release() },
     );
   }
