@@ -23,6 +23,7 @@ use gtk::subclass::prelude::*;
 use gtk::{glib, graphene, gsk};
 
 use native_shell_core::protocol::{EventType, Prop, PropValue};
+use native_shell_core::theme::Appearance;
 
 use crate::component::{Component, NodeCx};
 use crate::components::overlays::{is_back_key, spring, Presenter, Surface};
@@ -140,6 +141,8 @@ impl ModalState {
             }
         });
         alert.present(Some(&presenter.stage));
+        let dark = presenter.shared.upgrade().is_some_and(|s| s.theme.borrow().appearance == Appearance::Dark);
+        match_appearance(&alert, &presenter.stage, dark);
         self.alert.replace(Some(alert));
     }
 
@@ -178,6 +181,10 @@ impl ModalState {
     /// Takes it off screen; `animated` runs the exit animation first.
     fn close(&self, animated: bool) {
         self.closing.set(true);
+        // What is below takes focus again before the host hands it back.
+        if let Some(p) = self.presenter.upgrade() {
+            p.update_focus();
+        }
         if let Some(alert) = self.alert.take() {
             alert.force_close();
         }
@@ -229,6 +236,51 @@ impl ModalState {
         // The muted foreground at reduced opacity, like the system grabber.
         let c = self.presenter.upgrade().map_or(0xFF73_7373, |p| p.color("muted_foreground", 0xFF73_7373));
         (c & 0x00FF_FFFF) | 0x6600_0000
+    }
+}
+
+/// libadwaita's light and dark palettes, for an alert whose program shows the
+/// other appearance than the desktop: alerts follow the program, as
+/// `UIAlertController` follows its view controller's interface style.
+const APPEARANCE_CSS: &str = "
+.nsh-appearance-dark {
+  --window-bg-color: #222226; --window-fg-color: #ffffff;
+  --view-bg-color: #1d1d20; --view-fg-color: #ffffff;
+  --card-bg-color: rgb(255 255 255 / 8%); --card-fg-color: #ffffff;
+  --dialog-bg-color: #36363a; --dialog-fg-color: #ffffff;
+  --popover-bg-color: #36363a; --popover-fg-color: #ffffff;
+  --shade-color: rgb(0 0 6 / 25%);
+  --destructive-color: #ff938c; --destructive-bg-color: #c01c28;
+}
+.nsh-appearance-light {
+  --window-bg-color: #fafafb; --window-fg-color: rgb(0 0 6 / 80%);
+  --view-bg-color: #ffffff; --view-fg-color: rgb(0 0 6 / 80%);
+  --card-bg-color: #ffffff; --card-fg-color: rgb(0 0 6 / 80%);
+  --dialog-bg-color: #fafafb; --dialog-fg-color: rgb(0 0 6 / 80%);
+  --popover-bg-color: #ffffff; --popover-fg-color: rgb(0 0 6 / 80%);
+  --shade-color: rgb(0 0 6 / 7%);
+  --destructive-color: #c30000; --destructive-bg-color: #e01b24;
+}";
+
+fn match_appearance(alert: &adw::AlertDialog, stage: &impl IsA<gtk::Widget>, dark: bool) {
+    if adw::StyleManager::default().is_dark() == dark {
+        return;
+    }
+    thread_local! {
+        static INSTALLED: Cell<bool> = const { Cell::new(false) };
+    }
+    if !INSTALLED.with(|i| i.replace(true)) {
+        let provider = gtk::CssProvider::new();
+        provider.load_from_string(APPEARANCE_CSS);
+        gtk::style_context_add_provider_for_display(&alert.display(), &provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
+    }
+    let class = if dark { "nsh-appearance-dark" } else { "nsh-appearance-light" };
+    alert.add_css_class(class);
+    // Outside an AdwWindow the alert gets a window of its own, which paints its background.
+    if let Some(window) = alert.root().and_downcast::<gtk::Window>() {
+        if stage.as_ref().root().as_ref() != Some(window.upcast_ref::<gtk::Root>()) {
+            window.add_css_class(class);
+        }
     }
 }
 

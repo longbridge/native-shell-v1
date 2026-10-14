@@ -246,6 +246,63 @@ fn a_page_that_cannot_go_back_gets_back_pressed() {
     });
 }
 
+/// The touch edge-swipe recognizer the presenter adds to the navigation view.
+fn edge_swipe(rig: &Rig) -> gtk::GestureDrag {
+    let nav = rig.presenter().nav.clone();
+    let controllers = nav.observe_controllers();
+    (0..controllers.n_items())
+        .filter_map(|i| controllers.item(i).and_downcast::<gtk::GestureDrag>())
+        .find(|g| g.is_touch_only())
+        .expect("the edge swipe gesture")
+}
+
+#[test]
+fn a_refused_edge_swipe_is_reported_once() {
+    gtk_test::run(|| {
+        set_animations(false);
+        let mut rig = Rig::new();
+        rig.tap("push");
+        rig.tap("lock");
+        let swipe = edge_swipe(&rig);
+        swipe.emit_by_name::<()>("drag-begin", &[&4.0f64, &300.0f64]);
+        swipe.emit_by_name::<()>("drag-update", &[&20.0f64, &2.0f64]);
+        rig.pump();
+        assert_eq!(rig.h.text_of("detail"), "detail 1 n=0", "too short to count");
+        swipe.emit_by_name::<()>("drag-update", &[&60.0f64, &4.0f64]);
+        swipe.emit_by_name::<()>("drag-update", &[&120.0f64, &4.0f64]);
+        rig.pump();
+        assert_eq!(rig.h.text_of("detail"), "detail 1 n=100", "BackPressed reached the page");
+        assert_eq!(rig.nav_titles(), ["Home", "Detail 1"], "the page stays");
+    });
+}
+
+#[test]
+fn focus_stays_in_the_top_sheet_or_dialog() {
+    gtk_test::run(|| {
+        set_animations(false);
+        let mut rig = Rig::new();
+        let nav = rig.presenter().nav.clone();
+        assert!(nav.can_focus());
+        rig.tap("sheet");
+        let sheet = rig.modal(rig.surfaces()[1].0);
+        let host = sheet.host.borrow().clone().expect("host");
+        assert!(!nav.can_focus(), "nothing below the sheet takes focus");
+        assert!(host.can_focus());
+        let window = rig.window.clone();
+        let mut inside = 0;
+        for _ in 0..6 {
+            window.child_focus(gtk::DirectionType::TabForward);
+            let focus = gtk::prelude::GtkWindowExt::focus(&window);
+            assert!(focus.as_ref().is_none_or(|f| f == host.upcast_ref::<gtk::Widget>() || f.is_ancestor(&host)), "Tab stays in the sheet: {focus:?}");
+            inside += usize::from(focus.is_some());
+        }
+        assert!(inside > 0, "Tab reaches the sheet's controls");
+        sheet.test_user_dismiss();
+        rig.pump();
+        assert!(nav.can_focus(), "focus returns below once it closes");
+    });
+}
+
 #[test]
 fn a_deleted_page_stays_until_its_exit_transition_ends() {
     gtk_test::run(|| {

@@ -12,8 +12,9 @@ use support::*;
 fn main() -> ExitCode {
     run(&[
         ("components: overlays page, sheet, toast, dialog, alert", components_overlays),
-        ("settings: the account page and back", settings_back),
+        ("settings: an edited page refuses back until discarded", settings_back),
         ("tasks: the edit sheet", tasks_sheet),
+        ("an alert follows the program's appearance", alert_appearance),
     ])
 }
 
@@ -90,6 +91,13 @@ fn shot(f: &Fixture, name: &str, dark: bool) {
     f.screenshot(format!("screenshots/{name}-{}.png", if dark { "dark" } else { "light" }));
 }
 
+fn shot_alert(alert: &adw::AlertDialog, name: &str, dark: bool) {
+    let path = format!("{}/screenshots/{name}-{}.png", env!("CARGO_MANIFEST_DIR"), if dark { "dark" } else { "light" });
+    // The alert's own window paints its background.
+    let window = alert.root().and_downcast::<gtk::Window>().expect("the alert's window");
+    screenshot(window.upcast_ref(), std::path::Path::new(&path));
+}
+
 fn components_overlays() {
     no_animations();
     for dark in [false, true] {
@@ -126,8 +134,7 @@ fn components_overlays() {
         f.tap("delete");
         let a = alert().expect("an alert");
         assert_eq!(a.response_appearance("1"), adw::ResponseAppearance::Destructive);
-        let path = format!("{}/screenshots/overlays-alert-{}.png", env!("CARGO_MANIFEST_DIR"), if dark { "dark" } else { "light" });
-        screenshot(a.upcast_ref(), std::path::Path::new(&path));
+        shot_alert(&a, "overlays-alert", dark);
         choose(&a, "Delete");
         f.settle();
         f.expect("deleted");
@@ -164,11 +171,23 @@ fn settings_back() {
         assert!(title == "Account" || title == "Sign in", "{title}");
         shot(&f, "settings-account", dark);
 
-        // Unedited, back pops it. (Edited, the page should refuse and ask;
-        // the engine registers `cx.on_back` from a page's `init` on the root
-        // today, so that path is covered by the unit tests instead.)
-        type_into(&f, "name", "Ada Lovelace");
+        // An edit makes the page refuse back: BackPressed, and the page asks first.
+        type_into(&f, "name", "Alex Kim");
+        assert!(!nav(&f).visible_page().expect("the account page").can_pop(), "gestures and shortcuts are off");
         assert!(f.surface.go_back());
+        f.settle();
+        assert_eq!(visible_title(&f), title, "the page stays");
+        let a = alert().expect("the discard alert");
+        assert_eq!(a.heading().as_deref(), Some("Discard changes?"));
+        shot_alert(&a, "settings-discard-alert", dark);
+        // Keep editing: the alert goes, the page stays.
+        choose(&a, "Keep editing");
+        f.settle();
+        assert_eq!(visible_title(&f), title);
+        // Back again, discard: the page pops.
+        assert!(f.surface.go_back());
+        f.settle();
+        choose(&alert().expect("the discard alert again"), "Discard changes");
         f.settle();
         assert_eq!(visible_title(&f), "Home");
     }
@@ -190,4 +209,32 @@ fn tasks_sheet() {
         shot(&f, "tasks-editor-sheet", dark);
     }
     set_dark(false);
+}
+
+fn alert_appearance() {
+    no_animations();
+    set_dark(false);
+    let f = Fixture::new(
+        r#"
+import { View, div, Button } from "native-shell";
+export default class App extends View {
+  render(cx) {
+    return div().size_full().child(Button.new("ask").test_id("ask").label("Ask").on_click((_e, cx) => {
+      cx.set_theme({ appearance: "dark" });
+      cx.alert({ title: "Delete “Groceries”?", message: "This can’t be undone.",
+        actions: [{ label: "Cancel", style: "cancel" }, { label: "Delete", style: "destructive" }] });
+    }));
+  }
+}"#,
+    );
+    f.tap("ask");
+    let a = alert().expect("an alert");
+    let window = a.root().and_downcast::<gtk::Window>().expect("the alert's window");
+    let w = window.width();
+    let path = format!("{}/screenshots/alert-program-dark.png", env!("CARGO_MANIFEST_DIR"));
+    screenshot(window.upcast_ref(), std::path::Path::new(&path));
+    let bg = pixel(window.upcast_ref(), w / 2, 8);
+    let luma = ((bg >> 16) & 0xff) + ((bg >> 8) & 0xff) + (bg & 0xff);
+    assert!(luma < 3 * 0x60, "a dark alert on a light desktop, got {bg:08x}");
+    choose(&a, "Cancel");
 }

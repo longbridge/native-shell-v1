@@ -211,20 +211,35 @@ impl Presenter {
             pages::sync(self, animated);
         }
         if self.modals_changed.replace(false) {
-            let modals: Vec<Rc<ModalState>> = {
-                let surfaces = self.surfaces.borrow();
-                self.order
-                    .borrow()
-                    .iter()
-                    .filter_map(|v| match surfaces.get(v) {
-                        Some(Surface::Modal(m)) => Some(m.clone()),
-                        _ => None,
-                    })
-                    .collect()
-            };
-            for modal in modals {
+            for modal in self.modals() {
                 modal.present(self);
             }
+            self.update_focus();
+        }
+    }
+
+    /// The sheets and dialogs attached to the root, in opening order.
+    fn modals(&self) -> Vec<Rc<ModalState>> {
+        let surfaces = self.surfaces.borrow();
+        self.order
+            .borrow()
+            .iter()
+            .filter_map(|v| match surfaces.get(v) {
+                Some(Surface::Modal(m)) => Some(m.clone()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Keyboard focus stays in the top open sheet or dialog: nothing below it
+    /// can take focus, so Tab cycles inside it. (Alerts trap focus themselves.)
+    pub(crate) fn update_focus(&self) {
+        let modals = self.modals();
+        let hosts: Vec<_> = modals.iter().filter(|m| m.is_open()).filter_map(|m| m.host.borrow().clone()).collect();
+        let top = hosts.last();
+        self.nav.set_can_focus(top.is_none());
+        for host in modals.iter().filter_map(|m| m.host.borrow().clone()) {
+            host.set_can_focus(Some(&host) == top);
         }
     }
 

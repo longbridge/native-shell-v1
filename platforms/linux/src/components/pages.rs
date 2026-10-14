@@ -235,19 +235,100 @@ pub(crate) fn install_back_handling(presenter: &Rc<Presenter>) {
         }
     });
     nav.add_controller(click);
+
+    install_refused_swipes(presenter);
+}
+
+/// From how far in from the leading edge a touch drag counts as the back swipe.
+const EDGE: f64 = 24.0;
+/// How far a swipe travels before it counts as a back attempt.
+const SWIPE: f64 = 40.0;
+
+/// A horizontal movement of `forward` points toward the trailing edge, `across` sideways.
+fn is_back_swipe(forward: f64, across: f64) -> bool {
+    forward > SWIPE && across.abs() < forward
+}
+
+/// The navigation view does not start its swipe on a page that cannot go back;
+/// the same swipes are reported as `BackPressed` instead, once per gesture, as
+/// iOS refuses its edge swipe and tells the page.
+fn install_refused_swipes(presenter: &Rc<Presenter>) {
+    let nav = &presenter.nav;
+    let rtl = |w: &gtk::Widget| w.direction() == gtk::TextDirection::Rtl;
+
+    // Touchscreen: a drag from the leading edge.
+    let drag = gtk::GestureDrag::builder().touch_only(true).propagation_phase(gtk::PropagationPhase::Capture).build();
+    // Set once the gesture has been reported.
+    let reported = Rc::new(std::cell::Cell::new(false));
+    let weak = Rc::downgrade(presenter);
+    let r = reported.clone();
+    drag.connect_drag_begin(move |gesture, x, _| {
+        r.set(false);
+        let Some(p) = weak.upgrade() else { return };
+        let Some(widget) = gesture.widget() else { return };
+        let from_edge = if rtl(&widget) { widget.width() as f64 - x } else { x };
+        if from_edge > EDGE || top_refusing(&p).is_none() {
+            gesture.set_state(gtk::EventSequenceState::Denied);
+        }
+    });
+    let weak = Rc::downgrade(presenter);
+    drag.connect_drag_update(move |gesture, dx, dy| {
+        let Some(p) = weak.upgrade() else { return };
+        let Some(widget) = gesture.widget() else { return };
+        let forward = if rtl(&widget) { -dx } else { dx };
+        if !reported.get() && is_back_swipe(forward, dy) && top_refusing(&p).is_some() {
+            reported.set(true);
+            gesture.set_state(gtk::EventSequenceState::Claimed);
+            back_refused(&p);
+        }
+    });
+    nav.add_controller(drag);
+
+    // Touchpad: a two-finger swipe toward the trailing edge.
+    let scroll = gtk::EventControllerScroll::new(gtk::EventControllerScrollFlags::HORIZONTAL);
+    let travel = Rc::new(std::cell::Cell::new(Some(0.0)));
+    let t = travel.clone();
+    scroll.connect_scroll_begin(move |_| t.set(Some(0.0)));
+    let t = travel.clone();
+    scroll.connect_scroll_end(move |_| t.set(Some(0.0)));
+    let weak = Rc::downgrade(presenter);
+    scroll.connect_scroll(move |controller, dx, dy| {
+        let Some(p) = weak.upgrade() else { return glib::Propagation::Proceed };
+        let Some(widget) = controller.widget() else { return glib::Propagation::Proceed };
+        // Only touchpads scroll in surface units; wheels are not swipes.
+        if controller.unit() != gtk::gdk::ScrollUnit::Surface || top_refusing(&p).is_none() {
+            return glib::Propagation::Proceed;
+        }
+        // `None` once this gesture has been reported.
+        let Some(sofar) = travel.get() else { return glib::Propagation::Stop };
+        // Fingers moving toward the trailing edge scroll content back: negative dx in LTR.
+        let forward = sofar + if rtl(&widget) { dx } else { -dx };
+        if is_back_swipe(forward, dy) {
+            travel.set(None);
+            back_refused(&p);
+            return glib::Propagation::Stop;
+        }
+        travel.set(Some(forward));
+        glib::Propagation::Proceed
+    });
+    nav.add_controller(scroll);
+}
+
+/// The top page, when it is on the stack and cannot go back.
+fn top_refusing(presenter: &Presenter) -> Option<Rc<PageState>> {
+    let visible = presenter.nav.visible_page()?;
+    presenter.pages().into_iter().find(|p| p.nav_page == visible && p.wanted() && !p.can_go_back.get())
 }
 
 /// Sends `BackPressed` when the top page refuses to be left; `false` when
 /// there is nothing to refuse (no page, or the page can go back).
 pub(crate) fn back_refused(presenter: &Presenter) -> bool {
-    let visible = presenter.nav.visible_page();
-    let top = presenter.pages().into_iter().find(|p| Some(&p.nav_page) == visible.as_ref() && p.wanted());
-    match top {
-        Some(page) if !page.can_go_back.get() => {
+    match top_refusing(presenter) {
+        Some(page) => {
             presenter.emit(page.node, EventType::BackPressed, "{}".into());
             true
         }
-        _ => false,
+        None => false,
     }
 }
 
@@ -257,4 +338,17 @@ pub(crate) fn perform_back(presenter: &Presenter) -> bool {
         return true;
     }
     stack(&presenter.nav).len() > 1 && presenter.nav.pop()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_back_swipe;
+
+    #[test]
+    fn back_swipes_are_long_and_mostly_horizontal() {
+        assert!(is_back_swipe(60.0, 10.0));
+        assert!(!is_back_swipe(30.0, 0.0), "too short");
+        assert!(!is_back_swipe(60.0, 80.0), "mostly vertical");
+        assert!(!is_back_swipe(-60.0, 0.0), "toward the leading edge");
+    }
 }
