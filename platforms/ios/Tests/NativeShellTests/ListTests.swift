@@ -92,6 +92,59 @@ final class ListTests: XCTestCase {
         XCTAssertEqual(list.collectionView.contentOffset.y, 44_000 - 440, "clamped")
     }
 
+    /// Unmeasured rows sit at estimated heights; as the core measures the rows
+    /// around the target, ScrollToIndex re-aims until the row is at the edge.
+    func testScrollToIndexCorrectsAsRowsAreMeasured() {
+        // Rows 0..<n measured at `measured` points, the rest still estimated at 44.
+        func offsets(measuredUpTo n: Int, _ measured: Float = 90) -> [Float] {
+            var o: [Float] = [0]
+            for i in 0 ..< 200 { o.append(o.last! + (i < n ? measured : rowHeight)) }
+            return o
+        }
+        for position in ["top", "center", "bottom"] {
+            let h = Harness()
+            defer { h.tearDown() }
+            h.apply { b in
+                b.create(1, .list, parent: 0, frame: CGRect(x: 0, y: 0, width: 390, height: 440), props: [
+                    (.itemCount, .i32(200)), (.rowOffsets, .f32Array(offsets(measuredUpTo: 10))),
+                ])
+                b.command(1, .scrollToIndex, ["index": 150, "position": position, "animated": false])
+            }
+            let list = h.view(1, as: NSHListView.self)
+            func expected(_ offs: [Float]) -> CGFloat {
+                let top = CGFloat(offs[150]), rowH = CGFloat(offs[151] - offs[150]), total = CGFloat(offs.last!)
+                let y: CGFloat = position == "center" ? top - (440 - rowH) / 2 : position == "bottom" ? top + rowH - 440 : top
+                return max(0, min(y, total - 440))
+            }
+            XCTAssertEqual(list.collectionView.contentOffset.y, expected(offsets(measuredUpTo: 10)), position)
+            // The window around the estimated position gets measured, then the next one.
+            for n in [140, 155, 200] {
+                let offs = offsets(measuredUpTo: n)
+                h.apply { $0.prop(1, .rowOffsets, .f32Array(offs)) }
+                XCTAssertEqual(list.collectionView.contentOffset.y, expected(offs), "\(position) after \(n) measured")
+            }
+            // Stable offsets end the correction: later changes no longer move the list.
+            h.apply { $0.prop(1, .rowOffsets, .f32Array(offsets(measuredUpTo: 200))) }
+            let settled = list.collectionView.contentOffset.y
+            h.apply { $0.prop(1, .rowOffsets, .f32Array(offsets(measuredUpTo: 200, 100))) }
+            XCTAssertEqual(list.collectionView.contentOffset.y, settled, position)
+        }
+    }
+
+    func testDraggingCancelsScrollCorrection() {
+        h.apply { b in
+            b.create(1, .list, parent: 0, frame: CGRect(x: 0, y: 0, width: 390, height: 440), props: [
+                (.itemCount, .i32(100)), (.rowOffsets, .f32Array(offsets(100))),
+            ])
+            b.command(1, .scrollToIndex, ["index": 80, "animated": false])
+        }
+        let list = h.view(1, as: NSHListView.self)
+        XCTAssertEqual(list.collectionView.contentOffset.y, 80 * 44)
+        list.scrollViewWillBeginDragging(list.collectionView)
+        h.apply { $0.prop(1, .rowOffsets, .f32Array((0 ... 100).map { Float($0) * 50 })) }
+        XCTAssertEqual(list.collectionView.contentOffset.y, 80 * 44, "the user's scroll position wins")
+    }
+
     func testVariableRowHeightsAndPlaceholders() {
         let heights: [Float] = [30, 80, 44, 120, 44]
         var offs: [Float] = [0]
