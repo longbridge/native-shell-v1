@@ -86,7 +86,7 @@ impl RemLengths {
 pub const DEFAULT_TEXT_SIZE: f32 = 16.0;
 
 /// GPUI's default line height: φ times the font size (`gpui::phi()`).
-pub const DEFAULT_LINE_HEIGHT: LineHeight = LineHeight::Multiple(1.618_034);
+pub const DEFAULT_LINE_HEIGHT: LineHeight = LineHeight::Multiple(std::f32::consts::GOLDEN_RATIO);
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Arg {
@@ -1410,7 +1410,7 @@ mod tests {
         assert_eq!(r.layout.position, TaffyPosition::Relative);
         assert_eq!(r.layout.inset.top, LengthPercentageAuto::auto());
         assert_eq!(DEFAULT_TEXT_SIZE, 16.0);
-        assert_eq!(DEFAULT_LINE_HEIGHT, LineHeight::Multiple(1.618_034));
+        assert_eq!(DEFAULT_LINE_HEIGHT, LineHeight::Multiple(std::f32::consts::GOLDEN_RATIO));
     }
 
     #[test]
