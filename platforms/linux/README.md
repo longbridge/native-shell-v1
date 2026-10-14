@@ -13,7 +13,7 @@ the protocol to GTK, the environment, the host API and how testing works.
 cargo test                                   # unit + GTK integration tests (headless Broadway)
 cargo clippy --all-targets -- -D warnings
 cargo run --example launcher                 # the example app; -- --example tasks --reset
-cargo run --example run -- ../../examples/chat
+cargo run --example run -- ../../examples/chat [--watch]   # --watch: reload on save
 cargo run --example run -- --dev http://HOST:PORT   # hot reload from `nshell dev`
 cargo run --example screenshot [-- tasks …]  # screenshots/example-<name>-{light,dark}.png
 cargo run --example launcher -- --screenshot screenshots

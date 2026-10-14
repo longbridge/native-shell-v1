@@ -635,6 +635,12 @@ declare module "native-shell" {
 
   /** `list(...)` and `uniform_list(...)`. */
   export interface ListElement extends Element {
+    /**
+     * Mobile: GPUI's `ListAlignment` (gpui-shell always uses top). `"bottom"`
+     * opens the list at its end and keeps the end in view while the user is
+     * there — a chat thread as messages arrive and the keyboard rises.
+     */
+    alignment(value: "top" | "bottom"): this;
     /** Mobile: the height assumed for rows not yet rendered. */
     estimated_row_height(px: number): this;
     /**
@@ -1369,8 +1375,513 @@ declare module "gpui-component" {
   >;
 
   // --- forms (crates/engine/js/gpui_component/forms.js) ---
+  type FormSize = "xsmall" | "small" | "medium" | "large";
+  type FormContext = import("native-shell").Context;
+  type FormConstructor<A extends unknown[], E> = { new (...args: A): E; new: (...args: A) => E };
+
+  export interface FormElement extends Element {
+    /** Sets the form grid's column count. */
+    columns(columns: number): this;
+    /** Sets the horizontal form label width in pixels. */
+    label_width(width: number): this;
+    /** Sets the form density. */
+    size(size: FormSize): this;
+  }
+  /**
+   * A vertical or horizontal form accepting Field children. Mobile: a vertical
+   * form stacks labels above controls; a horizontal one is an inset grouped
+   * list whose rows put the label beside the control.
+   */
+  export const Form: FormConstructor<[], FormElement>;
+  export const VForm: FormConstructor<[], FormElement>;
+  export const HForm: FormConstructor<[], FormElement>;
+
+  export interface FieldElement extends Element {
+    /** Sets the field label. */
+    label(label: string): this;
+    /** Sets supporting text below the control. */
+    description(description: string): this;
+    /** Mobile: why the value was refused, shown (as an alert) in place of the description. */
+    error(message: string | null): this;
+    /** Marks the field as required. */
+    required(required: boolean): this;
+    /** Controls field visibility. */
+    visible(visible: boolean): this;
+    /** Keeps unlabeled horizontal fields aligned with labeled fields. */
+    label_indent(label_indent: boolean): this;
+    /** Aligns the label and control within the field. */
+    align(align: "start" | "center" | "end"): this;
+    /** Sets the field's grid-column span. */
+    col_span(span: number): this;
+  }
+  /** A typed form field containing ordinary control children. */
+  export const Field: FormConstructor<[], FieldElement>;
+
+  export interface InputGroupElement extends Element {
+    /** Sets the group's text control (an InputGroupInput or InputGroupTextarea). */
+    input(input: InputGroupInputElement | InputGroupTextareaElement): this;
+    /** Appends an InputGroupAddon at its logical side. */
+    addon(addon: InputGroupAddonElement): this;
+    /** Disables the field and the addons' direct InputGroupButton children. */
+    disabled(disabled: boolean): this;
+    /** Prevents text edits while leaving addon actions available. */
+    readonly(readonly: boolean): this;
+    /** Displays the caller's validation result without rejecting input. */
+    invalid(invalid: boolean): this;
+    /** Accepted; the platform draws its own focus. */
+    focus_ring(focus_ring: boolean): this;
+    /** Names the group independently of its text control. */
+    aria_label(label: string): this;
+    /** Sets the group's semantic control size. */
+    size(size: FormSize): this;
+  }
+  /** A themed frame around one text control and any number of addons. */
+  export const InputGroup: FormConstructor<[id: string], InputGroupElement>;
+
+  type InputContentType =
+    | "name" | "name_prefix" | "given_name" | "middle_name" | "family_name" | "name_suffix" | "nickname"
+    | "job_title" | "organization_name" | "location" | "full_street_address" | "street_address_line1"
+    | "street_address_line2" | "address_city" | "address_state" | "address_city_and_state" | "sublocality"
+    | "country_name" | "postal_code" | "telephone_number" | "email_address" | "url" | "credit_card_number"
+    | "credit_card_name" | "credit_card_given_name" | "credit_card_middle_name" | "credit_card_family_name"
+    | "credit_card_security_code" | "credit_card_expiration" | "credit_card_expiration_month"
+    | "credit_card_expiration_year" | "credit_card_type" | "username" | "password" | "new_password"
+    | "one_time_code" | "shipment_tracking_number" | "flight_number" | "date_time" | "birthdate"
+    | "birthdate_day" | "birthdate_month" | "birthdate_year" | "cellular_eid" | "cellular_imei";
+
+  interface InputGroupControlElement extends Element {
+    /** Controls whether this component accepts interaction. */
+    disabled(disabled: boolean): this;
+    /** Prevents edits while preserving selection and copying. */
+    readonly(readonly: boolean): this;
+    /** Names the text control for accessibility. */
+    aria_label(label: string): this;
+    /** Sets the developer-assigned accessibility identifier. */
+    accessibility_id(id: string): this;
+    /** Controls the retained text; programmatic changes do not emit on_change. */
+    value(value: string): this;
+    /** Sets the empty-value prompt on the retained state. */
+    placeholder(placeholder: string): this;
+    /** Reports edits from the retained input. */
+    on_change(handler: (value: string, cx: FormContext) => void): this;
+  }
+  export interface InputGroupInputElement extends InputGroupControlElement {
+    /** Controls password masking. */
+    masked(masked: boolean): this;
+    /** Sets the native content type; names follow InputContentType in snake_case. */
+    content_type(content_type: InputContentType): this;
+  }
+  export interface InputGroupTextareaElement extends InputGroupControlElement {
+    /** Sets a fixed row count. */
+    rows(rows: number): this;
+    /** Grows the native textarea between the minimum and maximum row counts. */
+    auto_grow(min_rows: number, max_rows: number): this;
+  }
+  /** An unframed single-line input using an InputState. */
+  export const InputGroupInput: FormConstructor<[state: import("native-shell").InputState], InputGroupInputElement>;
+  /** An unframed multiline input using a TextareaState. */
+  export const InputGroupTextarea: FormConstructor<[state: import("native-shell").TextareaState], InputGroupTextareaElement>;
+
+  export interface InputGroupAddonElement extends Element {
+    /** Places the addon relative to the control; default is inline-start. */
+    align(align: "inline-start" | "inline-end" | "block-start" | "block-end"): this;
+  }
+  /** An aligned addon; a tap on its text or empty space focuses the field. */
+  export const InputGroupAddon: FormConstructor<[id: string], InputGroupAddonElement>;
+
+  export interface InputGroupButtonElement extends Element {
+    /** Controls whether this component accepts interaction. */
+    disabled(disabled: boolean): this;
+    /** Sets the visible label. */
+    label(label: string): this;
+    /** Sets the icon path in the application's asset bundle. */
+    icon(path: string): this;
+    /** Names an icon-only action. */
+    aria_label(label: string): this;
+    /** Displays progress and prevents duplicate activation. */
+    loading(loading: boolean): this;
+    /** Uses the outlined button treatment. */
+    outline(): this;
+    /** Sets the button size; xsmall and small are the compact input-group sizes. */
+    size(size: FormSize): this;
+    /** Selects a semantic button variant. */
+    variant(variant: "default" | "primary" | "secondary" | "danger" | "warning" | "success" | "info" | "ghost" | "link" | "text"): this;
+  }
+  /** A compact button inside an input group: tinted text or an icon, 44 pt to tap. */
+  export const InputGroupButton: FormConstructor<[id: string], InputGroupButtonElement>;
+  /** Muted text or rich helper content inside an input group. */
+  export const InputGroupText: FormConstructor<[], Element>;
+
+  export interface RatingElement extends Element {
+    /** Controls whether this component accepts interaction; a disabled rating is a read-only display. */
+    disabled(disabled: boolean): this;
+    /** Sets the current number of active stars. Mobile: halves (4.5) for a read-only average. */
+    value(value: number): this;
+    /** Sets the maximum number of stars. */
+    max(max: number): this;
+    /** Reports the star the reader chose, so the script can drive `value`. */
+    on_change(handler: (value: number, cx: FormContext) => void): this;
+    /** Sets the active star color. */
+    color(color: import("native-shell").Color): this;
+    /** Sets the rating's semantic size. */
+    size(size: FormSize): this;
+  }
+  /** An interactive star rating with configurable value and maximum. */
+  export const Rating: FormConstructor<[id: string], RatingElement>;
+
+  export interface StepperItemElement extends Element {
+    /** Disables this step independently of its parent. */
+    disabled(disabled: boolean): this;
+    /** Mobile (gpui-component's Rust API): an asset icon in place of the step number. */
+    icon(path: string): this;
+  }
+  /** A step part accepted only as a direct Stepper child. */
+  export const StepperItem: FormConstructor<[], StepperItemElement>;
+
+  export interface StepperElement extends Element {
+    /** Controls the current zero-based step. */
+    selected_index(index: number): this;
+    /** Switches between vertical and horizontal layout. */
+    vertical(vertical: boolean): this;
+    /** Centers each step's text in horizontal layouts. */
+    text_center(text_center: boolean): this;
+    /** Disables every step. */
+    disabled(disabled: boolean): this;
+    /** Sets the stepper's semantic size. */
+    size(size: FormSize): this;
+    /** Reports the newly selected zero-based index. */
+    on_change(handler: (index: number, cx: FormContext) => void): this;
+    /** gpui-component's Rust spelling: adds steps. */
+    items(items: StepperItemElement[]): this;
+    item(item: StepperItemElement): this;
+  }
+  /** A typed progress stepper accepting only StepperItem children. */
+  export const Stepper: FormConstructor<[id: string], StepperElement>;
+
+  export interface TimeFieldStateOptions {
+    /** `"HH:MM"` or `"HH:MM:SS"`; the field starts at 00:00 without one. */
+    value?: string;
+    precision?: "minute" | "second";
+    /** Mobile: the platform's picker follows the user's 12/24-hour setting. */
+    hour_cycle?: "h24" | "h12";
+  }
+  /** Retained time-of-day editing state. Create it in `init` or an event handler. */
+  export class TimeFieldState {
+    static new(options?: TimeFieldStateOptions): TimeFieldState;
+    constructor(options?: TimeFieldStateOptions);
+    /** `"HH:MM"` (`"HH:MM:SS"` with second precision). */
+    value(): string;
+    /** Replaces the time without reporting a change. */
+    set_value(time: string): void;
+    hour_cycle(): "h24" | "h12";
+    /** `change` on every edit, with the new time. */
+    on(event: "change", handler: (time: string, cx: FormContext) => void): boolean;
+    release(): boolean;
+  }
+  export interface TimeFieldElement extends Element {
+    /** Controls whether this component accepts interaction. */
+    disabled(disabled: boolean): this;
+    /** Mobile (gpui-component's Rust API): shows the script's validation result. */
+    invalid(invalid: boolean): this;
+  }
+  /** The platform's time picker bound to a TimeFieldState. */
+  export const TimeField: FormConstructor<[state: TimeFieldState], TimeFieldElement>;
+
+  export interface ClipboardElement extends Element {
+    /** Sets the text copied when the button is pressed. */
+    value(value: string): this;
+    /** Mobile (gpui-component's Rust API): computes the text when the button is pressed. */
+    value_fn(fn: (cx: FormContext) => string): this;
+    /** Mobile (gpui-component's Rust API): called once the text is on the clipboard. */
+    on_copied(handler: (value: string, cx: FormContext) => void): this;
+  }
+  /**
+   * A button that copies a configured string to the system clipboard (needs
+   * `capabilities.clipboard.write`), then shows a check unless the platform
+   * confirms copies itself.
+   */
+  export const Clipboard: FormConstructor<[id: string], ClipboardElement>;
+
+  /** Retained color selection: `"#RRGGBB"` or `null`. Create it in `init` or an event handler. */
+  export class ColorPickerState {
+    static new(options?: { value?: string | null }): ColorPickerState;
+    constructor(options?: { value?: string | null });
+    value(): string | null;
+    /** Replaces the color without reporting a change. */
+    set_value(color: string | null): void;
+    /** `change` when the reader picks or types a color. */
+    on(event: "change", handler: (color: string, cx: FormContext) => void): boolean;
+    release(): boolean;
+  }
+  export interface ColorPickerElement extends Element {
+    /** Sets the visible label above the picker. */
+    label(label: string): this;
+    /** Sets the announced name independently of the visible label. */
+    accessibility_label(label: string): this;
+    /** Mobile (gpui-component's Rust API): the colors offered first, as `"#RRGGBB"`. */
+    featured_colors(colors: string[]): this;
+    /** Mobile (gpui-component's Rust API): an asset icon, drawn in the chosen color, in place of the swatch. */
+    icon(path: string): this;
+    disabled(disabled: boolean): this;
+    size(size: FormSize): this;
+    /** Accepted; the picker is a sheet on a phone. */
+    anchor(anchor: string): this;
+  }
+  /** A swatch that opens a sheet of colors, a palette and a hex field. */
+  export const ColorPicker: FormConstructor<[state: ColorPickerState], ColorPickerElement>;
 
   // --- data (crates/engine/js/gpui_component/data.js) ---
+  type DataSize = "xsmall" | "small" | "medium" | "large";
+  type DataContext = import("native-shell").Context;
+  type DataConstructor<A extends unknown[], E> = { new (...args: A): E; new: (...args: A) => E };
+
+  export interface DescriptionItemElement extends Element {
+    /** Sets the item's value; mobile also takes an element for a value that is more than text. */
+    value(value: string | Element): this;
+    /** Sets how many columns the item spans in the vertical layout. */
+    span(span: number): this;
+  }
+  /** A label/value child for DescriptionList. */
+  export const DescriptionItem: DataConstructor<[label: string], DescriptionItemElement>;
+  export interface DescriptionListElement extends Element {
+    /** Uses the vertical layout: each label above its value, in a grid of `columns`. */
+    vertical(): this;
+    /** gpui-component's `layout(Axis)`. */
+    layout(axis: "horizontal" | "vertical"): this;
+    /** Draws the list on an inset grouped card with separators (the default). */
+    bordered(bordered: boolean): this;
+    /** Sets the vertical layout's column count, 1 through 10 (default 2 on a phone). */
+    columns(columns: number): this;
+    size(size: DataSize): this;
+    /** gpui-component's `item(label, value, span)`. */
+    item(label: string, value: string | Element, span?: number): this;
+  }
+  /** Label/value rows: iOS value rows (label leading, value trailing) or a vertical grid. */
+  export const DescriptionList: DataConstructor<[], DescriptionListElement>;
+
+  export interface TreeItemElement extends Element {
+    /** Whether the item starts expanded; the user's choice wins afterwards. */
+    expanded(expanded: boolean): this;
+    disabled(disabled: boolean): this;
+    /** Mobile: a leading icon, an icon path or name (`"folder"`) or an element. */
+    icon(icon: string | Element): this;
+  }
+  /** A tree node with an id unique in its tree and nested TreeItem children. */
+  export const TreeItem: DataConstructor<[id: string, label: string], TreeItemElement>;
+  export interface TreeElement extends Element {
+    /** Mobile: `(id, cx)` after the user selects a row (a tap, or the arrow keys). */
+    on_select(handler: (id: string, cx: DataContext) => void): this;
+  }
+  /** An outline of TreeItems; expansion and selection are kept under its id across renders. */
+  export const Tree: DataConstructor<[id: string], TreeElement>;
+
+  /** A native recycled list over a snapshot of rows, keyed by each row's `id` (else its position). */
+  export const List: DataConstructor<
+    [id: string, rows: () => readonly unknown[], render_row: (row: any) => Element | null],
+    import("native-shell").ListElement
+  >;
+
+  export interface TabElement extends Element {
+    /** Sets the visible tab label. */
+    label(label: string): this;
+    /** Sets the accessible tab label. */
+    aria_label(label: string): this;
+    selected(selected?: boolean): this;
+    disabled(disabled?: boolean): this;
+  }
+  /** A tab, accepted only as a direct TabBar child. */
+  export const Tab: DataConstructor<[], TabElement>;
+  export interface TabBarElement extends Element {
+    /** Controls the selected zero-based tab index. */
+    selected_index(index: number): this;
+    /** `segmented` is the native segmented control; the others a row that scrolls sideways. */
+    variant(variant: "tab" | "outline" | "pill" | "segmented" | "underline"): this;
+    /** Accepted; the row scrolls instead of an overflow menu. */
+    menu(menu: boolean): this;
+    size(size: DataSize): this;
+    /** Reports the newly selected zero-based index. */
+    on_change(handler: (index: number, cx: DataContext) => void): this;
+  }
+  /** A tab list accepting only Tab children; `Tabs` is its old name. */
+  export const TabBar: DataConstructor<[id: string], TabBarElement>;
+  export const Tabs: DataConstructor<[id: string], TabBarElement>;
+
+  export interface BreadcrumbElement extends Element {
+    /** Mobile: `(index, cx)` when an earlier place in the path is tapped. */
+    on_click(handler: (index: number, cx: DataContext) => void): this;
+  }
+  /** A path of places, the current one last. */
+  export const Breadcrumb: DataConstructor<[labels: string[]], BreadcrumbElement>;
+
+  export interface SettingItemElement extends Element {
+    description(text: string): this;
+    layout(axis: "horizontal" | "vertical"): this;
+    /** Accepted; settings on a phone have no search field. */
+    keywords(keywords: string[]): this;
+    disabled(disabled: boolean): this;
+    /** The item's control. Required. */
+    content(element: Element): this;
+  }
+  export const SettingItem: DataConstructor<[title: string], SettingItemElement>;
+  export interface SettingGroupElement extends Element {
+    title(text: string): this;
+    /** The footer under the group's card. */
+    description(text: string): this;
+  }
+  export const SettingGroup: DataConstructor<[], SettingGroupElement>;
+  export interface SettingPageElement extends Element {
+    description(text: string): this;
+    /** Accepted; groups are always open on a phone. */
+    default_open(open: boolean): this;
+    /** Accepted; the reset control is a desktop affordance. */
+    resettable(resettable: boolean): this;
+    /** Sits beside the page's title. */
+    content(element: Element): this;
+  }
+  export const SettingPage: DataConstructor<[title: string], SettingPageElement>;
+  export interface SettingsElement extends Element {
+    size(size: DataSize): this;
+    /** Accepted; a phone has no sidebar. */
+    sidebar_width(pixels: number): this;
+    sidebar_size_range(minimum: number, maximum: number): this;
+    /** The page shown first. */
+    default_selected_page(index: number): this;
+  }
+  /** Pages of inset grouped settings; several pages switch on a segmented control. */
+  export const Settings: DataConstructor<[id: string], SettingsElement>;
+
+  export interface GroupBoxElement extends Element {
+    title(title: string | Element): this;
+    variant(variant: "normal" | "fill" | "outline"): this;
+  }
+  /** A titled container for grouping related content. */
+  export const GroupBox: DataConstructor<[], GroupBoxElement>;
+
+  /** A row of controls in source order, spaced as iOS's toolbar. */
+  export const Toolbar: DataConstructor<[id: string], Element>;
+
+  /** A date as `"YYYY-MM-DD"`. */
+  type IsoDate = string;
+  export interface CalendarState {
+    /** The selected date (`null` if none), or `[start, end]` in range mode. */
+    date(): IsoDate | null | [IsoDate | null, IsoDate | null];
+    /** A date selects one day; `[start, end]` selects a range (range mode). Shows its month. */
+    set_date(date: IsoDate | null | [IsoDate | null, IsoDate | null]): void;
+    /** Mobile: the month on screen, `month` from 1 to 12. */
+    set_month(year: number, month: number): void;
+    month(): { year: number; month: number };
+    /** gpui-component's disabled matcher: true for days that cannot be chosen. */
+    set_disabled_matcher(matcher: ((date: IsoDate) => boolean) | null): void;
+    /** A selection the user made, with `date()`'s shape. */
+    on(event: "change", handler: (date: IsoDate | null | [IsoDate | null, IsoDate | null], cx: DataContext) => void): boolean;
+    release(): boolean;
+  }
+  /** Retained calendar state; create it outside render. */
+  export const CalendarState: { (): CalendarState; new: () => CalendarState };
+  export interface CalendarElement extends Element {
+    /** Stacks this many consecutive months. */
+    number_of_months(count: number): this;
+    /** 0 (Sunday) to 6 (Saturday); defaults to the locale's first day. */
+    first_day_of_week(day: number): this;
+  }
+  /** An inline month calendar. */
+  export const Calendar: DataConstructor<[state: CalendarState], CalendarElement>;
+
+  export interface CarouselState {
+    item_count(): number;
+    selected_index(): number | null;
+    axis(): "horizontal" | "vertical";
+    is_looping(): boolean;
+    has_previous(): boolean;
+    has_next(): boolean;
+    set_selected_index(index: number): void;
+    set_item_count(count: number): void;
+    set_looping(looping: boolean): void;
+    select_next(): boolean;
+    select_previous(): boolean;
+    release(): boolean;
+  }
+  /** Retained carousel state; create it outside render. */
+  export const CarouselState: {
+    (item_count: number, selected_index?: number, axis?: "horizontal" | "vertical", looping?: boolean): CarouselState;
+    new: (item_count: number, selected_index?: number, axis?: "horizontal" | "vertical", looping?: boolean) => CarouselState;
+  };
+  export interface CarouselElement extends Element {
+    /** Accepted; focus rings are drawn natively. */
+    focus_ring(on: boolean): this;
+    item_count(count: number): this;
+    /** Selects an item without emitting a change, for a script that owns the selection. */
+    selected_index(index: number): this;
+    /** Reports the newly selected zero-based item index. */
+    on_change(handler: (index: number, cx: DataContext) => void): this;
+  }
+  /** Slides paged by a swipe, composed from the Carousel parts. */
+  export const Carousel: DataConstructor<[id: string, state: CarouselState], CarouselElement>;
+  /** The clipped viewport; accepts only CarouselItem children. */
+  export const CarouselContent: DataConstructor<[state: CarouselState], Element>;
+  /** One indexed slide. */
+  export const CarouselItem: DataConstructor<[id: string, index: number, state: CarouselState], Element>;
+  export interface CarouselControlElement extends Element {
+    size(size: DataSize): this;
+  }
+  export const CarouselPrevious: DataConstructor<[state: CarouselState], CarouselControlElement>;
+  export const CarouselNext: DataConstructor<[state: CarouselState], CarouselControlElement>;
+  /** The page dots; accepts only CarouselPaginationItem children. */
+  export const CarouselPagination: DataConstructor<[], Element>;
+  /** One dot; a tap shows its item. */
+  export const CarouselPaginationItem: DataConstructor<[id: string, index: number, state: CarouselState], CarouselControlElement>;
+
+  export interface MenuItemElement extends Element {
+    disabled(disabled: boolean): this;
+    /** Accepted; a phone's pull-down menu marks no item. */
+    checked(checked: boolean): this;
+  }
+  /** One action of a Menu; choosing it runs the nearest `.on_action(action, …)` above the menu. */
+  export const MenuItem: DataConstructor<[label: string, action: string], MenuItemElement>;
+  /** Accepted; a phone's pull-down menu has no separators. */
+  export const MenuSeparator: DataConstructor<[], Element>;
+  export interface MenuElement extends Element {
+    disabled(disabled: boolean): this;
+  }
+  /** A button with the label that opens the platform's menu of MenuItems. */
+  export const Menu: DataConstructor<[label: string], MenuElement>;
+  export interface DropdownMenuElement extends Element {
+    /** Appends an item in call order. */
+    item(label: string, callback: (cx: DataContext) => void): this;
+  }
+  /** A button with the label that opens the platform's menu. */
+  export const DropdownMenu: DataConstructor<[id: string, label: string], DropdownMenuElement>;
+  export interface DropdownButtonElement extends Element {
+    /** iOS's tinted button. */
+    outline(): this;
+    variant(variant: "primary" | "secondary" | "danger" | "ghost"): this;
+    size(size: DataSize): this;
+    disabled(disabled: boolean): this;
+    selected(selected: boolean): this;
+    /** Accepted; the platform places the menu. */
+    menu_anchor(anchor: "top_right" | "bottom_right" | "bottom_left" | "top_left"): this;
+    /** Runs when the labeled half is tapped. */
+    on_click(handler: (event: import("native-shell").ClickEvent, cx: DataContext) => void): this;
+    /** Appends a menu item in call order. */
+    menu_item(label: string, callback: (cx: DataContext) => void): this;
+  }
+  /** A split button: the labeled half acts, the chevron half opens a menu. */
+  export const DropdownButton: DataConstructor<[id: string, label: string], DropdownButtonElement>;
+
+  export interface IconElement extends Element {
+    /** `xsmall` 12, `small` 16, `medium` 20 (default), `large` 24; mobile also takes points. */
+    size(size: DataSize | number): this;
+    /** The glyph's color: a theme token or a color literal. */
+    color(color: import("native-shell").Color): this;
+    /** Rotates the icon by radians. */
+    rotate(radians: number): this;
+  }
+  /**
+   * gpui-component's icon set by path (`"icons/chevron-right.svg"`), stem
+   * (`"chevron-right"`) or IconName spelling (`"ChevronRight"`), drawn natively;
+   * any other path is an SVG from the program's directory.
+   */
+  export const Icon: DataConstructor<[path: string], IconElement>;
 
   // --- charts (crates/engine/js/gpui_component/charts.js) ---
 
