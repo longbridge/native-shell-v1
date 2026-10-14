@@ -41,10 +41,10 @@ fn descendants(w: &gtk::Widget) -> Vec<gtk::Widget> {
     out
 }
 
-/// `day-YYYY-MM-DD` for today plus `offset` days, as the calendar names its days.
+/// `cal-YYYY-MM-DD` for today plus `offset` days, as the calendar names its days.
 fn day_id(offset: i32) -> String {
     let date = gtk::glib::DateTime::now_local().expect("local time").add_days(offset).expect("date");
-    format!("day-{}", date.format("%Y-%m-%d").expect("format"))
+    format!("cal-{}", date.format("%Y-%m-%d").expect("format"))
 }
 
 fn events_flow() {
