@@ -22,7 +22,8 @@ fn stylesheet_scales_text_and_uses_the_text_faces() {
         placeholder_color: Some(0x8000_0000),
         ..Default::default()
     };
-    let css = stylesheet(&config, 2.0, &Palette { tint: Some(0xff00_7aff), selection: Some(0x3300_7aff), ..Default::default() });
+    let palette = Palette { foreground: 0xff00_0000, muted: 0xff3c_3c43, tint: 0xff00_7aff, selection: 0x3300_7aff };
+    let css = stylesheet(&config, 2.0, &palette);
     assert!(css.contains("font-size: 34.00px; font-weight: 600;"), "text scales fully: {css}");
     assert!(css.contains("line-height: 44.00px"), "{css}");
     assert!(css.contains("font-family: \"Adwaita Mono\""), "the same faces as Text: {css}");
@@ -32,12 +33,22 @@ fn stylesheet_scales_text_and_uses_the_text_faces() {
 }
 
 #[test]
-fn stylesheet_defaults_follow_the_theme() {
-    let css = stylesheet(&Config::default(), 1.0, &Palette { foreground: Some(0xff0a_0a0a), muted: Some(0xff73_7373), ..Default::default() });
+fn palette_falls_back_to_the_core_theme() {
+    use native_shell_core::theme::{Appearance, Theme};
+    for appearance in [Appearance::Light, Appearance::Dark] {
+        let defaults = Theme::default_for(appearance).colors;
+        let tokens = ThemeTokens { appearance, ..Default::default() };
+        let p = Palette::from_theme(&tokens);
+        assert_eq!(p.tint, defaults["primary"]);
+        assert_eq!(p.selection, defaults["selection"]);
+        assert_eq!(p.foreground, defaults["foreground"]);
+        assert_eq!(p.muted, defaults["muted_foreground"]);
+    }
+    let mut tokens = ThemeTokens::default();
+    tokens.colors.insert("selection".into(), 0x40ff_0000);
+    assert_eq!(Palette::from_theme(&tokens).selection, 0x40ff_0000, "the program's token wins");
+    let css = stylesheet(&Config::default(), 1.0, &Palette::from_theme(&ThemeTokens::default()));
     assert!(css.contains("font-size: 16.00px"), "{css}");
-    assert!(css.contains("color: rgba(10,10,10,1.000); caret-color: rgba(10,10,10,1.000)"), "{css}");
-    assert!(css.contains("label.nsh-placeholder { color: rgba(115,115,115,1.000)"), "{css}");
-    assert!(css.contains("selection { background-color: rgba(10,10,10,0.251);"), "falls back to a tint wash: {css}");
 }
 
 #[test]
