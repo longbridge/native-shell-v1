@@ -18,6 +18,8 @@ use support::{pump_for, Fixture};
 
 fn main() -> ExitCode {
     let wanted: Vec<String> = std::env::args().skip(1).collect();
+    // The point of this tool: write the committed images.
+    std::env::set_var("NSH_SCREENSHOTS", "1");
     let _display = support::init();
     common::host_demo::register(Runtime::shared());
     let out = Path::new(env!("CARGO_MANIFEST_DIR")).join("screenshots");

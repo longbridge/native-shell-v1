@@ -4,9 +4,9 @@
 //! the test runner calls tests from a pool of threads. Every GTK test sends its
 //! body here and waits for it.
 //!
-//! Unless `GDK_BACKEND=broadway` is set, a private `gtk4-broadwayd` is started
-//! (and stopped when the test process exits), so no window ever opens on the
-//! desktop. Without `gtk4-broadwayd` the tests are skipped.
+//! Unless `GDK_BACKEND=broadway` is set, a private Broadway display is started
+//! (`tests/support/display.rs`, stopped when the test process exits), so no
+//! window ever opens on the desktop. Without `gtk4-broadwayd` the tests are skipped.
 
 use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 use std::sync::mpsc;
@@ -41,40 +41,20 @@ fn runner() -> Option<&'static Mutex<Runner>> {
         .as_ref()
 }
 
-/// Points GDK at a Broadway display; `false` when none can be started.
+#[path = "../tests/support/display.rs"]
+mod display;
+
+/// Points GDK at a Broadway display; `false` when none can be started. The
+/// display lives as long as the process (its watchdog stops it then).
 fn private_display() -> bool {
-    if std::env::var("GDK_BACKEND").as_deref() == Ok("broadway") {
-        return true;
-    }
-    let pid = std::process::id();
-    // Clear of the displays the integration tests (100+) and people pick.
-    let display = 1000 + pid % 800;
-    let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| std::env::temp_dir().display().to_string());
-    let socket = std::path::PathBuf::from(runtime_dir).join(format!("broadway{}.socket", display + 1));
-    // A socket left by a killed display would pass for the new one.
-    let _ = std::fs::remove_file(&socket);
-    // A watchdog stops the display once this process is gone.
-    let script = format!(
-        "gtk4-broadwayd :{display} --port {port} --address 127.0.0.1 >/dev/null 2>&1 & b=$!; \
-         while kill -0 {pid} 2>/dev/null; do sleep 0.5; done; kill $b; rm -f '{socket}'",
-        port = 20000 + display,
-        socket = socket.display()
-    );
-    if std::process::Command::new("sh").arg("-c").arg(script).spawn().is_err() {
-        return false;
-    }
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
-    while !socket.exists() {
-        if std::time::Instant::now() > deadline {
-            return false;
+    match display::start() {
+        Some(Some(d)) => {
+            std::mem::forget(d);
+            true
         }
-        std::thread::sleep(std::time::Duration::from_millis(20));
+        Some(None) => true,
+        None => false,
     }
-    std::env::set_var("GDK_BACKEND", "broadway");
-    std::env::set_var("BROADWAY_DISPLAY", format!(":{display}"));
-    std::env::remove_var("WAYLAND_DISPLAY");
-    std::env::remove_var("DISPLAY");
-    true
 }
 
 /// Runs `f` on the GTK thread; returns `false` (and runs nothing) without a display.

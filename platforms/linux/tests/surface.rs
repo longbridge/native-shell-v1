@@ -13,6 +13,8 @@ fn main() -> ExitCode {
         ("environment follows size and appearance", environment_follows_size_and_appearance),
         ("paints backgrounds at their frames", paints_backgrounds_at_their_frames),
         ("timers pause while the surface is hidden", timers_pause_while_the_surface_is_hidden),
+        ("the frame clock runs at full rate", the_frame_clock_runs_at_full_rate),
+        ("the clipboard round-trips", the_clipboard_round_trips),
     ])
 }
 
@@ -90,4 +92,42 @@ export default class App extends View {
     f.window.set_visible(true);
     pump_until(Duration::from_secs(2), || f.instance.metrics().unwrap().timers_fired > paused);
     assert!(f.instance.metrics().unwrap().timers_fired > paused, "timers resume when shown");
+}
+
+/// The display's client acknowledges frames, so GTK is not throttled to 1 fps.
+fn the_frame_clock_runs_at_full_rate() {
+    let f = Fixture::new(r#"import { View, div } from "native-shell"; export default class A extends View { render() { return div(); } }"#);
+    let ticks = Counter::default();
+    let counter = ticks.clone();
+    f.surface.add_tick_callback(move |_, _| {
+        counter.bump();
+        gtk::glib::ControlFlow::Continue
+    });
+    pump_for(Duration::from_millis(500));
+    assert!(ticks.get() >= 10, "{} frames in 0.5 s", ticks.get());
+}
+
+fn the_clipboard_round_trips() {
+    let f = Fixture::new(
+        r#"
+import { View, div, v_flex } from "native-shell";
+export default class App extends View {
+  init() { this.read = "none"; }
+  render() {
+    return v_flex()
+      .child(div().test_id("copy").h(40).on_click((_e, cx) => cx.write_to_clipboard("Gate code 4521")))
+      .child(div().test_id("paste").h(40).on_click((_e, cx) => { this.read = cx.read_from_clipboard() ?? "empty"; cx.notify(); }))
+      .child(div().test_id(`read-${this.read}`).h(10));
+  }
+}"#,
+    );
+    f.tap("copy");
+    f.tap("paste");
+    f.expect("read-Gate code 4521");
+    let clipboard = f.surface.clipboard();
+    let text = std::rc::Rc::new(std::cell::RefCell::new(None));
+    let slot = text.clone();
+    clipboard.read_text_async(None::<&gtk::gio::Cancellable>, move |r| *slot.borrow_mut() = r.ok().flatten().map(|s| s.to_string()));
+    pump_until(Duration::from_secs(2), || text.borrow().is_some());
+    assert_eq!(text.borrow().as_deref(), Some("Gate code 4521"), "the desktop clipboard has it too");
 }

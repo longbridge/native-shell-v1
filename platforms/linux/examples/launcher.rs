@@ -133,6 +133,7 @@ fn show_error(navigation: &adw::NavigationView, example: &Example, message: &str
 
 /// Renders the list page in both appearances, at the launcher's default size.
 fn screenshot(dir: &Path) -> glib::ExitCode {
+    std::env::set_var("NSH_SCREENSHOTS", "1");
     let _display = support::init();
     install_css();
     for appearance in ["light", "dark"] {
@@ -141,11 +142,10 @@ fn screenshot(dir: &Path) -> glib::ExitCode {
         navigation.add(&list_page(&navigation, false));
         // The window's background, which a window paints behind its content.
         let page = adw::Bin::builder().child(&navigation).css_classes(["background"]).build();
-        let window = gtk::Window::builder().decorated(false).child(&page).build();
+        let window = gtk::Window::builder().decorated(false).default_width(420).default_height(860).child(&page).build();
         window.present();
         support::pump_for(std::time::Duration::from_millis(300));
-        // Broadway lays the window out once, within its 768-point-high screen;
-        // lay the page out at the launcher's size like the tests do.
+        // Lay the page out now rather than wait for the window's next frame.
         page.measure(gtk::Orientation::Horizontal, -1);
         page.measure(gtk::Orientation::Vertical, 420);
         page.allocate(420, 860, -1, None);

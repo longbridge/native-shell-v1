@@ -26,19 +26,23 @@
 //! `gtk4-broadwayd`, so tests never open windows on the desktop and need no
 //! X server in CI.
 //!
-//! Broadway freezes a window's frame clock after its first frame until a
-//! browser acknowledges it, and no browser ever connects here, so GTK never
-//! lays the window out again by itself (and tick callbacks never run). The
-//! fixture lays the surface out itself at a fixed size ([`Fixture::layout`],
-//! part of [`Fixture::settle`]), which also frees tests from Broadway's
-//! 1024×768 screen: the surface can be phone-sized whatever the window is.
+//! The display comes with a minimal Broadway client ([`display`]) that
+//! acknowledges every frame, so the frame clock, tick callbacks and
+//! animations run at full rate, and reports a screen large enough for
+//! phone-sized windows. The fixture's window has the surface's size, and the
+//! fixture also lays the surface out itself ([`Fixture::layout`], part of
+//! [`Fixture::settle`]) so a test never waits for a frame to see new frames.
+//!
+//! Screenshots under `screenshots/` are written there only with
+//! `NSH_SCREENSHOTS=1`; otherwise they go to `target/screenshots/`, so a test
+//! run never rewrites the committed images.
 
 #![allow(dead_code)]
 
 use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, ExitCode};
+use std::process::ExitCode;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
@@ -62,55 +66,12 @@ pub const MANIFEST: &str = r#"{
 
 // MARK: Harness
 
-/// The private Broadway display; stopped when dropped.
-pub struct Broadway(Child, PathBuf);
-
-impl Drop for Broadway {
-    fn drop(&mut self) {
-        let _ = self.0.kill();
-        let _ = self.0.wait();
-        // Killed, the daemon leaves its socket behind.
-        let _ = std::fs::remove_file(&self.1);
-    }
-}
-
-/// Starts a private Broadway display unless the caller chose one.
-fn start_display() -> Option<Broadway> {
-    if std::env::var("GDK_BACKEND").as_deref() == Ok("broadway") {
-        return None;
-    }
-    // Displays 100+ stay clear of the ones agents and developers pick by hand.
-    let display = 100 + std::process::id() % 800;
-    let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| std::env::temp_dir().display().to_string());
-    let socket = PathBuf::from(runtime_dir).join(format!("broadway{}.socket", display + 1));
-    // A socket left by a killed daemon would pass for this one before it listens.
-    let _ = std::fs::remove_file(&socket);
-    let child = Command::new("gtk4-broadwayd")
-        .arg(format!(":{display}"))
-        .arg("--port")
-        .arg((20000 + display).to_string())
-        .arg("--address")
-        .arg("127.0.0.1")
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-        .expect("gtk4-broadwayd is needed to run the GTK tests (package libgtk-4-bin)");
-    let guard = Broadway(child, socket.clone());
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !socket.exists() && Instant::now() < deadline {
-        std::thread::sleep(Duration::from_millis(20));
-    }
-    std::env::set_var("GDK_BACKEND", "broadway");
-    std::env::set_var("BROADWAY_DISPLAY", format!(":{display}"));
-    std::env::remove_var("WAYLAND_DISPLAY");
-    std::env::remove_var("DISPLAY");
-    Some(guard)
-}
+pub mod display;
 
 /// Starts GTK and libadwaita headless: on a private Broadway display unless
 /// one was chosen, with temporary files kept off the small /tmp. Keep the
 /// guard alive while GTK runs.
-pub fn init() -> Option<Broadway> {
+pub fn init() -> Option<display::Display> {
     if std::env::var_os("TMPDIR").is_none() {
         let dir = option_env!("CARGO_TARGET_TMPDIR")
             .map(PathBuf::from)
@@ -118,7 +79,7 @@ pub fn init() -> Option<Broadway> {
         let _ = std::fs::create_dir_all(&dir);
         std::env::set_var("TMPDIR", dir);
     }
-    let display = start_display();
+    let display = display::start().expect("no Broadway display could start (is gtk4-broadwayd installed?)");
     gtk::init().expect("GTK cannot start");
     adw::init().expect("libadwaita cannot start");
     display
@@ -255,7 +216,7 @@ impl Fixture {
         let data_dir = tempfile::tempdir().expect("temporary data directory");
         options.data_dir.get_or_insert_with(|| data_dir.path().to_path_buf());
         let surface = SurfaceView::new();
-        let window = gtk::Window::builder().decorated(false).child(&surface).build();
+        let window = gtk::Window::builder().decorated(false).default_width(WIDTH).default_height(HEIGHT).child(&surface).build();
         window.present();
         pump();
         let instance = Rc::new(Instance::with_runtime("dev.native-shell.test", options, runtime).expect("instance"));
@@ -280,6 +241,7 @@ impl Fixture {
     /// Resizes the surface (the window size does not matter) and settles.
     pub fn resize(&self, width: i32, height: i32) {
         self.size.set((width, height));
+        self.window.set_default_size(width, height);
         self.settle();
     }
 
@@ -375,14 +337,21 @@ impl Fixture {
     /// Renders the surface offscreen into a PNG at `path` (relative paths are
     /// relative to `platforms/linux`), creating its directory.
     pub fn screenshot(&self, path: impl AsRef<Path>) -> PathBuf {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(path);
-        screenshot(self.surface.upcast_ref(), &path);
-        path
+        self.before_render();
+        screenshot(self.surface.upcast_ref(), path.as_ref())
     }
 
     /// One pixel of the surface, `0xAARRGGBB`.
     pub fn pixel(&self, x: i32, y: i32) -> u32 {
+        self.before_render();
         pixel(self.surface.upcast_ref(), x, y)
+    }
+
+    /// A frame restyles widgets (appearance changes reach CSS then); the
+    /// layout after it pins the surface at the fixture's size.
+    fn before_render(&self) {
+        next_frame(self.window.upcast_ref());
+        self.layout();
     }
 }
 
@@ -468,9 +437,29 @@ fn emit_click(target: &gtk::Widget, origin: &gtk::Widget) -> bool {
     true
 }
 
-/// Renders `widget` (inside a realized window) into a texture.
+/// Where a screenshot goes: paths under `screenshots/` (the committed images)
+/// only with `NSH_SCREENSHOTS=1`, else under `target/screenshots/`. Relative
+/// paths are relative to `platforms/linux`.
+pub fn screenshot_path(path: &Path) -> PathBuf {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let path = path.strip_prefix(root).unwrap_or(path);
+    match path.strip_prefix("screenshots") {
+        Ok(rest) if std::env::var("NSH_SCREENSHOTS").as_deref() != Ok("1") => root.join("target/screenshots").join(rest),
+        _ => root.join(path),
+    }
+}
+
+/// Waits (up to a second) for the window of `widget` to draw one more frame.
+pub fn next_frame(widget: &gtk::Widget) {
+    let Some(clock) = widget.frame_clock() else { return };
+    let before = clock.frame_counter();
+    widget.queue_draw();
+    clock.request_phase(gdk::FrameClockPhase::PAINT);
+    pump_until(Duration::from_secs(1), || clock.frame_counter() > before);
+}
+
+/// Renders `widget` (inside a realized window) into a texture, as it is now.
 pub fn render(widget: &gtk::Widget) -> gdk::Texture {
-    pump();
     let (w, h) = (widget.width(), widget.height());
     assert!(w > 0 && h > 0, "cannot render an unallocated widget");
     let snapshot = gtk::Snapshot::new();
@@ -488,13 +477,16 @@ pub fn render(widget: &gtk::Widget) -> gdk::Texture {
     renderer.render_texture(&node, Some(&graphene::Rect::new(0.0, 0.0, w as f32, h as f32)))
 }
 
-/// Renders `widget` (inside a realized window) into a PNG.
-pub fn screenshot(widget: &gtk::Widget, path: &Path) {
+/// Renders `widget` (inside a realized window) into a PNG at
+/// [`screenshot_path`]`(path)`, and returns where it went.
+pub fn screenshot(widget: &gtk::Widget, path: &Path) -> PathBuf {
+    let path = screenshot_path(path);
     let texture = render(widget);
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).expect("screenshot directory");
     }
-    texture.save_to_png(path).unwrap_or_else(|e| panic!("cannot write {}: {e}", path.display()));
+    texture.save_to_png(&path).unwrap_or_else(|e| panic!("cannot write {}: {e}", path.display()));
+    path
 }
 
 /// Reads one pixel (`0xAARRGGBB`) of a rendered widget, for color assertions without image files.
