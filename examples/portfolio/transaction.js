@@ -182,70 +182,66 @@ export function openTransactionForm(cx, { market, transactions, symbol, save }) 
             )
             .child(
               v_flex()
-                .gap_2()
+                .rounded_xl()
+                .border_1()
+                .border_color(t.border)
+                .bg(t.surface)
+                .overflow_hidden()
                 .child(
-                  v_flex()
-                    .rounded_xl()
-                    .border_1()
-                    .border_color(t.border)
-                    .bg(t.surface)
-                    .overflow_hidden()
-                    .child(
-                      fieldRow(
-                        "form-symbol-row",
-                        "Symbol",
-                        h_flex()
-                          .justify_end()
-                          .child(
-                            Select.new("form-symbol")
-                              .test_id("form-symbol")
-                              // Long names truncate inside the field rather than pushing into its label.
-                              .w_full()
-                              .min_w_0()
-                              .accessibility_label("Symbol")
-                              .items(
-                                symbols.map((i) => ({
-                                  label: `${i.symbol} · ${i.name}`,
-                                  value: i.symbol,
-                                })),
-                              )
-                              .value(draft.symbol)
-                              .on_change((value, cx) => {
-                                draft.symbol = value;
-                                if (!priceEdited) priceInput.set_value(priceText());
-                                delete errors["form-shares"];
-                                cx.notify();
-                              }),
-                          ),
+                  fieldRow(
+                    "form-symbol-row",
+                    "Symbol",
+                    h_flex()
+                      .justify_end()
+                      .child(
+                        Select.new("form-symbol")
+                          .test_id("form-symbol")
+                          // Long names truncate inside the field rather than pushing into its label.
+                          .w_full()
+                          .min_w_0()
+                          .accessibility_label("Symbol")
+                          .items(
+                            symbols.map((i) => ({
+                              label: `${i.symbol} · ${i.name}`,
+                              value: i.symbol,
+                            })),
+                          )
+                          .value(draft.symbol)
+                          .on_change((value, cx) => {
+                            draft.symbol = value;
+                            if (!priceEdited) priceInput.set_value(priceText());
+                            delete errors["form-shares"];
+                            cx.notify();
+                          }),
                       ),
-                    )
-                    .child(hairline(t).ml_4())
-                    .child(fieldRow("form-shares", "Shares", input(sharesInput, "form-shares", "Shares")))
-                    .child(hairline(t).ml_4())
-                    .child(fieldRow("form-price", "Price", input(priceInput, "form-price", "Price per share in dollars")))
-                    .child(hairline(t).ml_4())
-                    .child(
-                      fieldRow(
-                        "form-date",
-                        "Date",
-                        h_flex()
-                          .justify_end()
-                          .child(
-                            DatePicker.new("form-date")
-                              .test_id("form-date")
-                              .accessibility_label(`Date, ${longDate(draft.date)}`)
-                              .mode("date")
-                              .value(draft.date)
-                              .on_change((value, cx) => {
-                                // Pickers report a date, or a full timestamp; the date is the first ten characters.
-                                draft.date = value.slice(0, 10);
-                                delete errors["form-date"];
-                                delete errors["form-shares"];
-                                cx.notify();
-                              }),
-                          ),
+                  ),
+                )
+                .child(hairline(t).ml_4())
+                .child(fieldRow("form-shares", "Shares", input(sharesInput, "form-shares", "Shares")))
+                .child(hairline(t).ml_4())
+                .child(fieldRow("form-price", "Price", input(priceInput, "form-price", "Price per share in dollars")))
+                .child(hairline(t).ml_4())
+                .child(
+                  fieldRow(
+                    "form-date",
+                    "Date",
+                    h_flex()
+                      .justify_end()
+                      .child(
+                        DatePicker.new("form-date")
+                          .test_id("form-date")
+                          .accessibility_label(`Date, ${longDate(draft.date)}`)
+                          .mode("date")
+                          .value(draft.date)
+                          .on_change((value, cx) => {
+                            // Pickers report a date, or a full timestamp; the date is the first ten characters.
+                            draft.date = value.slice(0, 10);
+                            delete errors["form-date"];
+                            delete errors["form-shares"];
+                            cx.notify();
+                          }),
                       ),
-                    ),
+                  ),
                 ),
             )
             .child(

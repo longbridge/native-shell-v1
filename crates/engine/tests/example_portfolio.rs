@@ -324,3 +324,4 @@ fn alerts_announce_big_moves_once_and_respect_settings() {
     assert_clean(&h);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
