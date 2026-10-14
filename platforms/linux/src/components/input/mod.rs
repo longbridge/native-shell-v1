@@ -115,6 +115,8 @@ struct Config {
     content_type: i32,
     auto_capitalize: i32,
     return_key: i32,
+    /// `A11yLabel`: the editor is what assistive technologies focus.
+    label: String,
 }
 
 impl Default for Config {
@@ -130,6 +132,7 @@ impl Default for Config {
             content_type: 0,
             auto_capitalize: 2,
             return_key: 0,
+            label: String::new(),
         }
     }
 }
@@ -180,6 +183,8 @@ impl Inner {
         placeholder.add_css_class("nsh-placeholder");
         placeholder.set_can_target(false);
         placeholder.set_visible(false);
+        // The editor announces it as its placeholder instead.
+        placeholder.update_state(&[gtk::accessible::State::Hidden(true)]);
         overlay.add_overlay(&placeholder);
         let css = gtk::CssProvider::new();
         add_css(&placeholder, &css);
@@ -572,6 +577,12 @@ impl Inner {
             }
         }
 
+        editor.widget().update_property(&[
+            gtk::accessible::Property::Label(&c.label),
+            gtk::accessible::Property::Placeholder(&c.placeholder),
+            gtk::accessible::Property::MultiLine(self.multiline.get()),
+        ]);
+
         let p = &self.placeholder;
         p.set_label(&c.placeholder);
         p.set_xalign(xalign);
@@ -648,6 +659,14 @@ impl Component for TextInput {
                     PropValue::Str(s) if !s.is_empty() => Some(s.chars().collect()),
                     _ => None,
                 }
+            }
+            Prop::A11yLabel => {
+                c.label = match value {
+                    PropValue::Str(s) => s.clone(),
+                    _ => String::new(),
+                };
+                // The base view keeps it too.
+                return false;
             }
             _ => return false,
         }
