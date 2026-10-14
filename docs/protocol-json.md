@@ -169,7 +169,7 @@ The script's props object, verbatim.
 | `Focus`, `Blur` | input node | `{}` |
 | `ScrollTo` | scroll node | `{"x", "y", "animated"}` |
 | `ScrollToIndex` | list node | `{"index", "position": "top"\|"center"\|"bottom", "animated"}` |
-| `ShowToast` | root (0) | `{"id", "title", "description"?, "action"?: {"label"}, "level": "info"\|"success"\|"warning"\|"error", "duration": 3000}` (`duration` 0 = until dismissed) |
+| `ShowToast` | root (0) | `{"id", "title", "description"?, "action"?: {"label"}, "level": "info"\|"success"\|"warning"\|"error", "duration": 3000}` (`duration` 0 = until dismissed). A toast whose `id` is still showing is replaced: the engine sends `DismissToast {"id"}` for it first, in the same batch |
 | `DismissToast` | root (0) | `{"id"}` retracts that toast if still showing (else ignored); `{}` retracts every toast |
 | `OpenUrl` | root | `{"url"}` |
 | `SetClipboard` | root | `{"text"}` |
