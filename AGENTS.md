@@ -149,6 +149,10 @@ machines (platform work happens where the platform runs).
   in a dedicated commit that says so in its subject, with every existing
   renderer updated or a note on what it still needs.
 - A commit leaves the tests of the crates and platforms it touches green.
+- The tree has no rustfmt configuration and other people's lines are often
+  wider than rustfmt's default, so never run `cargo fmt` over a crate or a
+  file others edit; format only the code you wrote (e.g. `rustfmt` on a new
+  file, or by hand).
 - Before starting work in a shared area (engine, core, examples, docs), read
   `docs/in-progress.md` and add your row there; remove it when the work lands.
 
