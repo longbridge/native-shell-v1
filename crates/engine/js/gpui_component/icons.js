@@ -155,11 +155,9 @@ export class IconElement extends Element {
     this._sync();
   }
 
-  /** `xsmall | small | medium | large`, or a number of points (mobile). */
+  /** `xsmall | small | medium | large`, or (mobile) a length: points, `"1.5rem"`… */
   size(size) {
-    if (typeof size === "number") this._size = size;
-    else if (size in SIZES) this._size = SIZES[size];
-    else throw new TypeError(`unsupported Icon size \`${size}\``);
+    this._size = typeof size === "string" && size in SIZES ? SIZES[size] : size;
     return this._sync();
   }
 

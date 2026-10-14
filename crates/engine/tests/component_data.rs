@@ -187,6 +187,32 @@ fn tree_arrow_keys_move_the_selection_and_open_folders() {
     assert_eq!(log(&h), "tax,receipts,tax", "disabled rows are skipped: nothing below Photos");
 }
 
+#[test]
+fn tree_selected_item_reveals_a_selection_made_elsewhere_once() {
+    let mut h = start(
+        r#"
+export default class C extends View {
+  init() { this.sel = "receipts"; }
+  render() {
+    return v_flex()
+      .child(div().test_id("pick").child("Pick").on_click((_e, cx) => { this.sel = "lisbon"; cx.notify(); }))
+      .child(new Tree("files").test_id("tree").selected_item(this.sel).on_select((id, cx) => { this.sel = id; cx.notify(); })
+        .child(new TreeItem("docs", "Documents").child(new TreeItem("tax", "Taxes").child(new TreeItem("receipts", "Receipts.pdf"))))
+        .child(new TreeItem("photos", "Photos").child(new TreeItem("lisbon", "Lisbon.jpg"))));
+  }
+}
+"#,
+    );
+    assert_eq!(h.text_of("tree"), "Documents Taxes Receipts.pdf Photos");
+    assert_eq!(a11y_state(&h, labeled(&h, "Receipts.pdf"))["selected"], true);
+    // The reader may close the folder around the selection; it stays closed.
+    h.tap_text("Documents");
+    assert_eq!(h.text_of("tree"), "Documents Photos");
+    h.tap("pick");
+    assert_eq!(h.text_of("tree"), "Documents Photos Lisbon.jpg");
+    assert_eq!(a11y_state(&h, labeled(&h, "Lisbon.jpg"))["selected"], true);
+}
+
 // List ------------------------------------------------------------------------------
 
 #[test]
@@ -283,7 +309,7 @@ export default class C extends View {
   render() {
     return v_flex()
       .child(text(this.log.join(",")).test_id("log"))
-      .child(new Breadcrumb(["Files", "Projects", "Garden plan"]).test_id("path").on_click((i, cx) => { this.log.push(i); cx.notify(); }));
+      .child(new Breadcrumb(["Files", "Projects", "Garden plan"]).test_id("path").on_item_click((i, cx) => { this.log.push(i); cx.notify(); }));
   }
 }
 "#,
@@ -321,7 +347,7 @@ export default class C extends View {
 fn settings_draws_groups_as_inset_cards_and_switches_pages() {
     let mut h = start(SETTINGS);
     let texts = h.texts();
-    for t in ["Applies to this device.", "Connections", "Wi-Fi", "Bluetooth", "Not available on this model", "Off saves battery."] {
+    for t in ["Applies to this device.", "CONNECTIONS", "Wi-Fi", "Bluetooth", "Not available on this model", "Off saves battery."] {
         assert!(texts.contains(&t.to_string()), "{t}: {texts:?}");
     }
     assert!(!texts.contains(&"Share analytics".to_string()));
@@ -375,7 +401,7 @@ export default class C extends View {
 }
 "#,
     );
-    assert_eq!(h.text_of("box"), "Delivery Arrives Thursday");
+    assert_eq!(h.text_of("box"), "DELIVERY Arrives Thursday");
     let content = h.native().children(h.find("box").unwrap())[1];
     let surface = Theme::default_for(Appearance::Light).color("surface").unwrap();
     assert_eq!(h.native().prop(content, Prop::BackgroundColor), Some(&PropValue::Color(surface)));

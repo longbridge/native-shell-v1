@@ -75,7 +75,8 @@ export class Tree extends Element {
     this._k = this._id;
     this._items = [];
     this._onSelect = null;
-    this._state = retainedState("tree", this._id, () => ({ expanded: new Map(), selected: null }));
+    this._state = retainedState("tree", this._id, () => ({ expanded: new Map(), selected: null, revealed: null }));
+    this._reveal = null;
     this._preset([["flex"], ["flex_col"]]);
     this._P().role = "list";
   }
@@ -85,8 +86,37 @@ export class Tree extends Element {
     if (x === null || x === undefined || typeof x === "boolean") return this;
     if (!(x instanceof TreeItem)) throw new TypeError("Tree accepts only TreeItem children");
     this._items.push(x);
+    if (this._reveal !== null) this._open(x, this._reveal);
     for (const entry of this._visible([x], 0, null)) super.child(this._row(entry));
     return this;
+  }
+
+  /**
+   * Mobile (gpui-component's `TreeState::set_selected_item`): selects `id`,
+   * or nothing for `null`, and opens the folders above it the first time it
+   * is given, so a selection made elsewhere (a breadcrumb, a search) shows.
+   */
+  selected_item(id) {
+    const next = id === null || id === undefined ? null : String(id);
+    this._state.selected = next;
+    if (next !== null && next !== this._state.revealed) {
+      this._state.revealed = next;
+      this._reveal = next;
+      for (const item of this._items) this._open(item, next);
+    }
+    if (this._items.length > 0) {
+      this._c = null;
+      for (const entry of this._visible(this._items, 0, null)) super.child(this._row(entry));
+    }
+    return this;
+  }
+
+  /** Opens every folder on the way from `item` to `id`; answers whether `id` is in `item`'s subtree. */
+  _open(item, id) {
+    if (item._id === id) return true;
+    const inside = item._items.some((child) => this._open(child, id));
+    if (inside) this._state.expanded.set(item._id, true);
+    return inside;
   }
 
   /** `(id, cx)` after the user selects a row (a tap, or the arrow keys). */

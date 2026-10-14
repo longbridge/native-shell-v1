@@ -7,8 +7,9 @@
 
 import { Element, div, h_flex, v_flex, chainKey } from "nsh:elements";
 import { Tabs } from "nsh:components";
-import { TEXT, LEADING, CARD, checkSize, separator, retainedState } from "nsh:component/shared";
+import { TEXT, LEADING, CARD, isComponentSize, separator, sectionHeader, retainedState } from "nsh:component/shared";
 
+const NATIVE_CONTROLS = new Set(["switch", "checkbox", "slider", "select", "segmented", "date", "input"]);
 const ITEM_PAD = { xsmall: 6, small: 8, medium: 11, large: 14 };
 
 /** One setting: a title, an optional description and its control (`content`). */
@@ -63,7 +64,11 @@ export class SettingItem extends Element {
 
   _build(size) {
     if (this._content === null) throw new Error("SettingItem requires content(element)");
-    if (this._disabled) this._content.disabled(true);
+    if (this._disabled) {
+      this._content.disabled(true);
+      // Native controls also stop taking input (a select would still open its menu).
+      if (NATIVE_CONTROLS.has(this._content.__el)) this._content._P().enabled = false;
+    }
     const text = v_flex()
       .flex_1()
       .min_w_0()
@@ -123,13 +128,10 @@ export class SettingGroup extends Element {
     });
     return v_flex()
       .key(`group:${this._title ?? index}`)
-      .gap_2()
-      .when(this._title !== null, (el) =>
-        el.child(div().role("header").px_4().text_size(TEXT.footnote).line_height(LEADING.footnote).text_color("muted_foreground").child(this._title)),
-      )
+      .when(this._title !== null, (el) => el.child(sectionHeader(this._title)))
       .child(v_flex()._preset([["flex"], ["flex_col"], ...CARD]).children(rows))
       .when(this._description !== null, (el) =>
-        el.child(div().px_4().text_size(TEXT.footnote).line_height(LEADING.footnote).text_color("muted_foreground").child(this._description)),
+        el.child(div().px_4().pt_1p5().text_size(TEXT.footnote).line_height(LEADING.footnote).text_color("muted_foreground").child(this._description)),
       );
   }
 }
@@ -227,7 +229,8 @@ export class Settings extends Element {
   }
 
   size(size) {
-    this._size = checkSize(size, "Settings.size()");
+    if (!isComponentSize(size)) return super.size(size);
+    this._size = size;
     return this._sync();
   }
 

@@ -87,10 +87,10 @@ impl Select {
 fn paint(c: &Canvas, snapshot: &gtk::Snapshot, l: &Link, s: &State) {
     let (w, h) = (c.width() as f32, c.height() as f32);
     let style = s.style.borrow();
-    let (text, color) = match s.label() {
-        Some(label) => (label, style.color.unwrap_or_else(|| l.color("foreground"))),
-        None => (s.placeholder.borrow().clone(), l.color("muted_foreground")),
-    };
+    // The placeholder is drawn like a value, as iOS titles the button: menus
+    // without a selection (a "Sort by" or "More" button) name themselves with it.
+    let text = s.label().unwrap_or_else(|| s.placeholder.borrow().clone());
+    let color = style.color.unwrap_or_else(|| l.color("foreground"));
     let alpha = if !c.is_sensitive() {
         control::DISABLED_ALPHA
     } else if c.pressed() || s.popover.borrow().as_ref().is_some_and(|p| p.is_visible()) {
