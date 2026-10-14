@@ -135,8 +135,8 @@ fn copy_dir(from: &Path, to: &Path) {
     }
 }
 
-fn nshell(args: &[&str]) {
-    let o = Command::new(env!("CARGO_BIN_EXE_nshell")).args(args).output().unwrap();
+fn native_shell(args: &[&str]) {
+    let o = Command::new(env!("CARGO_BIN_EXE_native-shell")).args(args).output().unwrap();
     assert!(o.status.success(), "{args:?}: {}", String::from_utf8_lossy(&o.stderr));
 }
 
@@ -173,7 +173,7 @@ fn examples_and_new_programs_type_check() {
         if dir.join("host.json").is_file() {
             args.extend(["--registry".into(), dir.join("host.json").display().to_string()]);
         }
-        nshell(&args.iter().map(String::as_str).collect::<Vec<_>>());
+        native_shell(&args.iter().map(String::as_str).collect::<Vec<_>>());
         if !dir.join("jsconfig.json").is_file() {
             // gpui-shell's annotated program is checked as strictly as gpui-shell checks it.
             let config = if name.starts_with("gpui-") { STRICT.to_string() } else { default_config() };
@@ -187,13 +187,13 @@ fn examples_and_new_programs_type_check() {
     assert!(checked >= 2, "no examples found under {}", examples.display());
 
     let fresh = tmp.path().join("fresh");
-    nshell(&["new", fresh.to_str().unwrap()]);
+    native_shell(&["new", fresh.to_str().unwrap()]);
     if let Err(e) = check(&tsc, &fresh) {
         failures.push(format!("a new program:\n{e}"));
     }
     // The wider gpui-base surface, under gpui-shell's strict settings.
     let api = tmp.path().join("api");
-    nshell(&["new", api.to_str().unwrap()]);
+    native_shell(&["new", api.to_str().unwrap()]);
     std::fs::write(api.join("jsconfig.json"), STRICT).unwrap();
     std::fs::write(api.join("main.js"), API_PROGRAM).unwrap();
     std::fs::write(api.join("children.js"), COMPONENT_CHILDREN).unwrap();
@@ -203,10 +203,10 @@ fn examples_and_new_programs_type_check() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-/// The jsconfig `nshell new` writes.
+/// The jsconfig `native-shell new` writes.
 fn default_config() -> String {
     let tmp = tempfile::tempdir().unwrap();
     let dir = tmp.path().join("p");
-    nshell(&["new", dir.to_str().unwrap()]);
+    native_shell(&["new", dir.to_str().unwrap()]);
     std::fs::read_to_string(dir.join("jsconfig.json")).unwrap()
 }

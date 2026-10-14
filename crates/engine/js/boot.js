@@ -42,6 +42,28 @@ consoleObject.assert = (cond, ...args) => {
 const g = globalThis;
 g.console = Object.freeze(consoleObject);
 
+// A pinned wall clock (`InstanceConfig.wall_clock`, for tests and screenshots):
+// `Date.now()` and `new Date()` start at the host's instant and run on with
+// the engine's time, so they agree with timers. Everything else about `Date`
+// (arguments, `parse`, `UTC`, the prototype, `instanceof`) is the builtin's.
+const wallStart = N.wall_clock();
+if (wallStart !== null && wallStart !== undefined) {
+  const BuiltinDate = Date;
+  const wallNow = () => Math.floor(wallStart + N.now());
+  function PinnedDate(...args) {
+    if (new.target === undefined) return new BuiltinDate(wallNow()).toString();
+    return Reflect.construct(BuiltinDate, args.length === 0 ? [wallNow()] : args, new.target);
+  }
+  Object.defineProperty(PinnedDate, "length", { value: 7 });
+  Object.defineProperty(PinnedDate, "name", { value: "Date" });
+  PinnedDate.prototype = BuiltinDate.prototype;
+  PinnedDate.now = wallNow;
+  PinnedDate.parse = BuiltinDate.parse;
+  PinnedDate.UTC = BuiltinDate.UTC;
+  Object.defineProperty(BuiltinDate.prototype, "constructor", { value: PinnedDate, writable: true, configurable: true });
+  g.Date = PinnedDate;
+}
+
 function timeoutFn(fn, args) {
   if (typeof fn !== "function") throw new TypeError("setTimeout/setInterval expect a function (strings are not evaluated)");
   return () => fn(...args);

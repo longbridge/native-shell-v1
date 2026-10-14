@@ -3,7 +3,7 @@
 //! Toolbar and Icon.
 
 use native_shell::core::host::Environment;
-use native_shell::core::protocol::{EventType, Prop, PropValue, ViewType};
+use native_shell::core::protocol::{Command, EventType, Prop, PropValue, ViewType};
 use native_shell::core::theme::{Appearance, Theme};
 use native_shell::testing::Harness;
 
@@ -497,9 +497,8 @@ fn calendar_marks_days_and_names_its_parts() {
     ));
     assert_eq!(h.prop("cal-2020-10-16", Prop::A11yLabel), Some(PropValue::Str("Friday, October 16, 2020, has events".into())));
     let dot = |h: &Harness, id: &str| {
-        let disc = h.native().children(h.find(id).unwrap())[0];
-        let kids = h.native().children(disc).to_vec();
-        kids.iter().find_map(|k| match h.native().prop(*k, Prop::BackgroundColor) {
+        let kids = h.native().children(h.find(id).unwrap()).to_vec();
+        kids.iter().skip(1).find_map(|k| match h.native().prop(*k, Prop::BackgroundColor) {
             Some(PropValue::Color(c)) => Some(*c),
             _ => None,
         })
@@ -511,7 +510,7 @@ fn calendar_marks_days_and_names_its_parts() {
     // Day and month-button ids make taps scriptable.
     h.tap("cal-2020-10-16");
     assert_eq!(log(&h), r#""2020-10-16""#);
-    assert_eq!(dot(&h, "cal-2020-10-16"), theme.color("primary_foreground"), "white on the selected disc");
+    assert_eq!(dot(&h, "cal-2020-10-16"), theme.color("primary"), "the dot stays under the selected disc");
     h.tap("cal-next");
     assert!(h.find("cal-2020-11-02").is_some());
     h.tap("cal-prev");
@@ -520,7 +519,10 @@ fn calendar_marks_days_and_names_its_parts() {
 
 #[test]
 fn calendar_columns_fit_at_twice_the_text_size() {
-    let src = program(&calendar("this.state.set_month(2020, 10);", "new Calendar(this.state)"));
+    let src = program(&calendar(
+        r#"this.state.set_month(2020, 10); this.state.set_marker_matcher((d) => d === "2020-10-16" ? "tinted" : null);"#,
+        "new Calendar(this.state)",
+    ));
     let env = Environment { font_scale: 2.0, ..Environment::default() };
     let h = started(Harness::build(&[("main.js", &src)]).environment(env).start());
     assert_eq!(&h.texts()[2..4], ["S", "M"], "narrow weekday symbols");
@@ -530,6 +532,11 @@ fn calendar_columns_fit_at_twice_the_text_size() {
     assert!(cell.x + cell.width <= 390.5, "{cell:?}");
     let disc = h.native().nodes[&h.native().children(sat)[0]].frame.unwrap();
     assert!(disc.x >= 0.0 && disc.x + disc.width <= cell.width + 0.5, "{disc:?} in {cell:?}");
+    // A marked day's dot sits below its number, not over it.
+    let marked = h.find("cal-2020-10-16").unwrap();
+    let kids = h.native().children(marked).to_vec();
+    let (disc, dot) = (h.native().nodes[&kids[0]].frame.unwrap(), h.native().nodes[&kids[1]].frame.unwrap());
+    assert!(dot.y >= disc.y + disc.height, "{dot:?} under {disc:?}");
 }
 
 #[test]
@@ -578,32 +585,66 @@ fn carousel_pages_with_buttons_and_dots() {
     assert_eq!(a11y_state(&h, h.find("next").unwrap())["disabled"], true);
 }
 
+/// The `ScrollTo` commands sent to the node with `test_id`, as JSON.
+fn scrolls(h: &Harness, test_id: &str) -> Vec<serde_json::Value> {
+    let node = h.find(test_id).unwrap();
+    h.commands()
+        .iter()
+        .filter(|(n, c, _)| *n == node && *c == Command::ScrollTo)
+        .map(|(_, _, p)| serde_json::from_str(p).unwrap())
+        .collect()
+}
+
 #[test]
-fn carousel_follows_a_swipe_and_settles_on_the_next_slide() {
+fn carousel_is_a_paged_horizontal_scroll() {
     let mut h = start(PHOTOS);
+    // A native paged scroll: never a pan that would take the page's vertical drags.
+    assert_eq!(h.view_type("content"), ViewType::Scroll);
+    assert_eq!(h.prop("content", Prop::Horizontal), Some(PropValue::Bool(true)));
+    assert_eq!(h.prop("content", Prop::Paging), Some(PropValue::Bool(true)));
+    assert_eq!(h.prop("content", Prop::ShowsIndicators), Some(PropValue::Bool(false)), "the dots say where the reader is");
+    assert!(scrolls(&h, "content").is_empty(), "the first slide needs no scroll");
+
+    // A swipe: the slide nearest the offset becomes the selection.
     let content = h.find("content").unwrap();
-    let pan = |h: &mut Harness, phase: &str, dx: i32, vx: i32| {
-        h.dispatch(content, EventType::Pan, &format!(r#"{{"phase":"{phase}","dx":{dx},"dy":0,"vx":{vx},"vy":0}}"#));
+    let scroll = |h: &mut Harness, x: f32| {
+        h.dispatch(content, EventType::Scroll, &format!(r#"{{"x":{x},"y":0,"content_width":1170,"content_height":200,"viewport_width":390,"viewport_height":200}}"#));
     };
-    pan(&mut h, "began", 0, 0);
-    pan(&mut h, "changed", -40, -100);
-    let strip = h.native().children(content)[0];
-    let transform = str_prop(&h, strip, Prop::Transform).unwrap();
-    assert!(transform.contains("-40"), "the strip follows the finger: {transform}");
-    // A short, slow swipe settles back.
-    pan(&mut h, "ended", -40, -100);
+    scroll(&mut h, 150.0);
     assert_eq!(log(&h), "");
-    // A long one pages.
-    pan(&mut h, "began", 0, 0);
-    pan(&mut h, "ended", -120, -50);
+    scroll(&mut h, 390.0);
     assert_eq!(log(&h), "1");
-    // Past the first slide the strip resists, and a fast swipe there pages nowhere.
+    assert_eq!(h.prop("carousel", Prop::A11yValue), Some(PropValue::Str("Item 2 of 3".into())));
+
+    // The buttons and dots scroll there, animated, a viewport width per slide.
+    h.clear_commands();
+    h.tap("next");
+    assert_eq!(log(&h), "1,2");
+    assert_eq!(scrolls(&h, "content"), [serde_json::json!({"x": 780.0, "y": 0, "animated": true})]);
+    // The slides it passes on the way back are not selections.
+    h.clear_commands();
     h.tap("dot0");
-    pan(&mut h, "changed", 100, 0);
-    let transform = str_prop(&h, strip, Prop::Transform).unwrap();
-    assert!(transform.contains("35"), "rubber band: {transform}");
-    pan(&mut h, "ended", 100, 900);
-    assert_eq!(log(&h), "1,0");
+    scroll(&mut h, 400.0);
+    scroll(&mut h, 0.0);
+    assert_eq!(log(&h), "1,2,0");
+    assert_eq!(scrolls(&h, "content")[0]["x"], 0.0);
+}
+
+#[test]
+fn carousel_shows_a_scripts_selection_without_animating_the_first_time() {
+    let h = start(
+        r#"
+export default class C extends View {
+  init() { this.state = CarouselState(3, 2); }
+  render() {
+    const s = this.state;
+    return v_flex().w(390).child(new Carousel("c", s).child(new CarouselContent(s).test_id("content")
+      .children([0, 1, 2].map((i) => new CarouselItem(`p${i}`, i, s).child(div().h(100))))));
+  }
+}
+"#,
+    );
+    assert_eq!(scrolls(&h, "content"), [serde_json::json!({"x": 780.0, "y": 0, "animated": false})]);
 }
 
 // Menus -----------------------------------------------------------------------------------

@@ -158,7 +158,8 @@ fn paint_spinner(c: &Canvas, snapshot: &gtk::Snapshot, l: &Link) {
         return;
     }
     let color = l.accent();
-    let lead = (now().fract() * SPOKES as f64) as usize % SPOKES;
+    // With the desktop's animations off the spinner holds still, as GTK's own do.
+    let lead = if animations_enabled(c) { (now().fract() * SPOKES as f64) as usize % SPOKES } else { 0 };
     let (inner, outer, width) = (side * 0.24, side * 0.46, (side * 0.09).max(1.5));
     snapshot.save();
     snapshot.translate(&graphene::Point::new(w / 2.0, h / 2.0));

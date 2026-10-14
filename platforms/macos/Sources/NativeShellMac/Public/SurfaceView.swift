@@ -87,7 +87,9 @@ public class NSHSurfaceView: NSView, SurfacePresenter, RootCommandHandler {
 
     func drain() {
         drainScheduled = false
+        let first = manager.appliedBatches == 0
         instance?.drainBatches { manager.apply($0) }
+        if first, manager.appliedBatches > 0, let i = instance { i.delegate?.instanceDidRenderFirstFrame?(i) }
     }
 
     /// Applies a batch buffer directly (tests and tools).

@@ -176,6 +176,9 @@ closed_enum! {
         ShowsIndicators = 43,
         /// Pull-to-refresh control is attached.
         RefreshEnabled = 44,
+        /// Bool, on a horizontal `Scroll`: it comes to rest on whole pages, a
+        /// page being the viewport's width (UIScrollView's `isPagingEnabled`).
+        Paging = 45,
 
         /// JSON `{text, count}`: controlled value with the event count the script had seen.
         TextValue = 50,
@@ -436,13 +439,19 @@ closed_enum! {
         ToastAction = 22,
         /// The pointer entered (`entered: true`) or left the node: `{entered, x, y}`. Pointer platforms only.
         Hover = 23,
+        /// On a `Sheet` node: the size its content is presented at, `{width, height}`, whenever it
+        /// changes (presentation, detent change, rotation). Sent without a mask bit.
+        Resize = 24,
     }
 }
 
 impl EventType {
     /// Continuous events are coalesced to the latest per node; discrete ones are delivered in order.
     pub fn is_continuous(self) -> bool {
-        matches!(self, EventType::Scroll | EventType::Pan | EventType::Pinch | EventType::RangeChange)
+        matches!(
+            self,
+            EventType::Scroll | EventType::Pan | EventType::Pinch | EventType::RangeChange | EventType::Resize
+        )
     }
 
     pub fn mask_bit(self) -> u32 {
@@ -467,7 +476,11 @@ impl EventType {
             EventType::PressOut => PRESS_OUT,
             EventType::HostEvent => HOST_EVENT,
             EventType::Hover => HOVER,
-            EventType::RangeChange | EventType::RowHeight | EventType::BackPressed | EventType::ToastAction => 0,
+            EventType::RangeChange
+            | EventType::RowHeight
+            | EventType::BackPressed
+            | EventType::ToastAction
+            | EventType::Resize => 0,
         }
     }
 
@@ -497,6 +510,7 @@ impl EventType {
             EventType::HostEvent => "host_event",
             EventType::ToastAction => "toast_action",
             EventType::Hover => "hover",
+            EventType::Resize => "resize",
         }
     }
 

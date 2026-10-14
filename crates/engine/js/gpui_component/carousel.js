@@ -1,19 +1,17 @@
-// "gpui-component" carousel: slides side by side, one on screen, paged by a
-// swipe. The strip follows the finger (resisting past the ends unless it
-// loops) and settles on a spring to the nearest slide, or the next one when
-// the swipe was long or fast enough. Previous and next are round buttons
+// "gpui-component" carousel: slides side by side, one on screen, in a native
+// horizontal scroll view that pages (the `Paging` prop: it comes to rest on
+// whole slides). Being horizontal only, it never takes a vertical drag from
+// the page it sits in. The selected slide follows the scroll's offset; the
+// buttons and dots scroll to a slide. Previous and next are round buttons
 // over the slide's edges; the pagination is iOS's page dots over the bottom
 // of the slide. Only the slide on screen is announced.
 
-import { scope, markDirty, refuseStateInRender } from "nsh:core";
+import { N, scope, markDirty, refuseStateInRender } from "nsh:core";
 import { Element, div, chainKey } from "nsh:elements";
 import { IconElement } from "nsh:component/icons";
 import { isComponentSize } from "nsh:component/shared";
 
-const SPRING = JSON.stringify({ response: 0.4, damping: 0.86 });
-/** A swipe pages when it travels this far (points) or ends this fast (points per second). */
-const PAGE_DISTANCE = 60;
-const PAGE_VELOCITY = 400;
+let nextCarousel = 1;
 
 function released(what) {
   return new Error(`${what}: this carousel state has been released`);
@@ -36,8 +34,11 @@ class CarouselStateObject {
     this._index = n === 0 ? 0 : Math.min(n - 1, Math.max(0, Number(selectedIndex) | 0));
     this._axis = axis;
     this._looping = !!looping;
-    this._drag = 0;
-    this._dragging = false;
+    // The slide the scroll view is at (or was last sent to); null before it is shown.
+    this._at = null;
+    // The slide an animated scroll is on its way to: the slides it passes are not selections.
+    this._target = null;
+    this._ref = `__carousel:${nextCarousel++}`;
     this._carousel = null;
     this._owner = scope.owner;
     this._shownBy = null;
@@ -111,25 +112,40 @@ class CarouselStateObject {
     this._carousel?._onChange?.(this._index, cx);
   }
 
-  _pan(e, cx) {
+  /** The scroll moved: the slide nearest its offset is the selected one. */
+  _scrolled(e, cx) {
     if (this.#released || this._count === 0) return;
-    const phase = e?.phase;
-    const dx = Number(e?.dx) || 0;
-    if (phase === "began" || phase === "changed") {
-      const atEdge = (dx > 0 && !this.has_previous()) || (dx < 0 && !this.has_next());
-      this._dragging = true;
-      this._drag = atEdge ? dx * 0.35 : dx;
-      markDirty(this._shownBy ?? this._owner);
-      return;
+    const width = Number(e?.viewport_width) || 0;
+    if (width <= 0) return;
+    const page = Math.min(this._count - 1, Math.max(0, Math.round((Number(e?.x) || 0) / width)));
+    if (this._target !== null) {
+      const from = this._at ?? 0;
+      if (page >= Math.min(from, this._target) && page <= Math.max(from, this._target)) {
+        if (page === this._target) {
+          this._at = page;
+          this._target = null;
+        }
+        return;
+      }
+      this._target = null;
     }
-    const vx = Number(e?.vx) || 0;
-    this._dragging = false;
-    this._drag = 0;
+    this._at = page;
+    if (page === this._index) return;
+    this._index = page;
     markDirty(this._shownBy ?? this._owner);
-    if (phase !== "ended") return;
-    if ((dx < -PAGE_DISTANCE || vx < -PAGE_VELOCITY) && this.has_next()) this._go((this._index + 1) % this._count, cx);
-    else if ((dx > PAGE_DISTANCE || vx > PAGE_VELOCITY) && this.has_previous()) this._go((this._index - 1 + this._count) % this._count, cx);
+    this._carousel?._onChange?.(page, cx);
   }
+
+  /** While rendering: sends the scroll view to the selected slide if it is elsewhere (animated once shown). */
+  _follow() {
+    if (this._at === null && this._index === 0) this._at = 0;
+    if (this._at === this._index || this._target === this._index) return;
+    const animated = this._at !== null;
+    N.command("scroll_to", this._ref, JSON.stringify({ page: this._index, animated }));
+    this._target = animated ? this._index : null;
+    if (!animated) this._at = this._index;
+  }
+
 }
 
 /** gpui-component's `CarouselState(item_count, selected_index?, axis?, looping?)`, with or without `new`. */
@@ -202,9 +218,9 @@ export class Carousel extends Element {
   }
 }
 
-const VIEWPORT_KEY = chainKey([["relative"], ["w_full"], ["overflow_hidden"]]);
+const VIEWPORT_KEY = chainKey([["flex"], ["flex_row"], ["w_full"], ["overflow_x_scroll"]]);
 
-/** The clipped viewport: `CarouselItem` children on a strip that pages. */
+/** The paged viewport: `CarouselItem` children side by side, each as wide as it. */
 export class CarouselContent extends Element {
   static new(state) {
     return new CarouselContent(state);
@@ -214,26 +230,20 @@ export class CarouselContent extends Element {
     super("view");
     const s = checkState(state, "CarouselContent(state)");
     this._preset(VIEWPORT_KEY);
-    // The strip sits one viewport width to the left per item before the
-    // selected one (percentage margins resolve against the width), and the
-    // finger's travel moves it on top of that.
-    this._strip = div()
-      .flex()
-      .flex_row()
-      .w_full()
-      .ml(`${-100 * s._index}%`)
-      .translate(s._drag, 0)
-      .when(!s._dragging, (el) => el.spring("frame", SPRING).spring("transform", SPRING));
-    super.child(this._strip);
-    this.on_pan((e, cx) => s._pan(e, cx));
+    this._rid = s._ref;
+    const p = this._P();
+    p.paging = true;
+    // The page dots say where the reader is; a scroll indicator flashing under the slides would repeat it.
+    p.shows_indicators = false;
+    this.on_scroll((e, cx) => s._scrolled(e, cx));
+    s._follow();
   }
 
   child(x) {
     if (Array.isArray(x)) return this.children(x);
     if (x === null || x === undefined || typeof x === "boolean") return this;
     if (!(x instanceof CarouselItem)) throw new TypeError("CarouselContent accepts only CarouselItem children");
-    this._strip.child(x);
-    return this;
+    return super.child(x);
   }
 }
 

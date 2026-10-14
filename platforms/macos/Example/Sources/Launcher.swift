@@ -29,9 +29,11 @@ struct Example {
 final class LauncherSplitController: NSSplitViewController {
     private let sidebar = SidebarController()
     private let detail = DetailController()
+    private let dataRoot: URL
     private let reset: Bool
 
-    init(reset: Bool) {
+    init(dataRoot: URL, reset: Bool) {
+        self.dataRoot = dataRoot
         self.reset = reset
         super.init(nibName: nil, bundle: nil)
     }
@@ -39,6 +41,8 @@ final class LauncherSplitController: NSSplitViewController {
     required init?(coder: NSCoder) { fatalError("not supported") }
 
     var program: ProgramController? { detail.program }
+    /// The example the detail pane shows.
+    private(set) var current: String?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -60,8 +64,9 @@ final class LauncherSplitController: NSSplitViewController {
 
     private func open(_ name: String) {
         guard let example = Example.all.first(where: { $0.name == name }) else { return }
+        current = name
         view.window?.title = example.title
-        detail.show(example, reset: reset)
+        detail.show(example, dataRoot: dataRoot, reset: reset)
     }
 }
 
@@ -155,6 +160,8 @@ private extension Array {
 final class DetailController: NSViewController {
     private(set) var program: ProgramController?
     private let message = NSTextField(wrappingLabelWithString: "")
+    /// Shown only when a program takes noticeably long to draw its first frame.
+    private let spinner = NSProgressIndicator()
 
     override func loadView() {
         let v = NSView()
@@ -169,10 +176,21 @@ final class DetailController: NSViewController {
             message.centerYAnchor.constraint(equalTo: v.centerYAnchor),
             message.widthAnchor.constraint(lessThanOrEqualToConstant: 360),
         ])
+        spinner.style = .spinning
+        spinner.controlSize = .regular
+        spinner.isDisplayedWhenStopped = false
+        v.addSubview(spinner)
         view = v
     }
 
-    func show(_ example: Example, reset: Bool) {
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        let side: CGFloat = 32
+        spinner.frame = CGRect(x: ((view.bounds.width - side) / 2).rounded(), y: ((view.bounds.height - side) / 2).rounded(), width: side, height: side)
+    }
+
+    func show(_ example: Example, dataRoot: URL, reset: Bool) {
+        spinner.stopAnimation(nil)
         if let old = program {
             old.view.removeFromSuperview()
             old.removeFromParent()
@@ -180,19 +198,26 @@ final class DetailController: NSViewController {
             program = nil
         }
         do {
-            let (sources, appId) = try Programs.sources(example.name)
+            let (programDir, appId) = try Programs.directory(example.name)
             let config = NSHInstanceConfig(appId: appId)
-            let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-                .appendingPathComponent("native-shell-examples").appendingPathComponent(appId)
+            let dir = dataRoot.appendingPathComponent(appId)
             if reset { try? FileManager.default.removeItem(at: dir) }
             config.dataDirectory = dir
             let instance = try NSHInstance(config: config)
             let vc = ProgramController(instance: instance)
+            vc.onFirstFrame = { [weak self] in self?.spinner.stopAnimation(nil) }
+            // Most programs draw within a few hundred milliseconds; past that, show progress.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self, weak vc] in
+                guard let self = self, let vc = vc, vc === self.program, !vc.hasRendered else { return }
+                self.spinner.startAnimation(nil)
+            }
             addChild(vc)
             vc.view.frame = view.bounds
             vc.view.autoresizingMask = [.width, .height]
             view.addSubview(vc.view, positioned: .below, relativeTo: message)
-            try instance.loadSources(sources)
+            // The spinner sits above the program, which draws nothing until its first frame.
+            view.addSubview(spinner, positioned: .above, relativeTo: vc.view)
+            try instance.loadProgram(directory: programDir)
             program = vc
             message.isHidden = true
         } catch {
@@ -204,12 +229,19 @@ final class DetailController: NSViewController {
 
 /// One running program.
 final class ProgramController: NSHViewController, NSHInstanceDelegate {
+    var onFirstFrame: (() -> Void)?
+    private(set) var hasRendered = false
     override init(instance: NSHInstance?, runtime: NSHRuntime = .shared) {
         super.init(instance: instance, runtime: runtime)
         instance?.delegate = self
     }
 
     required init?(coder: NSCoder) { fatalError("not supported") }
+
+    func instanceDidRenderFirstFrame(_ instance: NSHInstance) {
+        hasRendered = true
+        onFirstFrame?()
+    }
 
     func instance(_ instance: NSHInstance, didFailWithError message: String) {
         NSLog("native-shell error: %@", message)
@@ -236,20 +268,12 @@ final class ProgramController: NSHViewController, NSHInstanceDelegate {
 }
 
 enum Programs {
-    /// `{manifest, files}` for a bundled example directory, and the program's id.
-    static func sources(_ name: String) throws -> (String, String) {
+    /// A bundled example directory and the program's id from its manifest.
+    static func directory(_ name: String) throws -> (URL, String) {
         guard let dir = Bundle.main.url(forResource: name, withExtension: nil, subdirectory: "examples") else {
             throw NSError(domain: "example", code: 1, userInfo: [NSLocalizedDescriptionKey: "The example “\(name)” is not bundled with the app."])
         }
         let manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: dir.appendingPathComponent("native-shell.json")))
-        var files: [String: String] = [:]
-        let e = FileManager.default.enumerator(at: dir, includingPropertiesForKeys: nil)
-        while let url = e?.nextObject() as? URL {
-            guard url.pathExtension == "js" else { continue }
-            files[String(url.path.dropFirst(dir.path.count + 1))] = try String(contentsOf: url, encoding: .utf8)
-        }
-        let data = try JSONSerialization.data(withJSONObject: ["manifest": manifest, "files": files])
-        let id = (manifest as? [String: Any])?["id"] as? String ?? name
-        return (String(decoding: data, as: UTF8.self), id)
+        return (dir, (manifest as? [String: Any])?["id"] as? String ?? name)
     }
 }

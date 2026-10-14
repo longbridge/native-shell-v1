@@ -5,7 +5,7 @@ Built from gpui-component's conversation parts: `MessageScroller`, `Message`,
 `Bubble`, `Attachment` and `Marker`.
 
 ```bash
-nshell check examples/chat
+native-shell check examples/chat
 ```
 
 ## Design notes

@@ -125,6 +125,15 @@ internal class ShellListView(context: Context) : RecyclerView(context) {
         }
     }
 
+    // The list sits in a container that lets children overflow (shadows, transforms);
+    // its own rows never draw outside its bounds (over a header above it).
+    override fun dispatchDraw(canvas: android.graphics.Canvas) {
+        val save = canvas.save()
+        canvas.clipRect(scrollX, scrollY, scrollX + width, scrollY + height)
+        super.dispatchDraw(canvas)
+        canvas.restoreToCount(save)
+    }
+
     fun setCount(n: Int) {
         if (n == count) return
         count = n.coerceAtLeast(0)

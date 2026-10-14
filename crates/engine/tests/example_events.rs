@@ -197,10 +197,15 @@ fn calendar_selects_days_and_shows_an_empty_day() {
     let dir = data_dir("calendar");
     let mut h = loaded(&dir);
     h.tap("tab-calendar");
-    // Today is selected, with its agenda.
-    let days = ids_with_prefix(&h, "day-");
+    // Today is selected, with its agenda; it has events, and earlier days can't be picked.
+    let days = ids_with_prefix(&h, "cal-20");
     let today = days.iter().find(|d| selected(&h, d)).expect("a selected day").clone();
     assert!(h.find("event-night-market").is_some() && h.find("event-quiet-hours").is_some());
+    assert!(matches!(h.prop(&today, Prop::A11yLabel), Some(PropValue::Str(l)) if l.ends_with("today, has events")));
+    let index = days.iter().position(|d| *d == today).unwrap();
+    if index > 0 {
+        assert!(disabled(&h, &days[index - 1]));
+    }
 
     // Tomorrow has nothing on: the empty state points at the next event.
     let tomorrow = days.iter().position(|d| *d == today).and_then(|i| days.get(i + 1)).cloned();
@@ -213,11 +218,10 @@ fn calendar_selects_days_and_shows_an_empty_day() {
     }
 
     // The month moves with the arrows.
-    let month = h.text_of("month");
-    h.tap("next-month");
-    assert_ne!(h.text_of("month"), month);
-    h.tap("previous-month");
-    assert_eq!(h.text_of("month"), month);
+    h.tap("cal-next");
+    assert!(h.find(&today).is_none());
+    h.tap("cal-prev");
+    assert!(h.find(&today).is_some());
 
     // An event added to the calendar is marked in the agenda.
     h.tap("tab-discover");
@@ -230,7 +234,6 @@ fn calendar_selects_days_and_shows_an_empty_day() {
     h.tap("add-to-calendar");
     h.tap("back");
     h.tap("tab-calendar");
-    let index = days.iter().position(|d| *d == today).unwrap();
     if let Some(day) = days.get(index + 3) {
         h.tap(day);
         assert!(h.text_of("event-glass-garden").contains("In Calendar"));

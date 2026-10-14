@@ -93,6 +93,7 @@ export function largeTitle(cx, title, subtitle) {
 export function navBar(cx, { title, back }) {
   const t = cx.theme();
   const ios = cx.window().platform !== "android";
+  const backTitle = ios && backTitleFits(cx, back.label, title);
   const backButton = Button.new("back")
     .test_id("back")
     .accessibility_label(`Back to ${back.label}`)
@@ -107,8 +108,9 @@ export function navBar(cx, { title, back }) {
     .when(!back.disabled, (el) => el.active((s) => s.opacity(0.5)).on_click(back.on_click))
     .when(Boolean(back.disabled), (el) => el.opacity(0.4))
     .when(ios, (el) => el.text_color(t.primary).child(icon("chevron_left", t.primary, 24)))
-    // As UIKit does, the previous page's name gives way when it would crowd the title.
-    .when(ios && back.label.length + title.length <= 26, (el) => el.child(text(cx, "body", back.label, t.primary)))
+    // As UIKit does, the previous page's name gives way to the chevron alone at
+    // accessibility text sizes or when it would crowd the centered title.
+    .when(backTitle, (el) => el.child(text(cx, "body", back.label, t.primary)))
     .when(!ios, (el) => el.child(icon("arrow_left", t.foreground, 24)));
   const heading = text(cx, "headline", title).role("header").truncate();
   return v_flex()
@@ -116,13 +118,14 @@ export function navBar(cx, { title, back }) {
     .bg(t.background)
     .border_b_1()
     .border_color(t.border)
+    // The centered title keeps clear of the back button on both sides: of its title when shown, else of the chevron.
     .child(
       ios
         ? h_flex()
             .relative()
             .min_h_11()
             .px_2()
-            .child(div().absolute().left_0().right_0().top_0().bottom_0().flex().items_center().justify_center().px_24().child(heading))
+            .child(div().absolute().left_0().right_0().top_0().bottom_0().flex().items_center().justify_center().px(backTitle ? 96 : 52).child(heading))
             .child(backButton)
         : h_flex().min_h_12().py_1().px_2().gap_2().child(backButton).child(div().flex_1().min_w_0().child(heading)),
     );
@@ -276,6 +279,20 @@ export function quantityStepper(cx, { id, value, min = 1, max, label, on_change,
     .child(step(-1, "minus", !disabled && value > min))
     .child(text(cx, "headline", String(value)).test_id(`${id}-value`).min_w_6().text_center())
     .child(step(1, "plus", !disabled && value < max));
+}
+
+/**
+ * Whether the back button's title fits beside the centered page title, from
+ * an estimate of both widths (an average glyph is about 0.55 em at 17 pt).
+ */
+function backTitleFits(cx, label, title) {
+  const win = cx.window();
+  if (win.font_scale >= 1.35) return false;
+  const glyph = 17 * 0.55 * win.font_scale;
+  const titleWidth = title.length * glyph;
+  // Chevron, paddings and a gap before the title.
+  const backWidth = 8 + 24 + label.length * glyph + 12;
+  return backWidth <= (win.width - titleWidth) / 2;
 }
 
 /** A large title's size: 34 pt, growing with the user's text size only up to 1.6×, as native large titles do. */

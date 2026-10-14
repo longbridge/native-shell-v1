@@ -2,6 +2,11 @@
 # Builds the example app and captures every example, light and dark, plus the
 # pushed pages and overlays, into platforms/macos/screenshots/. Each capture
 # opens the app's window briefly, then quits it.
+#
+# Safe next to an instance someone is using: scripted runs keep their data in a
+# temporary directory, and each capture targets its own process's window and
+# checks it shows the requested example (a mismatch fails the run, so nothing
+# wrong is written).
 set -euo pipefail
 cd "$(dirname "$0")"
 OUT="$(cd .. && pwd)/screenshots"

@@ -38,7 +38,7 @@ time fields, alerts) stay GTK-native.
 | `TextInput` | A controlled `GtkText` (`visibility` off when `Secure`), a `GtkTextView` when `Multiline`; input purpose from the keyboard and content types; IME preedit is never overwritten by a stale value |
 | `Image` | `http(s)`, file paths and `data:` URIs fetched and decoded off the main thread, downsampled to the node's pixels and cached decoded; cover, contain, fill and center modes |
 | `Shape` | GSK paths from SVG path data, view box scaled like `xMidYMid meet`, round caps and joins |
-| `Scroll` | `GtkScrolledWindow` around a content node of `ContentSize`; kinetic scrolling and overlay indicators are GTK's; `ScrollTo` animates with a critically damped spring |
+| `Scroll` | `GtkScrolledWindow` around a content node of `ContentSize`; kinetic scrolling and overlay indicators are GTK's; `ScrollTo` animates with a critically damped spring; `Paging` settles on whole viewport-wide pages after a touchpad gesture or touch drag (a fling turns exactly one page) and turns one page per sideways wheel notch |
 | `List` | A scrolled content widget as tall as `RowOffsets`; rendered rows are placed at their offsets (the core recycles row nodes as `RangeChange` moves its window), placeholders for visible rows not rendered yet; `ListAlignment` bottom opens at the end and keeps it in view while the user is there (as rows arrive or the viewport shrinks) |
 | `Switch`, `Checkbox` | Drawn as on iOS (system green when on unless tinted; checkbox or radio by `CheckStyle`) |
 | `Slider` | Drawn as on iOS; `{value, final: false}` at most every 50 ms while dragging, `final: true` at the end; arrow keys step |
@@ -133,9 +133,9 @@ from one of two sources:
   directory without `native-shell.json` is refused with a clear message), or
   `DevClient::watch(dir, runtime)`. The directory is polled every 250 ms and a
   change is published once the files have been quiet for 200 ms, as
-  `nshell dev` does, so saving several files reloads once. No server or second
+  `native-shell dev` does, so saving several files reloads once. No server or second
   terminal is needed.
-* `nshell dev <dir>`, which serves a program over HTTP (for another machine)
+* `native-shell dev <dir>`, which serves a program over HTTP (for another machine)
   and prints the command to run it on Linux:
   `cargo linux-run --dev http://HOST:PORT`, the launcher's `--dev` flag or its
   "Connect to Dev Server" row, or `DevClient::connect(url, runtime)`.
@@ -180,6 +180,12 @@ screenshots. The crate's own GTK unit tests use `src/gtk_test.rs`.
   #2563eb light, #60a5fa dark, as the iOS, Android and Linux example apps set
   it); tests that screenshot example screens use it, so their images compare
   with the other platforms'.
+* Runs repeat: `support::init` pins the time zone (UTC), the language
+  (`en_US`) and the text size, every fixture pins the wall clock
+  (`InstanceOptions::wall_clock`, `native_shell::testing::WALL_CLOCK`,
+  2026-10-14 09:41 UTC; `Date` then advances with the engine's time), and
+  screenshots are taken with animations held still, so two runs give
+  byte-identical images (`tests/examples.rs` checks it).
 * Screenshots written under `screenshots/` go to `target/screenshots/` unless
   `NSH_SCREENSHOTS=1` is set, so a test run never rewrites the committed
   images. `cargo run --example screenshot` renders every example to

@@ -344,7 +344,10 @@ impl Tree {
         let mut layout = self.base_style.layout.clone();
         let (w, h) = match s.kind {
             SurfaceKind::Root | SurfaceKind::Page { .. } => (Some(env.width), Some(env.height)),
-            SurfaceKind::Sheet { .. } => (Some(env.width), None),
+            SurfaceKind::Sheet { .. } => match self.surface_sizes.get(&id) {
+                Some((w, h)) => (Some(*w), Some(*h)),
+                None => (Some(env.width), None),
+            },
             SurfaceKind::Dialog { .. } => (Some((env.width - 48.0).clamp(0.0, 400.0)), None),
             SurfaceKind::Alert { .. } => (None, None),
         };
@@ -962,6 +965,7 @@ impl Tree {
         let _ = self.taffy.remove(n.taffy);
         self.native_children.remove(&id);
         self.native_text.remove(&id);
+        self.surface_sizes.remove(&id);
         if let Some(r) = n.ref_id {
             if self.refs.get(&r) == Some(&id) {
                 self.refs.remove(&r);

@@ -30,7 +30,7 @@ NSHRuntime.shared.themeProvider = { _ in ["primary": .controlAccentColor] }
 
 let instance = try NSHInstance(config: NSHInstanceConfig(appId: "com.example.todo"))
 let controller = NSHViewController(instance: instance)   // pages, window sheets, alerts
-try instance.loadSources(sourcesJSON)                   // or loadBundle(signedPackage)
+try instance.loadProgram(directory: programURL)         // or loadSources(json), loadBundle(signedPackage)
 window.contentViewController = controller
 ```
 

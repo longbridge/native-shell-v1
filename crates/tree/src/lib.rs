@@ -272,6 +272,8 @@ pub struct Tree {
     /// Text measurements by (attributed JSON, width mode, width bits).
     pub(crate) text_cache: HashMap<(Rc<str>, u8, u32), TextMetrics>,
     pub(crate) counters: Counters,
+    /// Sizes renderers present sheets at (`Resize` events), by surface node.
+    pub(crate) surface_sizes: IdMap<(f32, f32)>,
     pub(crate) component_cache: ComponentCache,
     /// Lay out every surface on the next commit (environment or measurement changed).
     pub(crate) layout_all: bool,
@@ -305,6 +307,7 @@ impl Tree {
             native_text: IdMap::default(),
             text_cache: HashMap::new(),
             counters: Counters::default(),
+            surface_sizes: IdMap::default(),
             component_cache: ComponentCache::default(),
             layout_all: true,
         }
@@ -523,6 +526,21 @@ impl Tree {
     /// The native children the renderer holds for `node` (`ROOT_NODE` for the surfaces).
     pub fn native_children(&self, node: u32) -> Vec<u32> {
         self.native_children.get(&node).cloned().unwrap_or_default()
+    }
+
+    /// The size a renderer presents a sheet at (its `Resize` event): the sheet is then laid
+    /// out at exactly that size, so `size_full` / `flex_1` content fills a medium detent.
+    /// Unreported, a sheet is as tall as its content. Returns true if it changed (commit to
+    /// apply it). Ignored for nodes that are not sheets.
+    pub fn set_surface_size(&mut self, node: u32, width: f32, height: f32) -> bool {
+        let is_sheet = matches!(
+            self.nodes.get(&node).map(|n| &n.kind),
+            Some(Kind::Surface(SurfaceTag::Sheet))
+        );
+        if !is_sheet || !(width.is_finite() && height.is_finite()) || width < 0.0 || height < 0.0 {
+            return false;
+        }
+        self.surface_sizes.insert(node, (width, height)) != Some((width, height))
     }
 
     /// Native node of a surface after commit, by its key (`Root`: its `View` under `ROOT_NODE`).

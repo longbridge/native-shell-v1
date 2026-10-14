@@ -10,6 +10,8 @@ import NativeShellShared
     /// Unrecoverable instance error; the instance keeps showing its last good frame.
     @objc optional func instance(_ instance: NSHInstance, didFailWithError message: String)
     @objc optional func instance(_ instance: NSHInstance, didLog message: String, level: NSHLogLevel)
+    /// The program's first frame is on screen (hosts hide their loading state here).
+    @objc optional func instanceDidRenderFirstFrame(_ instance: NSHInstance)
 }
 
 @objcMembers
@@ -125,6 +127,20 @@ public final class NSHInstance: NSObject {
     /// Loads a manifest and files given as objects.
     public func load(manifest: [String: Any], files: [String: String]) throws {
         try loadSources(JSON.string(["manifest": manifest, "files": files]))
+    }
+
+    /// Loads a program directory (`native-shell.json` and its files), e.g. one shipped
+    /// in the app bundle. Text files go in as they are; anything that is not UTF-8
+    /// (images, fonts) as a `data:<mime>;base64,…` URL, as `native-shell dev` sends
+    /// them, so program-relative assets such as `image("assets/photo.jpg")` resolve.
+    public func loadProgram(directory: URL) throws {
+        try loadSources(NSHInstance.programSources(directory: directory))
+    }
+
+    /// `{"manifest", "files"}` JSON for a program directory (hidden entries and
+    /// `node_modules` skipped).
+    public static func programSources(directory: URL) throws -> String {
+        try ProgramDirectory.sourcesJSON(directory)
     }
 
     /// Loads a signed `.nspkg` bundle; its signature is checked against `NSHRuntime.trustedKeys`.

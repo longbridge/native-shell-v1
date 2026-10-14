@@ -192,6 +192,39 @@ final class ListTests: XCTestCase {
         XCTAssertTrue(wait { self.h.events(.rangeChange).last?.payload.int("end") == 20 })
     }
 
+    /// A viewport change relayouts the cells; every visible cell still shows its
+    /// rendered row (the last row of a chat thread once went missing).
+    func testRowsStayHostedAcrossViewportChanges() {
+        let heights: [Float] = [114, 51, 138, 242, 81, 60, 90, 44, 120, 70, 51, 138, 242, 81]
+        var offs: [Float] = [0]
+        for x in heights { offs.append(offs.last! + x) }
+        h.apply { b in
+            b.create(1, .list, parent: 0, frame: CGRect(x: 0, y: 0, width: 390, height: 627), props: [
+                (.listAlignment, .i32(1)), (.itemCount, .i32(Int32(heights.count))), (.rowOffsets, .f32Array(offs)),
+            ])
+            for (i, hgt) in heights.enumerated() {
+                let row = UInt32(100 + i)
+                b.create(row, .listRow, props: [(.rowIndex, .i32(Int32(i)))])
+                b.frame(row, CGRect(x: 0, y: 0, width: 390, height: CGFloat(hgt)))
+                b.insert(row, 1, UInt32(i))
+            }
+        }
+        let list = h.view(1, as: NSHListView.self)
+        func unhosted() -> [Int] {
+            list.collectionView.visibleCells.compactMap { c in
+                guard let i = list.collectionView.indexPath(for: c)?.item else { return nil }
+                return c.contentView.subviews.contains { $0 === h.view(UInt32(100 + i)) } ? nil : i
+            }.sorted()
+        }
+        XCTAssertEqual(unhosted(), [])
+        for height in [534.0, 300, 627, 534] as [CGFloat] {
+            h.apply { $0.frame(1, CGRect(x: 0, y: 0, width: 390, height: height)) }
+            list.layoutIfNeeded()
+            XCTAssertEqual(list.collectionView.contentOffset.y, CGFloat(offs.last!) - height, "pinned end at \(height)")
+            XCTAssertEqual(unhosted(), [], "every visible row hosted at \(height)")
+        }
+    }
+
     func testBottomAlignedListOpensAtTheEndAndFollowsIt() {
         h.apply { b in
             b.create(1, .list, parent: 0, frame: CGRect(x: 0, y: 0, width: 390, height: 440), props: [
@@ -212,6 +245,15 @@ final class ListTests: XCTestCase {
         h.apply { $0.frame(1, CGRect(x: 0, y: 0, width: 390, height: 300)) }
         list.layoutIfNeeded()
         XCTAssertEqual(cv.contentOffset.y, 103 * 44 - 300)
+
+        // Rows change height with the same count (an image loads, estimates get measured): the end stays in view.
+        var grown = offsets(103)
+        for i in 90 ..< grown.count { grown[i] += Float(i - 89) * 120 }
+        h.apply { $0.prop(1, .rowOffsets, .f32Array(grown)) }
+        XCTAssertEqual(cv.contentOffset.y, CGFloat(grown.last!) - 300, "taller rows")
+        h.apply { $0.prop(1, .rowOffsets, .f32Array(offsets(103))) }
+        XCTAssertEqual(cv.contentOffset.y, 103 * 44 - 300, "shorter rows")
+        XCTAssertTrue(list.pinnedToEnd)
 
         // The user scrolls away: the position is kept as rows arrive.
         cv.setContentOffset(CGPoint(x: 0, y: 1000), animated: false)

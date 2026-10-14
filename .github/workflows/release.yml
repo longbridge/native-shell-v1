@@ -1,0 +1,128 @@
+name: Release native-shell
+
+# Stable asset names also support releases/latest/download/<asset>.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build, e.g. v0.1.0"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: native-shell (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Manual rebuilds use the release tag, never the dispatch branch.
+          ref: ${{ inputs.tag || github.ref }}
+      - name: Validate release version and configure temporary directory
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, re
+          manifest = pathlib.Path('Cargo.toml').read_text()
+          version = re.search(r'^version = "([^"]+)"$', manifest, re.M).group(1)
+          if os.environ['RELEASE_TAG'] != f'v{version}':
+              raise SystemExit('Release tag must match the workspace version')
+          temp = pathlib.Path.home() / '.cache' / 'native-shell-release-tmp'
+          temp.mkdir(parents=True, exist_ok=True)
+          with open(os.environ['GITHUB_ENV'], 'a') as env:
+              env.write(f'TMPDIR={temp.as_posix()}\n')
+          PY
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build -p native-shell-cli --release --locked --target ${{ matrix.target }}
+      - name: Smoke test
+        if: matrix.target != 'x86_64-apple-darwin'
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          suffix=""
+          [[ "$TARGET" != *windows* ]] || suffix=".exe"
+          "target/$TARGET/release/native-shell$suffix" --version
+          "target/$TARGET/release/native-shell$suffix" --help
+      - name: Package
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          name="native-shell-$TARGET"
+          mkdir -p "target/dist/$name"
+          suffix=""
+          [[ "$TARGET" != *windows* ]] || suffix=".exe"
+          cp "target/$TARGET/release/native-shell$suffix" "target/dist/$name/"
+          cp README.md LICENSE "target/dist/$name/"
+          cd target/dist
+          if [[ "$TARGET" == *windows* ]]; then
+            7z a "$name.zip" "$name" > /dev/null
+            sha256sum "$name.zip" > "$name.zip.sha256"
+          else
+            tar -czf "$name.tar.gz" "$name"
+            shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-shell-${{ matrix.target }}
+          path: |
+            target/dist/*.tar.gz
+            target/dist/*.zip
+            target/dist/*.sha256
+          if-no-files-found: error
+
+  publish:
+    name: Publish release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: native-shell-*
+          path: target/dist
+          merge-multiple: true
+      # Publish only after every target has built successfully.
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          name: native-shell ${{ inputs.tag || github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            target/dist/*.tar.gz
+            target/dist/*.zip
+            target/dist/*.sha256

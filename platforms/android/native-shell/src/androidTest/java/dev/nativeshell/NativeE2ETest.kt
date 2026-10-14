@@ -271,6 +271,23 @@ class NativeE2ETest : ActivityTest() {
         assertTrue(errors.toString(), errors.isEmpty())
     }
 
+    /** Binary program files (examples/chat's photo) reach the engine and load as images. */
+    @Test
+    fun programImageAssetsLoad() = explain {
+        start("chat")
+        waitFor(15_000, "a program image loaded (errors: $errors)") {
+            var loaded = false
+            fun walk(v: View) {
+                if (v is android.widget.ImageView && v.drawable != null &&
+                    (v.getTag(R.id.nsh_image_source) as? String)?.startsWith("/") == true
+                ) loaded = true
+                if (v is ViewGroup) for (c in 0 until v.childCount) walk(v.getChildAt(c))
+            }
+            walk(surface)
+            loaded
+        }
+    }
+
     @Test
     fun abiAndProtocolVersionMatch() {
         assertEquals(dev.nativeshell.protocol.Protocol.VERSION, NativeBridge.protocolVersion())

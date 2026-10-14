@@ -473,7 +473,7 @@ NativeShell.imageLoader = ImageLoader { url, imageView -> … }   // apps plug G
 | iOS | `xcodebuild test -scheme NativeShell -destination 'platform=iOS Simulator,name=…'` in `platforms/ios/` |
 | Android JVM | `./gradlew :native-shell:testDebugUnitTest` in `platforms/android/` |
 | Android device | `./gradlew :native-shell:connectedDebugAndroidTest` on the emulator |
-| Examples | `nshell check examples/*` |
+| Examples | `native-shell check examples/*` |
 
 ## Rename to native-shell (done)
 

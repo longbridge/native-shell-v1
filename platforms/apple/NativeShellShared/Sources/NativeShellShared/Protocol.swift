@@ -36,7 +36,7 @@ public enum Prop: UInt16 {
          transform, animation
     case attributedText = 20, selectable, linksEnabled
     case imageSource = 30, contentMode, tintColor
-    case horizontal = 40, contentSize, refreshing, showsIndicators, refreshEnabled
+    case horizontal = 40, contentSize, refreshing, showsIndicators, refreshEnabled, paging
     case textValue = 50, placeholder, multiline, secure, keyboardType, maxLength, allowedChars, editable, returnKey,
          textStyle, contentType, placeholderColor, autoCapitalize, contentInsets
     case checked = 70, enabled, checkStyle
@@ -90,7 +90,7 @@ public enum EventMask {
 
 public enum EventType: UInt32 {
     case click = 1, doubleClick, longPress, change, submit, focus, blur, scroll, refresh, pan, pinch, link, key,
-         dismiss, action, rangeChange, rowHeight, backPressed, pressIn, pressOut, hostEvent, toastAction, hover
+         dismiss, action, rangeChange, rowHeight, backPressed, pressIn, pressOut, hostEvent, toastAction, hover, resize
 }
 
 public enum PropValue: Equatable {

@@ -102,9 +102,11 @@ final class ExampleUITests: XCTestCase {
             wait(app, "editor")
             snap("tasks-edit")
             tap(app, "editor-delete")
-            wait(app, "undo-bar")
+            // Undo lives in the toast, as an action button.
+            let undo = app.buttons["Undo"]
+            XCTAssertTrue(undo.waitForExistence(timeout: 5), "deleting offers undo")
             snap("tasks-undo")
-            tap(app, "undo")
+            undo.tap()
             wait(app, "task-3")
             let field = wait(app, "draft")
             field.tap()
@@ -127,7 +129,7 @@ final class ExampleUITests: XCTestCase {
             snap("settings-account-error")
             back(app)
             XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 5), "leaving with edits asks first")
-            app.alerts.firstMatch.buttons["Discard changes"].tap()
+            app.alerts.firstMatch.buttons["Discard Changes"].tap()
             let scroll = wait(app, "settings")
             let clear = element(app, "clear-cache")
             scroll.swipeUp()
@@ -136,7 +138,7 @@ final class ExampleUITests: XCTestCase {
             clear.tap()
             XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 5))
             snap("settings-clear-cache")
-            app.alerts.firstMatch.buttons["Clear cache"].tap()
+            app.alerts.firstMatch.buttons["Clear Cache"].tap()
         }
     }
 
@@ -149,6 +151,8 @@ final class ExampleUITests: XCTestCase {
             wait(app, "actions")
             snap("chat-actions")
             tap(app, "action-copy")
+            // The "Copied" toast sits over the composer until it times out.
+            sleep(2)
             let field = wait(app, "draft")
             field.tap()
             field.typeText("Great, see you at the station")
@@ -218,7 +222,7 @@ final class ExampleUITests: XCTestCase {
             back(app)
 
             tap(app, "open-overlays")
-            wait(app, "doc-name")
+            wait(app, "doc-label")
             snap("components-overlays")
             tap(app, "share")
             wait(app, "share-sheet")

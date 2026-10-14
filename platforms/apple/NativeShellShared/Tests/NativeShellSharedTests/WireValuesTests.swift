@@ -3,6 +3,10 @@ import XCTest
 
 /// Values added after the first protocol version, pinned to `crates/core/src/protocol.rs`.
 final class WireValuesTests: XCTestCase {
+    func testSheetResize() {
+        XCTAssertEqual(EventType.resize.rawValue, 24)
+    }
+
     func testListAlignment() {
         XCTAssertEqual(Prop.listAlignment.rawValue, 94)
     }

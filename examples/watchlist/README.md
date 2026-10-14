@@ -4,7 +4,7 @@ Live prices for the instruments a user follows, built on the host app's own
 modules and native views.
 
 ```bash
-nshell check examples/watchlist --registry examples/watchlist/host.json
+native-shell check examples/watchlist --registry examples/watchlist/host.json
 ```
 
 ## How the host and the script divide the work
@@ -16,8 +16,8 @@ nshell check examples/watchlist --registry examples/watchlist/host.json
 | `demo-stock-cell` — one quote row | Host component: the app's existing native cell, measurable, emits `select` |
 | Header, sort, live/paused, detail sheet, add/remove, empty and offline states | The script |
 
-`host.json` declares the same surface for `nshell check` and
-`nshell types`. The example apps implement it in
+`host.json` declares the same surface for `native-shell check` and
+`native-shell types`. The example apps implement it in
 `platforms/ios/Example/Sources/HostDemo.swift` and
 `platforms/android/example/.../DemoApplication.kt` and `StockCell.kt`. The
 cell draws with the app's own palette, which also supplies the shell theme's

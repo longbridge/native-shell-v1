@@ -166,9 +166,11 @@ class ScreenshotTest {
         wait("editor")
         snap("tasks-edit")
         tap("editor-delete")
-        wait("undo-bar")
+        // Undo lives in the toast, as an action button.
+        val undo = device.wait(Until.findObject(By.text("Undo")), 5_000)
+        assertNotNull("deleting offers undo", undo)
         snap("tasks-undo")
-        tap("undo")
+        undo.click()
         type("draft", "Water the plants")
         snap("tasks-compose")
     }
@@ -183,14 +185,14 @@ class ScreenshotTest {
         wait("email-error")
         snap("settings-account-error")
         back()
-        alertButton("Discard changes")
+        alertButton("Discard Changes")
         wait("settings")
         device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 4, device.displayWidth / 2, device.displayHeight / 4, 20)
         device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 4, device.displayWidth / 2, device.displayHeight / 4, 20)
         snap("settings-bottom")
         tap("clear-cache")
         snap("settings-clear-cache")
-        alertButton("Clear cache")
+        alertButton("Clear Cache")
     }
 
     @Test

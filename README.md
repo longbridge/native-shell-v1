@@ -31,19 +31,28 @@ export default class Counter extends View {
   (sync, async, event push) and native components scripts can lay out.
 * **Capabilities and signed bundles**: programs declare what they may use;
   bundles are Ed25519-signed with key rotation and revocation.
-* **Tooling**: `nshell new | check | types | bundle | keygen | verify | dev`.
+* **Tooling**: `native-shell new | check | types | bundle | keygen | verify | dev`.
 
 ## Quick start
 
-From the repository root:
+Download the CLI for your platform from [GitHub Releases](https://github.com/longbridge/native-shell/releases/latest), verify the accompanying `.sha256` checksum, and extract the archive. Put `native-shell` (`native-shell.exe` on Windows) on your `PATH`:
 
 ```bash
-cargo run -- check examples/tasks     # `cargo run` is the nshell CLI
+native-shell --version
+native-shell new my-app
+native-shell check my-app
+native-shell dev my-app
+```
+
+To build and run from the repository root:
+
+```bash
+cargo run -- check examples/tasks     # `cargo run` is the native-shell CLI
 cargo run -- dev examples/tasks       # serve a program with hot reload
 cargo linux                           # Linux example app (GTK 4)
 cargo linux-run examples/tasks        # open one program on Linux
 cargo linux-run examples/tasks --watch  # …and reload it in place on every save
-cargo linux-run --dev http://IP:PORT  # Linux client of `nshell dev`
+cargo linux-run --dev http://IP:PORT  # Linux client of `native-shell dev`
 cargo linux-test                      # Linux renderer tests (headless)
 ```
 
@@ -56,7 +65,7 @@ cargo linux-test                      # Linux renderer tests (headless)
 | `crates/services` | Storage, fs, fetch, WebSocket, crypto, signed bundles |
 | `crates/engine` | The `native-shell` runtime crate (QuickJS, prelude, scheduler, events) |
 | `crates/ffi` | C ABI and JNI |
-| `crates/cli` | The `nshell` command |
+| `crates/cli` | The `native-shell` command |
 | `platforms/ios/` | Swift Package / CocoaPods: UIKit renderer |
 | `platforms/android/` | Gradle: AAR with the View renderer, Compose wrapper, example app |
 | `platforms/linux/` | Cargo: GTK 4 / libadwaita renderer, example app ([README](platforms/linux/README.md)) |

@@ -112,6 +112,7 @@ object Prop {
     const val REFRESHING = 42
     const val SHOWS_INDICATORS = 43
     const val REFRESH_ENABLED = 44
+    const val PAGING = 45
 
     const val TEXT_VALUE = 50
     const val PLACEHOLDER = 51

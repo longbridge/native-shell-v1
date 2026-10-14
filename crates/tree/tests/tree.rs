@@ -2272,3 +2272,83 @@ fn date_pickers_measure_every_month_of_the_value_year() {
         .any(|(_, p)| p == "{\"mode\":\"datetime\",\"value\":\"2026-02-28T22:58\"}"));
     assert_eq!(width(&rep), 8.0 * 16.0 + 24.0);
 }
+
+#[test]
+fn hairlines_keep_one_device_pixel_at_every_offset() {
+    let mut h = H::new();
+    h.tree.set_environment(&Environment { width: 390.0, height: 844.0, scale: 1.0, ..Default::default() });
+    let mut rows = Vec::new();
+    for i in 0..6 {
+        rows.push(view("h=20.3 w=100", vec![]));
+        rows.push(keyed(view("h=0.5 w=100 bg=#000000", vec![]), &format!("sep-{i}")));
+    }
+    h.commit(&root(view("size_full", rows)));
+    let seps = h.of_type(ViewType::View).into_iter().filter(|n| h.frame(*n).height < 2.0).collect::<Vec<_>>();
+    assert_eq!(seps.len(), 6, "{}", h.tree.dump());
+    for n in seps {
+        let f = h.frame(n);
+        assert_eq!(f.height, 1.0, "{f:?}");
+        assert_eq!(f.y.fract(), 0.0, "{f:?}");
+    }
+}
+
+#[test]
+fn sheets_take_the_size_the_renderer_presents_them_at() {
+    let mut h = H::new();
+    let sheet = |content| {
+        let mut s = root(view("", vec![]));
+        s.push(Surface {
+            key: "sheet:1".into(),
+            kind: SurfaceKind::Sheet {
+                detents: vec!["medium".into()],
+                dismissable: true,
+            },
+            content,
+        });
+        s
+    };
+    // Content that fills its surface: a header and a flex_1 body.
+    let content = || {
+        view(
+            "flex flex_col size_full",
+            vec![
+                view("h=44 bg=#eeeeee", vec![]),
+                keyed(view("flex_1 bg=#ffffff", vec![]), "body"),
+            ],
+        )
+    };
+    h.commit(&sheet(content()));
+    let node = h.tree.surface_node("sheet:1").unwrap();
+    assert_eq!(
+        h.frame(node).height,
+        44.0,
+        "unreported: as tall as its content"
+    );
+
+    // The renderer presents it at a medium detent.
+    assert!(h.tree.set_surface_size(node, 390.0, 420.0));
+    assert!(!h.tree.set_surface_size(node, 390.0, 420.0), "unchanged");
+    h.commit(&sheet(content()));
+    let f = h.frame(node);
+    assert_eq!((f.width, f.height), (390.0, 420.0));
+    let body = h.rep.children(node)[1];
+    assert_eq!(
+        h.frame(body).height,
+        420.0 - 44.0,
+        "flex_1 fills the presented height"
+    );
+
+    // Dragged to the large detent.
+    assert!(h.tree.set_surface_size(node, 390.0, 780.0));
+    h.commit(&sheet(content()));
+    assert_eq!(h.frame(body).height, 780.0 - 44.0);
+
+    // Only sheets take a reported size; a closed sheet forgets it.
+    let root_node = h.tree.surface_node("root").unwrap();
+    assert!(!h.tree.set_surface_size(root_node, 100.0, 100.0));
+    h.commit(&root(view("", vec![])));
+    assert!(!h.tree.set_surface_size(node, 390.0, 420.0), "deleted");
+    h.commit(&sheet(content()));
+    let reopened = h.tree.surface_node("sheet:1").unwrap();
+    assert_eq!(h.frame(reopened).height, 44.0);
+}

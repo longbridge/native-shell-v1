@@ -16,6 +16,7 @@ fn main() -> ExitCode {
     run(&[
         ("every example loads with its assets", every_example_loads_with_its_assets),
         ("watchlist shows live quotes in the host cell", watchlist_shows_live_quotes_in_the_host_cell),
+        ("screenshots repeat byte for byte", screenshots_repeat_byte_for_byte),
         ("a failing first render shows the error page", a_failing_first_render_shows_the_error_page),
         ("a failing later render shows the error banner", a_failing_later_render_shows_the_error_banner),
     ])
@@ -100,4 +101,18 @@ export default class App extends View {
     f.expect("nsh-error-banner");
     f.expect("ok");
     f.screenshot("target/agents/linux-app/error-banner.png");
+}
+
+/// Two fresh runs of an example whose screen shows dates (tasks: due dates
+/// relative to today) give identical images: the fixture pins the wall clock,
+/// time zone, language and text size, and captures hold animations still.
+fn screenshots_repeat_byte_for_byte() {
+    let shot = |n: u32| {
+        let f = open(&runtime(), "tasks");
+        pump_for(Duration::from_millis(200));
+        let path = f.screenshot(format!("target/agents/linux-app/repeat-{n}.png"));
+        std::fs::read(path).unwrap()
+    };
+    let (first, second) = (shot(1), shot(2));
+    assert!(first == second, "two runs of the tasks example differ");
 }

@@ -16,7 +16,7 @@
 import { View, div, h_flex, v_flex, image, Button, Input, InputState } from "native-shell";
 import { Attachment, Bubble, Marker, Message, MessageScroller, MessageScrollerState } from "gpui-component";
 import { CONTACT, recentMessages, fetchEarlier, clock, dayLabel, sameBurst, summary } from "./conversation.js";
-import { avatar, icon } from "./ui.js";
+import { avatar, icon, label, row, section, textStyle } from "./ui.js";
 /** @import { Message as Msg } from "./conversation.js" */
 /** @import { Context } from "native-shell" */
 
@@ -28,7 +28,6 @@ export default class Chat extends View {
     this.messages = recentMessages();
     /** "more" | "loading" | "done" | "error" */
     this.history = "more";
-    this.undo = null;
     this.nextId = 1;
     this.scroller = MessageScrollerState(this.rows().length);
     this.draft = InputState.new({ placeholder: "Message", return_key: "send", auto_capitalize: "sentences" });
@@ -151,92 +150,89 @@ export default class Chat extends View {
     });
   }
 
-  /** @param {Msg} message @param {Context} cx */
+  /**
+   * Deleting is reversible for a few seconds: the toast's Undo puts the
+   * message back where it was.
+   * @param {Msg} message @param {Context} cx
+   */
   remove(message, cx) {
     const index = this.messages.findIndex((m) => m.id === message.id);
     this.setMessages(
       this.messages.filter((m) => m.id !== message.id),
       "within",
     );
-    this.undo?.timer.cancel();
-    const timer = cx.timer.after(UNDO_MS, (cx) => {
-      this.undo = null;
-      cx.notify();
+    cx.push_toast({
+      id: "undo",
+      title: "Message deleted",
+      timeout: UNDO_MS,
+      action: {
+        label: "Undo",
+        on_click: (cx) => {
+          this.setMessages([...this.messages.slice(0, index), message, ...this.messages.slice(index)], "within");
+          cx.notify();
+        },
+      },
     });
-    this.undo = { message, index, timer };
     cx.notify();
   }
 
-  /** @param {Context} cx */
-  restore(cx) {
-    if (!this.undo) return;
-    const { message, index, timer } = this.undo;
-    timer.cancel();
-    this.setMessages([...this.messages.slice(0, index), message, ...this.messages.slice(index)], "within");
-    this.undo = null;
-    cx.notify();
-  }
-
-  /** @param {Msg} message @param {Context} cx */
+  /**
+   * A message's actions in a medium sheet: what it is, then the actions as an
+   * inset grouped list, the destructive one apart and in red.
+   * @param {Msg} message @param {Context} cx
+   */
   openActions(message, cx) {
     cx.haptic("selection");
-    const t = cx.theme();
-    const action = (id, name, label, color, run) =>
-      Button.new(id)
-        .test_id(id)
-        .flex()
-        .items_center()
-        .gap_3()
-        .px_4()
-        .py_3()
-        .min_h_12()
-        .rounded_lg()
-        .text_base()
-        .text_color(color)
-        .active((s) => s.bg(t.muted))
-        .on_click((_e, cx) => {
+    /** @param {Context} cx @param {string} id @param {"refresh" | "copy" | "trash"} name @param {string} text @param {(cx: Context) => void} run @param {boolean} [destructive] */
+    const action = (cx, id, name, text, run, destructive = false) =>
+      row(cx, {
+        id,
+        leading: icon(name, destructive ? cx.theme().destructive : cx.theme().primary, 22),
+        label: text,
+        destructive,
+        on_click: (_e, cx) => {
           window.close_sheet();
           run(cx);
-        })
-        .child(icon(name, color))
-        .child(label);
+        },
+      });
+    // The content is re-evaluated on theme changes; read the theme inside it.
     cx.open_sheet(
-      () =>
-        v_flex()
+      (cx) => {
+        const t = cx.theme();
+        const from = `${message.from === "me" ? "You" : CONTACT.name} · ${dayLabel(message.at)}, ${clock(message.at)}`;
+        return v_flex()
           .test_id("actions")
           .size_full()
-          .bg(t.background)
-          .px_2()
-          .pt_4()
-          .pb(cx.window().safe_area.bottom + 8)
-          .gap_1()
+          .bg(t.grouped_background)
+          .px_4()
+          .pt_6()
+          .pb(cx.window().safe_area.bottom + 16)
+          .gap_5()
           .child(
             v_flex()
-              .px_4()
-              .pb_3()
               .gap_1()
-              .child(
-                div()
-                  .text_xs()
-                  .text_color(t.muted_foreground)
-                  .child(`${message.from === "me" ? "You" : CONTACT.name} · ${dayLabel(message.at)}, ${clock(message.at)}`),
-              )
-              .child(div().text_base().text_color(t.foreground).line_clamp(3).child(summary(message))),
+              .px_4()
+              .child(label(cx, "footnote", t.muted_foreground, from))
+              .child(label(cx, "body", t.foreground, summary(message)).line_clamp(3)),
           )
-          .child(div().h(1).mx_4().mb_1().bg(t.border))
-          .when(message.status === "failed", (el) =>
-            el.child(action("action-retry", "refresh", "Send again", t.foreground, (cx) => this.retry(message, cx))),
+          .child(
+            section(cx, {
+              inset: 54,
+              rows: [
+                message.status === "failed" && action(cx, "action-retry", "refresh", "Send Again", (cx) => this.retry(message, cx)),
+                message.text !== undefined &&
+                  action(cx, "action-copy", "copy", "Copy", (cx) => {
+                    cx.write_to_clipboard(message.text ?? "");
+                    // Some platforms confirm a copy themselves; a second confirmation would repeat it.
+                    if (!cx.window().clipboard_feedback) cx.push_toast({ title: "Copied", level: "success", timeout: 1500 });
+                  }),
+              ],
+            }),
           )
-          .when(message.text !== undefined, (el) =>
-            el.child(
-              action("action-copy", "copy", "Copy text", t.foreground, (cx) => {
-                cx.write_to_clipboard(message.text ?? "");
-                // Android shows its own clipboard confirmation; a second one would repeat it.
-                if (cx.window().platform !== "android") cx.push_toast({ title: "Copied", level: "success", timeout: 1500 });
-              }),
-            ),
-          )
-          .child(action("action-delete", "trash", "Delete for me", t.destructive, (cx) => this.remove(message, cx))),
+          .child(
+            section(cx, { inset: 54, rows: [action(cx, "action-delete", "trash", "Delete", (cx) => this.remove(message, cx), true)] }),
+          );
+      },
       { detents: ["medium"] },
     );
   }
@@ -255,27 +251,27 @@ export default class Chat extends View {
           .estimated_row_height(60)
           .flex_1(),
       )
-      .when(this.undo !== null, (el) => el.child(this.undoBar(cx)))
       .child(this.composer(cx));
   }
 
-  /** @param {Context} cx */
+  /** As in Messages: the contact's avatar centered over the name, on a bar with a hairline. @param {Context} cx */
   header(cx) {
     const t = cx.theme();
-    return h_flex()
-      .gap_3()
+    return v_flex()
+      .items_center()
+      .gap_1()
       .px_4()
-      .pt(cx.window().safe_area.top + 8)
-      .pb_3()
-      .border_b_1()
+      .pt(cx.window().safe_area.top + 6)
+      .pb_2()
+      .bg(t.background)
+      .border_b(0.5)
       .border_color(t.border)
-      .child(avatar(cx, CONTACT.name))
+      .child(avatar(cx, CONTACT.name, 40))
       .child(
         v_flex()
-          .flex_1()
-          .min_w_0()
-          .child(div().role("header").text_base().font_semibold().text_color(t.foreground).truncate().child(CONTACT.name))
-          .child(div().text_xs().text_color(t.muted_foreground).child(CONTACT.status)),
+          .items_center()
+          .child(label(cx, "footnote", t.foreground, CONTACT.name).role("header").font_semibold().truncate())
+          .child(label(cx, "caption2", t.muted_foreground, CONTACT.status)),
       );
   }
 
@@ -285,12 +281,7 @@ export default class Chat extends View {
       case "history":
         return this.historyRow(cx);
       case "day":
-        return new Marker(row.key)
-          .alignment("center")
-          .pt_6()
-          .pb_2()
-          .child(div().font_semibold().child(row.label))
-          .child(clock(row.at));
+        return new Marker(row.key).alignment("center").pt_6().pb_2().child(div().font_semibold().child(row.label)).child(clock(row.at));
       case "unread":
         return new Marker("unread")
           .test_id("unread")
@@ -311,7 +302,9 @@ export default class Chat extends View {
     const box = h_flex().key("history").justify_center().px_4().pt_4().pb_2().min_h_12();
     switch (this.history) {
       case "loading":
-        return box.child(new Marker("history-loading").test_id("history-loading").alignment("center").loading(true).child("Loading earlier messages…"));
+        return box.child(
+          new Marker("history-loading").test_id("history-loading").alignment("center").loading(true).child("Loading earlier messages…"),
+        );
       case "done":
         return box.child(
           new Marker("history-start")
@@ -322,7 +315,7 @@ export default class Chat extends View {
         );
       default:
         return box.child(
-          Button.new("load-earlier")
+          textStyle(Button.new("load-earlier"), cx, "subheadline")
             .test_id("load-earlier")
             .flex()
             .items_center()
@@ -332,13 +325,11 @@ export default class Chat extends View {
             .rounded_full()
             .border_1()
             .border_color(t.border)
-            .text_sm()
-            .font_medium()
-            .text_color(t.foreground)
+            .text_color(t.primary)
             .active((s) => s.bg(t.muted))
             .on_click((_e, cx) => this.loadEarlier(cx))
-            .child(icon("history", t.muted_foreground, 16))
-            .child(this.history === "error" ? "Couldn’t load. Try again" : "Load earlier messages"),
+            .child(icon("history", t.primary, 16))
+            .child(this.history === "error" ? "Couldn’t Load. Try Again" : "Load Earlier Messages"),
         );
     }
   }
@@ -347,16 +338,18 @@ export default class Chat extends View {
   messageRow({ message: m, joined, tail, showStatus, last }, cx) {
     const mine = m.from === "me";
     const failed = m.status === "failed";
-    return new Message()
-      .key(m.id)
-      .alignment(mine ? "end" : "start")
-      .px_4()
-      .pt(joined ? 2 : 12)
-      // The newest message keeps a gap above the composer.
-      .when(last, (el) => el.pb_3())
-      .when(failed, (el) => el.footer(this.failedLine(m, cx)))
-      .when(showStatus && !failed, (el) => el.footer(div().test_id("delivery").child(deliveryText(m))))
-      .child(m.attachment ? this.attachment(m, cx) : this.bubble(m, mine, tail));
+    return (
+      new Message()
+        .key(m.id)
+        .alignment(mine ? "end" : "start")
+        .px_4()
+        .pt(joined ? 2 : 12)
+        // The newest message keeps a gap above the composer.
+        .when(last, (el) => el.pb_3())
+        .when(failed, (el) => el.footer(this.failedLine(m, cx)))
+        .when(showStatus && !failed, (el) => el.footer(div().test_id("delivery").child(deliveryText(m))))
+        .child(m.attachment ? this.attachment(m, cx) : this.bubble(m, mine, tail))
+    );
   }
 
   /** @param {Msg} m @param {boolean} mine @param {boolean} tail */
@@ -394,7 +387,7 @@ export default class Chat extends View {
   /** @param {Msg} m @param {Context} cx */
   failedLine(m, cx) {
     const t = cx.theme();
-    return h_flex()
+    return textStyle(h_flex(), cx, "footnote")
       .test_id(`failed-${m.id}`)
       .gap_1()
       .child(icon("alert", t.destructive, 14))
@@ -404,15 +397,14 @@ export default class Chat extends View {
           .test_id(`retry-${m.id}`)
           .accessibility_label("Send again")
           .ml_1()
-          .px_2()
+          .px_1()
           .py_1()
-          .rounded_md()
-          .hit_slop(10)
+          .hit_slop(12)
           .font_semibold()
           .text_color(t.primary)
-          .active((s) => s.bg(t.muted))
+          .active((s) => s.opacity(0.4))
           .on_click((_e, cx) => this.retry(m, cx))
-          .child("Send again"),
+          .child("Send Again"),
       );
   }
 
@@ -430,7 +422,7 @@ export default class Chat extends View {
       .border_color(t.border)
       .bg(t.background)
       .child(
-        Input.new(this.draft)
+        textStyle(Input.new(this.draft), cx, "body")
           .test_id("draft")
           .accessibility_label(`Message ${CONTACT.name}`)
           .flex_1()
@@ -438,8 +430,9 @@ export default class Chat extends View {
           .px_4()
           .py_2()
           .rounded_full()
-          .bg(t.muted)
-          .text_base()
+          .border(0.5)
+          .border_color(t.border)
+          .bg(t.background)
           .text_color(t.foreground),
       )
       .child(
@@ -457,36 +450,6 @@ export default class Chat extends View {
           .when(!empty, (el) => el.active((s) => s.opacity(0.7)))
           .on_click((_e, cx) => this.send(cx))
           .child(icon("arrow_up", empty ? t.muted_foreground : t.primary_foreground)),
-      );
-  }
-
-  /** @param {Context} cx */
-  undoBar(cx) {
-    const t = cx.theme();
-    return h_flex()
-      .test_id("undo-bar")
-      .mx_4()
-      .mb_2()
-      .pl_4()
-      .pr_1()
-      .py_1()
-      .gap_3()
-      .rounded_lg()
-      .bg(t.foreground)
-      .shadow_md()
-      .child(div().role("alert").flex_1().text_sm().text_color(t.background).child("Message deleted"))
-      .child(
-        Button.new("undo")
-          .test_id("undo")
-          .px_3()
-          .py_2()
-          .rounded_md()
-          .text_sm()
-          .font_semibold()
-          .text_color(t.background)
-          .active((s) => s.opacity(0.6))
-          .on_click((_e, cx) => this.restore(cx))
-          .child("Undo"),
       );
   }
 }

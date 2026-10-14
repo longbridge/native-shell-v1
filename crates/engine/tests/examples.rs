@@ -300,9 +300,11 @@ fn chat_sends_retries_loads_history_and_deletes_with_undo() {
     h.tap("action-copy");
     assert!(h.commands().iter().any(|(_, c, p)| *c == Command::SetClipboard && p.contains("first-aid kit")));
     h.long_press("bubble-m8");
+    h.clear_commands();
     h.tap("action-delete");
-    assert!(h.find("bubble-m8").is_none() && h.find("undo-bar").is_some());
-    h.tap("undo");
+    assert!(h.find("bubble-m8").is_none());
+    assert!(last_toast(&h).contains("Message deleted"));
+    h.toast_action("undo");
     assert!(h.find("bubble-m8").is_some());
     assert_clean(&h);
 }

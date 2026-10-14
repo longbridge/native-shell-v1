@@ -56,8 +56,8 @@ export default class PhotosPage extends View {
             this.tab = i;
             cx.notify();
           })
-          .child(new Tab().label(`All ${PHOTOS.length}`).accessibility_label(`All photos, ${PHOTOS.length}`))
-          .child(new Tab().label(`Favorites ${this.favorites.size}`).accessibility_label(`Favorites, ${this.favorites.size}`)),
+          .child(new Tab().label(`All ${PHOTOS.length}`).test_id("album-all").accessibility_label(`All photos, ${PHOTOS.length}`))
+          .child(new Tab().label(`Favorites ${this.favorites.size}`).test_id("album-favorites").accessibility_label(`Favorites, ${this.favorites.size}`)),
         current
           ? v_flex()
               .gap_3()
@@ -107,7 +107,7 @@ export default class PhotosPage extends View {
               .px_8()
               .child(new Icon("icons/star.svg").size(44).color(t.muted_foreground))
               .child(label(cx, "title3", t.foreground, "No Favorites Yet").font_semibold())
-              .child(label(cx, "subheadline", t.muted_foreground, "Tap the star under a photo to keep it here.").text_center())
+              .child(label(cx, "subheadline", t.muted_foreground, "Star a photo to keep it here.").text_center())
               .child(
                 textButton(cx, "show-all", "Show All Photos", {
                   on_click: (_e, cx) => {
