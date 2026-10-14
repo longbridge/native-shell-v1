@@ -26,7 +26,7 @@ protocol ComponentContext: AnyObject {
 }
 
 @objc(NSHComponentView)
-open class NSHComponentView: NSView {
+class NSHComponentView: NSView {
     var nodeId: UInt32 = 0
     var viewType: NSHViewType = .view
     weak var context: ComponentContext?
@@ -41,22 +41,25 @@ open class NSHComponentView: NSView {
     /// The frame the core gave, kept independent of transforms.
     private(set) var nodeFrame: CGRect = .zero
 
-    required override public init(frame: CGRect) {
+    required override init(frame: CGRect) {
         super.init(frame: frame)
         wantsLayer = true
         layerContentsRedrawPolicy = .onSetNeedsDisplay
         commonInit()
     }
 
-    required public init?(coder: NSCoder) { fatalError("not supported") }
+    required init?(coder: NSCoder) { fatalError("not supported") }
 
-    override open var isFlipped: Bool { true }
+    override var isFlipped: Bool { true }
 
     /// Subclasses set up their subviews here.
     func commonInit() {}
 
     /// The view children are added to.
     var childContainer: NSView { self }
+
+    /// For `HostComponent` containers: the registered component they host.
+    var hostComponentName: String? { nil }
 
     // MARK: Children
 
@@ -128,12 +131,12 @@ open class NSHComponentView: NSView {
 
     func runCommand(_ command: Command, _ payload: [String: Any]) {}
 
-    override open func layout() {
+    override func layout() {
         super.layout()
         layoutDecorations()
     }
 
-    override open func viewDidChangeEffectiveAppearance() {
+    override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
         // CGColors on layers do not follow the appearance by themselves.
         layoutDecorations()
@@ -478,14 +481,14 @@ open class NSHComponentView: NSView {
     }
 
     /// VoiceOver's press (and tests) performs the click the script listens for.
-    override open func accessibilityPerformPress() -> Bool {
+    override func accessibilityPerformPress() -> Bool {
         guard listens(EventMask.click) else { return super.accessibilityPerformPress() }
         send(.click, ["x": Double(bounds.midX), "y": Double(bounds.midY), "count": 1, "modifiers": KeyEvents.modifiers([])])
         return true
     }
 
     /// Clickable views without a declared role are buttons.
-    override open func accessibilityRole() -> NSAccessibility.Role? {
+    override func accessibilityRole() -> NSAccessibility.Role? {
         let r = super.accessibilityRole()
         if r == nil || r == .unknown, accessibilityTarget === self, listens(EventMask.click) { return .button }
         return r
@@ -554,12 +557,12 @@ open class NSHComponentView: NSView {
         }
     }
 
-    override open func mouseEntered(with e: NSEvent) {
+    override func mouseEntered(with e: NSEvent) {
         guard wantsHover else { return super.mouseEntered(with: e) }
         pointerHover(true, at: convert(e.locationInWindow, from: nil))
     }
 
-    override open func mouseExited(with e: NSEvent) {
+    override func mouseExited(with e: NSEvent) {
         guard wantsHover else { return super.mouseExited(with: e) }
         pointerHover(false, at: convert(e.locationInWindow, from: nil))
     }
@@ -574,12 +577,12 @@ open class NSHComponentView: NSView {
     /// The AppKit cursor for the node's `Cursor`, or nil to leave the inherited one.
     var cursor: NSCursor? { cursorStyle.map(Cursors.cursor) }
 
-    override open func resetCursorRects() {
+    override func resetCursorRects() {
         super.resetCursorRects()
         if let c = cursor { addCursorRect(visibleRect, cursor: c) }
     }
 
-    override open func mouseDown(with e: NSEvent) {
+    override func mouseDown(with e: NSEvent) {
         guard wantsMouse else { return super.mouseDown(with: e) }
         // Control-click is the secondary click: the context action.
         if e.modifierFlags.contains(.control), listens(EventMask.longPress) { return secondaryClick(e) }
@@ -596,7 +599,7 @@ open class NSHComponentView: NSView {
         }
     }
 
-    override open func mouseDragged(with e: NSEvent) {
+    override func mouseDragged(with e: NSEvent) {
         guard var t = tracking else { return super.mouseDragged(with: e) }
         let p = convert(e.locationInWindow, from: nil)
         let dt = max(0.001, e.timestamp - t.lastTime)
@@ -623,7 +626,7 @@ open class NSHComponentView: NSView {
         if !t.panning { pressed = bounds.contains(p) }
     }
 
-    override open func mouseUp(with e: NSEvent) {
+    override func mouseUp(with e: NSEvent) {
         guard let t = tracking else { return super.mouseUp(with: e) }
         let p = convert(e.locationInWindow, from: nil)
         endTracking()
@@ -638,7 +641,7 @@ open class NSHComponentView: NSView {
         }
     }
 
-    override open func rightMouseDown(with e: NSEvent) {
+    override func rightMouseDown(with e: NSEvent) {
         guard handlesMouse, listens(EventMask.longPress) else { return super.rightMouseDown(with: e) }
         secondaryClick(e)
     }
@@ -649,7 +652,7 @@ open class NSHComponentView: NSView {
         send(.longPress, ["x": Double(p.x), "y": Double(p.y)])
     }
 
-    override open func magnify(with e: NSEvent) {
+    override func magnify(with e: NSEvent) {
         guard listens(EventMask.pinch) else { return super.magnify(with: e) }
         let phase: String
         switch e.phase {
