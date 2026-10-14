@@ -131,11 +131,11 @@ export default class ButtonsPage extends View {
             h_flex()
               .gap_2()
               .children(
-                [
+                /** @type {[string, "calendar" | "link" | "upload", string, string | null][]} */ ([
                   ["date", "calendar", "Insert today’s date", today()],
                   ["link", "link", "Insert a link", "https://example.org/garden"],
                   ["photo", "upload", "Attach a photo", null],
-                ].map(([id, name, label, text]) => {
+                ]).map(([id, name, label, text]) => {
                   const disabled = text === null || busy;
                   return Button.new(`icon-${id}`)
                     .test_id(`icon-${id}`)

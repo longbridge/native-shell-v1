@@ -59,7 +59,13 @@ export default class Chat extends View {
   send(cx) {
     const text = this.draft.value().trim();
     if (text === "") return;
-    const message = { id: `new-${this.nextId++}`, from: "me", text, at: Date.now(), status: "sending" };
+    const message = /** @type {import("./conversation.js").Message} */ ({
+      id: `new-${this.nextId++}`,
+      from: "me",
+      text,
+      at: Date.now(),
+      status: "sending",
+    });
     this.messages = [...this.messages, message];
     this.draft.set_value("");
     cx.notify();
