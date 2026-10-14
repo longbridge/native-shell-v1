@@ -92,6 +92,7 @@ final class EndToEndTests: XCTestCase {
     var vc: NSHViewController!
     var errors: [String] = []
     var logs: [String] = []
+    var firstFrames = 0
 
     override func setUpWithError() throws {
         try XCTSkipUnless(NSHInstance.coreAvailable, "the core xcframework is not built (scripts/build-ios.sh)")
@@ -244,6 +245,7 @@ final class EndToEndTests: XCTestCase {
         if let box = check as? NSHCheckboxView { box.toggle() } else { XCTAssertTrue(check.accessibilityActivate()) }
         waitFor("one fewer open") { self.openCount == start + 1 }
         waitFor("completed header") { self.view("toggle-completed") != nil }
+        XCTAssertEqual(firstFrames, 1, "the first-frame callback fires once, not on later batches")
         XCTAssertTrue(errors.isEmpty, "\(errors)")
     }
 
@@ -317,6 +319,40 @@ final class EndToEndTests: XCTestCase {
         XCTAssertTrue(errors.isEmpty, "\(errors)")
     }
 
+    /// Binary program files (a photo next to the script) load as data URLs and draw.
+    func testProgramImageAssetsLoad() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("nsh-assets-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let fm = FileManager.default
+        for sub in ["assets", "node_modules/pkg"] {
+            try fm.createDirectory(at: dir.appendingPathComponent(sub), withIntermediateDirectories: true)
+        }
+        try Data(#"{"id": "dev.test.assets", "name": "Assets"}"#.utf8).write(to: dir.appendingPathComponent("native-shell.json"))
+        try Data("""
+        import { View, div, image } from "native-shell";
+        export default class Photo extends View {
+          render() { return div().size_full().child(image("assets/route.jpg").w(120).h(80).test_id("photo")); }
+        }
+        """.utf8).write(to: dir.appendingPathComponent("main.js"))
+        let photo = UIGraphicsImageRenderer(size: CGSize(width: 12, height: 8)).jpegData(withCompressionQuality: 0.9) { ctx in
+            UIColor.systemTeal.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: 12, height: 8))
+        }
+        try photo.write(to: dir.appendingPathComponent("assets/route.jpg"))
+        try Data("ignored".utf8).write(to: dir.appendingPathComponent("node_modules/pkg/index.js"))
+        try Data("ignored".utf8).write(to: dir.appendingPathComponent(".DS_Store"))
+
+        let sources = try Self.sources(dir)
+        let files = try XCTUnwrap((try JSONSerialization.jsonObject(with: Data(sources.utf8)) as? [String: Any])?["files"] as? [String: String])
+        XCTAssertEqual(Set(files.keys), ["main.js", "assets/route.jpg"], "hidden entries and node_modules are skipped")
+        XCTAssertEqual(files["assets/route.jpg"], "data:image/jpeg;base64,\(photo.base64EncodedString())")
+
+        try launch(sources, appId: "dev.test.assets")
+        waitFor("photo loaded") { (self.view("photo") as? NSHImageView)?.imageView.image != nil }
+        XCTAssertEqual((view("photo") as? NSHImageView)?.imageView.image?.size, CGSize(width: 12, height: 8))
+        XCTAssertTrue(errors.isEmpty && !logs.contains { $0.contains("no such file") }, "\(errors) \(logs)")
+    }
+
     func testScriptErrorsAreReported() throws {
         let src = JSON.string(["manifest": ["id": "dev.test.broken", "name": "Broken"],
                                "files": ["main.js": "export default class X { render() { throw new Error('boom') } }"]])
@@ -377,6 +413,7 @@ final class EndToEndTests: XCTestCase {
 extension EndToEndTests: NSHInstanceDelegate {
     func instance(_ instance: NSHInstance, didFailWithError message: String) { errors.append(message) }
     func instance(_ instance: NSHInstance, didLog message: String, level: NSHLogLevel) { logs.append(message) }
+    func instanceDidRenderFirstFrame(_ instance: NSHInstance) { firstFrames += 1 }
 }
 
 extension MountingManager {

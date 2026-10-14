@@ -10,6 +10,8 @@ import UIKit
     /// Unrecoverable instance error; the instance keeps showing its last good frame.
     @objc optional func instance(_ instance: NSHInstance, didFailWithError message: String)
     @objc optional func instance(_ instance: NSHInstance, didLog message: String, level: NSHLogLevel)
+    /// The program's first frame is on screen (hosts hide their loading state here).
+    @objc optional func instanceDidRenderFirstFrame(_ instance: NSHInstance)
 }
 
 @objcMembers
@@ -128,28 +130,51 @@ public final class NSHInstance: NSObject {
     }
 
     /// Loads a program directory (`native-shell.json` and its files), e.g. one shipped
-    /// in the app bundle. Every UTF-8 file is included, so program-relative text
-    /// assets such as `svg("icons/check.svg")` resolve; other files are skipped.
+    /// in the app bundle. Text files go in as they are; anything that is not UTF-8
+    /// (images, fonts) as a `data:<mime>;base64,…` URL, as `native-shell dev` sends
+    /// them, so program-relative assets such as `image("assets/photo.jpg")` resolve.
     public func loadProgram(directory: URL) throws {
         try loadSources(NSHInstance.programSources(directory: directory))
     }
 
-    /// `{"manifest", "files"}` JSON for a program directory.
+    /// `{"manifest", "files"}` JSON for a program directory (hidden entries and
+    /// `node_modules` skipped).
     public static func programSources(directory: URL) throws -> String {
         let manifestURL = directory.appendingPathComponent("native-shell.json")
         let manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL))
         var files: [String: String] = [:]
         let base = directory.standardizedFileURL.path
-        let e = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: [.isRegularFileKey])
+        let e = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles])
         while let url = e?.nextObject() as? URL {
+            if url.lastPathComponent == "node_modules" {
+                e?.skipDescendants()
+                continue
+            }
             guard (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true,
-                  url.lastPathComponent != "native-shell.json", !url.lastPathComponent.hasPrefix(".") else { continue }
+                  url.lastPathComponent != "native-shell.json" else { continue }
             let path = url.standardizedFileURL.path
-            guard path.hasPrefix(base + "/"), let data = try? Data(contentsOf: url),
-                  let text = String(data: data, encoding: .utf8) else { continue }
-            files[String(path.dropFirst(base.count + 1))] = text
+            guard path.hasPrefix(base + "/") else { continue }
+            let data = try Data(contentsOf: url)
+            files[String(path.dropFirst(base.count + 1))] = String(data: data, encoding: .utf8)
+                ?? "data:\(mimeType(url.pathExtension));base64,\(data.base64EncodedString())"
         }
         return JSON.string(["manifest": manifest, "files": files])
+    }
+
+    /// The same table as the CLI's; the engine only needs the base64 payload.
+    private static func mimeType(_ ext: String) -> String {
+        switch ext.lowercased() {
+        case "png": return "image/png"
+        case "jpg", "jpeg": return "image/jpeg"
+        case "gif": return "image/gif"
+        case "webp": return "image/webp"
+        case "svg": return "image/svg+xml"
+        case "ttf": return "font/ttf"
+        case "otf": return "font/otf"
+        case "woff2": return "font/woff2"
+        case "json": return "application/json"
+        default: return "application/octet-stream"
+        }
     }
 
     /// Loads a signed `.nspkg` bundle; its signature is checked against `NSHRuntime.trustedKeys`.
