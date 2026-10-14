@@ -19,6 +19,7 @@ gpui-shell and GPUI. See `README.md`, `docs/architecture.md`,
 | `crates/engine` | The `native-shell` runtime: QuickJS, JS prelude, scheduler, events |
 | `crates/ffi`, `crates/cli` | C ABI + JNI; the `nshell` command |
 | `platforms/ios`, `platforms/android` | UIKit and Android View renderers, example apps |
+| `platforms/linux` | GTK 4 renderer (own Cargo workspace), example app |
 | `examples/` | Example programs |
 | `tools/style-gen` | Regenerates `crates/core/src/style_table.rs` from GPUI |
 
@@ -155,4 +156,5 @@ cargo run --release -p native-shell --example bench       # core performance
 scripts/build-ios.sh && scripts/build-android.sh          # native libraries
 cd platforms/ios && xcodebuild test -scheme NativeShell -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 cd platforms/android && ./gradlew :native-shell:testDebugUnitTest :native-shell:connectedDebugAndroidTest
+cd platforms/linux && cargo test && cargo clippy --all-targets -- -D warnings   # headless (Broadway)
 ```

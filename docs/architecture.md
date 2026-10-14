@@ -89,6 +89,7 @@ crates/ffi       C ABI (iOS) + JNI (Android); xcframework / .so
 crates/cli       new, check, types, bundle, keygen, verify, dev
 platforms/ios/   Swift Package + podspec: UIKit renderer, TextKit measurement, host registration
 platforms/android/ Gradle: AAR (View renderer, PrecomputedText measurement), compose wrapper, example
+platforms/linux/ Cargo: GTK 4 renderer (Pango measurement, links the engine directly), host API, example
 examples/        example programs
 ```
 

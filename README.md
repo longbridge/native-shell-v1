@@ -45,6 +45,7 @@ export default class Counter extends View {
 | `crates/cli` | The `nshell` command |
 | `platforms/ios/` | Swift Package / CocoaPods: UIKit renderer |
 | `platforms/android/` | Gradle: AAR with the View renderer, Compose wrapper, example app |
+| `platforms/linux/` | Cargo: GTK 4 / libadwaita renderer, example app ([README](platforms/linux/README.md)) |
 | `examples/` | Example programs |
 | `docs/` | Architecture, protocol, plans |
 
