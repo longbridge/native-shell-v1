@@ -483,4 +483,22 @@ final class MountingTests: XCTestCase {
         XCTAssertTrue(Cursors.cursor(.iBeam) === NSCursor.iBeam)
         XCTAssertTrue(Cursors.cursor(.operationNotAllowed) === NSCursor.operationNotAllowed)
     }
+
+    func testToastLevelsAndSelectionUseThemeTokens() {
+        h.apply { $0.prop(0, .themeTokens, .json(JSON.string(["appearance": "light", "success": 0xFF11_AA22, "warning": 0xFFFF_8800,
+                                                               "info": 0xFF00_66FF, "destructive": 0xFFEE_0000, "selection": 0x3300_66FF]))) }
+        for (level, color) in [("success", 0xFF11_AA22), ("warning", 0xFFFF_8800), ("info", 0xFF00_66FF), ("error", 0xFFEE_0000)] as [(String, UInt32)] {
+            h.apply { $0.command(0, .showToast, ["id": level, "title": level, "level": level, "duration": 0]) }
+            let t = h.surface.toasts.visible.first { $0.id == level }!
+            XCTAssertEqual(Colors.toHex(t.iconView.contentTintColor!), Colors.toHex(Colors.argb(color)), level)
+            h.apply { $0.command(0, .dismissToast, ["id": level]) }
+        }
+        h.apply { b in
+            b.create(1, .text, parent: 0, frame: CGRect(x: 0, y: 0, width: 200, height: 30),
+                     props: [(.attributedText, .json(textJSON("Selectable"))), (.selectable, .bool(true))])
+        }
+        let tv = h.view(1)!.subviews.compactMap { $0 as? NSTextView }.first!
+        let selection = tv.selectedTextAttributes[.backgroundColor] as? NSColor
+        XCTAssertEqual(selection.map(Colors.toHex), "#0066ff33")
+    }
 }

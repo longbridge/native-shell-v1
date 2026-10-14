@@ -242,12 +242,7 @@ final class ToastView: NSView {
         let token = { ThemeTokens.color($0, runtime: self.runtime, theme: self.theme) }
         layer?.backgroundColor = token("background").cgColor(in: effectiveAppearance)
         layer?.borderColor = token("border").cgColor(in: effectiveAppearance)
-        switch level {
-        case "error": iconView.contentTintColor = token("destructive")
-        case "success": iconView.contentTintColor = .systemGreen
-        case "warning": iconView.contentTintColor = .systemOrange
-        default: iconView.contentTintColor = .systemBlue
-        }
+        iconView.contentTintColor = token(level == "error" ? "destructive" : level)
         titleLabel.textColor = token("foreground")
         descriptionLabel.textColor = token("muted_foreground")
         if let b = actionButton, let label = actionLabel {

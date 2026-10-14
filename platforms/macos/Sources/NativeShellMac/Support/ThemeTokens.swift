@@ -9,17 +9,20 @@ import AppKit
 import NativeShellShared
 
 enum ThemeTokens {
+    // The core's defaults (crates/core/src/theme.rs) for the tokens the renderer draws with.
     private static let light: [String: String] = [
-        "background": "#ffffff", "foreground": "#0a0a0a", "muted_foreground": "#737373",
-        "border": "#e5e5e5", "destructive": "#ef4444", "primary": "#171717", "primary_foreground": "#fafafa",
+        "background": "#ffffff", "foreground": "#000000", "muted_foreground": "#8a8a8e", "border": "#c6c6c8",
+        "destructive": "#ff3b30", "primary": "#007aff", "primary_foreground": "#ffffff", "selection": "#007aff33",
+        "success": "#34c759", "warning": "#ff9500", "info": "#007aff",
     ]
     private static let dark: [String: String] = [
-        "background": "#0a0a0a", "foreground": "#fafafa", "muted_foreground": "#a3a3a3",
-        "border": "#262626", "destructive": "#f87171", "primary": "#fafafa", "primary_foreground": "#171717",
+        "background": "#000000", "foreground": "#ffffff", "muted_foreground": "#8d8d93", "border": "#38383a",
+        "destructive": "#ff453a", "primary": "#0a84ff", "primary_foreground": "#ffffff", "selection": "#0a84ff40",
+        "success": "#30d158", "warning": "#ff9f0a", "info": "#0a84ff",
     ]
 
     /// Radius `lg` of the theme scale.
-    static let radius: CGFloat = 8
+    static let radius: CGFloat = 12
 
     static func color(_ token: String, runtime: NSHRuntime, theme: ThemeState? = nil) -> NSColor {
         if let c = theme?.colors[token] { return c }

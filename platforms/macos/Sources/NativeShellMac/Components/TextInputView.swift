@@ -334,7 +334,11 @@ final class NSHTextInputView: NSHComponentView, NSTextFieldDelegate, NSTextViewD
         if returnKey == 1 { window?.makeFirstResponder(nil) }
     }
 
-    func focused() { if listens(EventMask.focus) { send(.focus) } }
+    func focused() {
+        // The field editor is shared by the window: give it this program's selection color.
+        editor?.selectedTextAttributes = [.backgroundColor: themeColor("selection")]
+        if listens(EventMask.focus) { send(.focus) }
+    }
     func blurred() { if listens(EventMask.blur) { send(.blur) } }
 
     // MARK: NSTextField

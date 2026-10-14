@@ -81,7 +81,12 @@ final class NSHTextView: NSHComponentView {
         }
     }
 
+    override func themeDidChange() {
+        selectableView?.selectedTextAttributes = [.backgroundColor: themeColor("selection")]
+    }
+
     private func configure(_ tv: NSTextView, _ t: ParsedText) {
+        tv.selectedTextAttributes = [.backgroundColor: themeColor("selection")]
         tv.textStorage?.setAttributedString(t.string)
         tv.textContainer?.maximumNumberOfLines = t.maxLines
         tv.textContainer?.lineBreakMode = t.lineBreakMode
