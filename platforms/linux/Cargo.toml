@@ -39,3 +39,7 @@ harness = false
 [[test]]
 name = "scroll_list"
 harness = false
+
+[[test]]
+name = "text"
+harness = false
