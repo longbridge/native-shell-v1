@@ -248,6 +248,23 @@ export default class T extends View {
 }
 
 #[test]
+fn text_view_list_items_wrap_inside_the_view() {
+    let h = app(r##"
+import { View } from "gpui-kit";
+import { v_flex, TextView } from "gpui-base";
+export default class T extends View {
+  render() {
+    return v_flex().w(200).child(TextView.markdown("md", "- An item long enough to need more than one line here").test_id("md"));
+  }
+}
+"##);
+    let item = h.find_text("An item long enough to need more than one line here").unwrap();
+    let frame = h.instance().tree().frame(item).unwrap();
+    assert!(frame.width <= 200.0, "the item's text is laid out within the view: {frame:?}");
+    assert!(frame.height > 30.0, "and wraps onto more lines: {frame:?}");
+}
+
+#[test]
 fn paths_paint_as_shapes() {
     let h = app(r##"
 import { View, div, PathBuilder, Background } from "gpui-kit";

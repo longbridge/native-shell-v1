@@ -1,19 +1,17 @@
-// The example's presentation vocabulary: icons, page scaffolding, grouped
-// rows, form fields and buttons sized for touch.
+// The example's presentation vocabulary, following iOS: text styles, large
+// titles and navigation bars, inset grouped lists with 44 pt rows, filled
+// and plain buttons.
 //
-// Every color comes from `cx.theme()` by role and every length from GPUI's
-// rem scale (`p_4`, `gap_3`, …), so the same code is right in light and dark
-// and follows the user's text size. Rows and controls are sized by padding
-// and minimum heights, never fixed heights, so large text grows them instead
-// of clipping. Pixel values appear only for platform geometry: safe areas and
-// the keyboard.
+// Colors come from `cx.theme()` by role (the default theme is the iOS system
+// palette), text sizes from its iOS text styles, and lengths from the rem
+// scale, which grows with the user's text size. Pixel values appear only for
+// platform geometry: safe areas, the keyboard and hairlines.
 
-import { div, h_flex, v_flex, shape, Button, Input, Spinner } from "native-shell";
+import { div, h_flex, v_flex, shape, Button } from "native-shell";
 /** @import { ClickEvent, Color, Context, Element } from "native-shell" */
 
 /** Outline icons on a 24-unit grid, drawn with a 2-unit round stroke. */
 const ICONS = {
-  arrow_left: "M19 12H5M12 19l-7-7 7-7",
   chevron_left: "m15 18-6-6 6-6",
   chevron_right: "m9 18 6-6-6-6",
   pointer: "M9 9l5 12 1.8-5.2L21 14ZM7.2 2.2 8 5.1M5.1 8 2.2 7.2M14 4.1 12 6.2M6.2 12l-2.1 2",
@@ -30,10 +28,35 @@ const ICONS = {
   file: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8ZM14 2v6h6M8 13h8M8 17h5",
   mail: "M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2ZM22 6l-10 7L2 6",
   message: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z",
-  volume: "M11 5 6 9H2v6h4l5 4ZM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14",
+  speaker_low: "M11 5 6 9H2v6h4l5 4Z",
+  speaker_high: "M11 5 6 9H2v6h4l5 4ZM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14",
   upload: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12",
   check: "M20 6 9 17l-5-5",
+  photo:
+    "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM21 15l-5-5L5 21M10 8.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z",
 };
+
+/** @typedef {"large_title" | "title1" | "title2" | "title3" | "headline" | "body" | "callout" | "subheadline" | "footnote" | "caption1" | "caption2"} TextStyle */
+/** @typedef {(e: ClickEvent, cx: Context) => void} OnClick */
+
+/**
+ * Sets an iOS text style from the theme: size, weight and line height.
+ * @template {Element} E
+ * @param {E} el @param {Context} cx @param {TextStyle} style
+ * @returns {E}
+ */
+export function textStyle(el, cx, style) {
+  const s = cx.theme().typography[style];
+  return el
+    .text_size(s.size)
+    .line_height(s.line_height / s.size)
+    .font_weight(s.weight);
+}
+
+/** A run of text in a text style and color. @param {Context} cx @param {TextStyle} style @param {Color} color @param {string} content */
+export function label(cx, style, color, content) {
+  return textStyle(div(), cx, style).text_color(color).child(content);
+}
 
 /** @param {keyof typeof ICONS} name @param {Color} color */
 export function icon(name, color, size = 20) {
@@ -45,91 +68,292 @@ export function icon(name, color, size = 20) {
 }
 
 /**
- * The status bar's backdrop: content scrolls beneath it rather than under the
- * system's clock and indicators.
+ * A top-level screen's header: a bar row for buttons, then the large title
+ * (Large Title, 34 pt bold) and an optional line of status.
+ * @param {Context} cx
+ * @param {{ title: string, subtitle?: string | null, trailing?: Element }} opts
  */
-export function statusBar(cx) {
-  return div().h(cx.window().safe_area.top).flex_none().bg(cx.theme().background);
-}
-
-/** The root page's title block, at the top of its scrolling content. */
-export function largeTitle(cx, title, subtitle) {
+export function largeTitle(cx, { title, subtitle, trailing }) {
   const t = cx.theme();
   return v_flex()
-    .gap_1()
     .px_4()
-    .pt_3()
     .pb_2()
-    .child(div().role("header").text_size(titleSize(cx)).font_bold().line_height(1.15).text_color(t.foreground).child(title))
-    .when(Boolean(subtitle), (el) => el.child(div().text_sm().text_color(t.muted_foreground).child(subtitle)));
+    .child(
+      h_flex()
+        .min_h_11()
+        .justify_end()
+        .when(Boolean(trailing), (el) => el.child(trailing)),
+    )
+    .child(label(cx, "large_title", t.foreground, title).role("header"))
+    .when(Boolean(subtitle), (el) => el.child(label(cx, "subheadline", t.muted_foreground, subtitle ?? "").test_id("subtitle")));
 }
 
 /**
- * A pushed page's bar, drawn the way each platform draws its own: iOS centers
- * the title and labels the back button with the previous page; Android leads
- * with an arrow and the title.
+ * A pushed screen's navigation bar, on the grouped background of the screens
+ * that use it: the title centered, the back button a
+ * chevron with the previous screen's title, which gives way when it would
+ * crowd the title (as UIKit does).
  * @param {Context} cx
- * @param {{ title: string, back: { label: string, on_click: (e: ClickEvent, cx: Context) => void }, trailing?: Element }} opts
+ * @param {{ title: string, back: { label: string, on_click: OnClick }, trailing?: Element }} opts
  */
-function navBar(cx, { title, back, trailing }) {
+export function navBar(cx, { title, back, trailing }) {
   const t = cx.theme();
-  const ios = cx.window().platform === "ios";
-  const backButton = Button.new("back")
-    .test_id("back")
-    .accessibility_label(`Back to ${back.label}`)
-    .flex()
-    .items_center()
-    .gap_1()
-    .py_2()
-    .px_2()
-    .rounded_md()
-    .hit_slop(4)
-    .active((s) => s.opacity(0.5))
-    .on_click(back.on_click)
-    .when(ios, (el) => el.text_color(t.primary).child(icon("chevron_left", t.primary, 24)))
-    // As UIKit does, the previous page's name gives way when it would crowd the title.
-    .when(ios && back.label.length + title.length <= 26, (el) => el.child(div().text_base().child(back.label)))
-    .when(!ios, (el) => el.child(icon("arrow_left", t.foreground, 24)));
-  const heading = div().role("header").text_lg().font_semibold().text_color(t.foreground).truncate().child(title);
   return v_flex()
     .pt(cx.window().safe_area.top)
-    .bg(t.background)
-    .border_b_1()
+    .bg(t.grouped_background)
+    .border_b(0.5)
     .border_color(t.border)
     .child(
-      ios
-        ? h_flex()
-            .relative()
-            .min_h_12()
-            .px_2()
-            .justify_between()
-            .child(div().absolute().left_0().right_0().top_0().bottom_0().flex().items_center().justify_center().px_24().child(heading))
-            .child(backButton)
-            .child(trailing ?? div())
-        : h_flex()
-            .min_h_12()
-            .py_1()
-            .px_2()
-            .gap_2()
-            .child(backButton)
-            .child(div().flex_1().min_w_0().child(heading))
-            .when(Boolean(trailing), (el) => el.child(trailing)),
+      h_flex()
+        .relative()
+        .min_h_11()
+        .px_2()
+        .justify_between()
+        .child(
+          div()
+            .absolute()
+            .left_0()
+            .right_0()
+            .top_0()
+            .bottom_0()
+            .flex()
+            .items_center()
+            .justify_center()
+            .px_24()
+            .child(label(cx, "headline", t.foreground, title).role("header").truncate()),
+        )
+        .child(
+          Button.new("back")
+            .test_id("back")
+            .accessibility_label(`Back to ${back.label}`)
+            .flex()
+            .items_center()
+            .gap_0p5()
+            .py_2()
+            .hit_slop(4)
+            .active((s) => s.opacity(0.4))
+            .on_click(back.on_click)
+            .child(icon("chevron_left", t.primary, 26))
+            .when(back.label.length + title.length <= 26, (el) => el.child(label(cx, "body", t.primary, back.label))),
+        )
+        .child(trailing ?? div()),
     );
 }
 
 /**
- * A pushed page: its bar, then content that scrolls under it and clears the
- * home indicator and the keyboard. `intro` says what the scenario is.
+ * A plain bar button: tint-colored text, semibold for the screen's commit
+ * action, with a 44 pt target.
+ * @param {Context} cx @param {string} id @param {string} text
+ * @param {{ on_click?: OnClick, emphasized?: boolean, disabled?: boolean, destructive?: boolean }} [opts]
+ */
+export function textButton(cx, id, text, { on_click, emphasized = false, disabled = false, destructive = false } = {}) {
+  const t = cx.theme();
+  const color = disabled ? t.muted_foreground : destructive ? t.destructive : t.primary;
+  return textStyle(Button.new(id), cx, emphasized ? "headline" : "body")
+    .test_id(id)
+    .disabled(disabled)
+    .px_2()
+    .py_2()
+    .hit_slop(6)
+    .text_color(color)
+    .when(!disabled && Boolean(on_click), (el) => el.active((s) => s.opacity(0.4)).on_click(/** @type {OnClick} */ (on_click)))
+    .child(text);
+}
+
+/**
+ * The screen's one primary action: a filled 50 pt button with a 12 pt radius.
+ * `tone` "gray" is the secondary filled style; "destructive" commits a
+ * destructive action.
+ * @param {Context} cx @param {string} id @param {string} text
+ * @param {{ on_click?: OnClick, disabled?: boolean, tone?: "primary" | "gray" | "destructive", leading?: Element }} [opts]
+ */
+export function filledButton(cx, id, text, { on_click, disabled = false, tone = "primary", leading } = {}) {
+  const t = cx.theme();
+  const [bg, fg] = {
+    primary: [t.primary, t.primary_foreground],
+    gray: [t.secondary, t.primary],
+    destructive: [t.destructive, t.destructive_foreground],
+  }[tone];
+  return textStyle(Button.new(id), cx, "headline")
+    .test_id(id)
+    .disabled(disabled)
+    .flex()
+    .items_center()
+    .justify_center()
+    .gap_2()
+    .w_full()
+    .min_h("3.125rem")
+    .px_5()
+    .rounded(t.radius.lg)
+    .bg(bg)
+    .text_color(fg)
+    .when(disabled, (el) => el.opacity(0.4))
+    .when(!disabled && Boolean(on_click), (el) => el.active((s) => s.opacity(0.7)).on_click(/** @type {OnClick} */ (on_click)))
+    .when(Boolean(leading), (el) => el.child(leading))
+    .child(text);
+}
+
+/**
+ * An inset grouped section: an optional header in secondary text, rows on a
+ * rounded surface divided by hairlines inset to the text, and an optional
+ * footer that explains the rows.
  * @param {Context} cx
- * @param {{ title: string, intro?: string, children: (Element | null)[], footer?: Element }} opts
+ * @param {{ header?: string, footer?: string | null, footerColor?: Color, footerId?: string, rows: (Element | null | false)[], inset?: number, id?: string }} opts
+ */
+export function section(cx, { header, footer, footerColor, footerId, rows, inset = 16, id }) {
+  const t = cx.theme();
+  const items = /** @type {Element[]} */ (rows.filter(Boolean));
+  return v_flex()
+    .when(Boolean(header), (el) =>
+      el.child(
+        label(cx, "footnote", t.muted_foreground, (header ?? "").toUpperCase())
+          .role("header")
+          .px_4()
+          .pb_1p5(),
+      ),
+    )
+    .child(
+      v_flex()
+        .when(Boolean(id), (el) => el.test_id(id ?? ""))
+        .rounded(t.radius.md)
+        .bg(t.surface)
+        .overflow_hidden()
+        .children(items.flatMap((row, i) => (i === 0 ? [row] : [div().h(0.5).ml(inset).bg(t.border), row]))),
+    )
+    .when(Boolean(footer), (el) =>
+      el.child(
+        label(cx, "footnote", footerColor ?? t.muted_foreground, footer ?? "")
+          .px_4()
+          .pt_1p5()
+          .when(Boolean(footerId), (el) => el.test_id(footerId ?? "").role("alert")),
+      ),
+    );
+}
+
+/**
+ * A colored rounded square holding a white glyph, as iOS Settings marks its rows.
+ * @param {Context} cx @param {keyof typeof ICONS} name @param {Color} color
+ */
+export function tile(cx, name, color) {
+  const t = cx.theme();
+  return div()
+    .size_7()
+    .flex_none()
+    .flex()
+    .items_center()
+    .justify_center()
+    .rounded(t.radius.sm)
+    .bg(color)
+    .child(icon(name, t.primary_foreground, 17));
+}
+
+/**
+ * A list row: at least 44 pt tall with 16 pt insets; an optional leading
+ * element, the label (Body) and detail (Subheadline), then a trailing value
+ * in secondary text, a control, or a chevron for drill-down.
+ * @param {Context} cx
+ * @param {{ id: string, leading?: Element, label: string, detail?: string, value?: string, trailing?: Element, on_click?: OnClick, chevron?: boolean, disabled?: boolean, destructive?: boolean }} opts
+ */
+export function row(cx, { id, leading, label: text, detail, value, trailing, on_click, chevron, disabled, destructive }) {
+  const t = cx.theme();
+  const body = h_flex()
+    .gap_3()
+    .px_4()
+    .py_2p5()
+    .min_h_11()
+    .when(Boolean(leading), (el) => el.child(leading))
+    .child(
+      v_flex()
+        .flex_1()
+        .min_w_0()
+        .child(label(cx, "body", disabled ? t.muted_foreground : destructive ? t.destructive : t.foreground, text).test_id(`${id}-label`))
+        .when(Boolean(detail), (el) => el.child(label(cx, "subheadline", t.muted_foreground, detail ?? ""))),
+    )
+    .when(value != null, (el) => el.child(label(cx, "body", t.muted_foreground, value ?? "").flex_none()))
+    .when(Boolean(trailing), (el) => el.child(trailing))
+    .when(Boolean(chevron), (el) => el.child(icon("chevron_right", t.muted_foreground, 16)));
+  if (!on_click) return body.test_id(id);
+  return Button.new(id)
+    .test_id(id)
+    .accessibility_label(value ? `${text}, ${value}` : text)
+    .disabled(Boolean(disabled))
+    .when(!disabled, (el) => el.active((s) => s.bg(t.secondary)).on_click(on_click))
+    .child(body);
+}
+
+/**
+ * A top-level scrolling screen with a large title that collapses: the title
+ * scrolls away with the content and a compact bar with the centered title
+ * takes its place, as iOS navigation bars do. The view keeps `collapsed` and
+ * re-renders when `on_collapse` reports a change.
+ * @param {Context} cx
+ * @param {{ id: string, title: string, subtitle?: string, background: Color, collapsed: boolean, on_collapse: (collapsed: boolean, cx: Context) => void, children: (Element | null | false)[] }} opts
+ */
+export function scrollScreen(cx, { id, title, subtitle, background, collapsed, on_collapse, children }) {
+  const t = cx.theme();
+  const win = cx.window();
+  return div()
+    .relative()
+    .size_full()
+    .bg(background)
+    .child(
+      v_flex()
+        .id(id)
+        .test_id(id)
+        .size_full()
+        .overflow_y_scroll()
+        .on_scroll((e, cx) => {
+          const now = e.y > 52;
+          if (now !== collapsed) on_collapse(now, cx);
+        })
+        .child(div().h(win.safe_area.top).flex_none())
+        .child(largeTitle(cx, { title, subtitle }))
+        .child(
+          v_flex()
+            .px_4()
+            .pt_2()
+            .pb(win.safe_area.bottom + 32)
+            .gap_8()
+            .children(/** @type {Element[]} */ (children.filter(Boolean))),
+        ),
+    )
+    .child(
+      v_flex()
+        .absolute()
+        .top_0()
+        .left_0()
+        .right_0()
+        .bg(background)
+        .child(div().h(win.safe_area.top))
+        .when(collapsed, (el) =>
+          el
+            .border_b(0.5)
+            .border_color(t.border)
+            .child(
+              h_flex()
+                .min_h_11()
+                .justify_center()
+                .child(label(cx, "headline", t.foreground, title).role("header")),
+            ),
+        ),
+    );
+}
+
+/**
+ * A pushed page on the grouped background: its navigation bar, a sentence
+ * saying what the scenario shows, the sections, and an optional bar at the
+ * bottom for the page's one filled button, kept above the keyboard and the
+ * home indicator.
+ * @param {Context} cx
+ * @param {{ title: string, intro?: string, children: (Element | null | false)[], footer?: Element }} opts
  */
 export function page(cx, { title, intro, children, footer }) {
   const t = cx.theme();
   const win = cx.window();
+  const bottom = Math.max(win.keyboard_height, win.safe_area.bottom);
   return v_flex()
     .size_full()
-    .bg(t.background)
-    .line_height(1.375)
+    .bg(t.grouped_background)
     .child(navBar(cx, { title, back: { label: "Components", on_click: (_e, cx) => cx.navigator.pop() } }))
     .child(
       v_flex()
@@ -139,11 +363,11 @@ export function page(cx, { title, intro, children, footer }) {
         .child(
           v_flex()
             .px_4()
-            .pt_4()
-            .pb(footer ? 24 : Math.max(win.keyboard_height, win.safe_area.bottom) + 32)
-            .gap_6()
-            .when(Boolean(intro), (el) => el.child(div().text_sm().text_color(t.muted_foreground).child(intro)))
-            .children(children),
+            .pt_5()
+            .pb(footer ? 24 : bottom + 32)
+            .gap_8()
+            .when(Boolean(intro), (el) => el.child(label(cx, "subheadline", t.muted_foreground, intro ?? "").px_4()))
+            .children(/** @type {Element[]} */ (children.filter(Boolean))),
         ),
     )
     .when(Boolean(footer), (el) =>
@@ -151,165 +375,11 @@ export function page(cx, { title, intro, children, footer }) {
         div()
           .px_4()
           .pt_3()
-          .pb(Math.max(win.keyboard_height, win.safe_area.bottom) + 12)
-          .border_t_1()
+          .pb(bottom + 12)
+          .border_t(0.5)
           .border_color(t.border)
-          .bg(t.background)
+          .bg(t.grouped_background)
           .child(footer),
       ),
     );
-}
-
-/** A section heading inside a page: what the next group is for. */
-export function heading(cx, title, description) {
-  const t = cx.theme();
-  return v_flex()
-    .gap_1()
-    .child(div().role("header").text_base().font_semibold().text_color(t.foreground).child(title))
-    .when(Boolean(description), (el) => el.child(div().text_sm().text_color(t.muted_foreground).child(description)));
-}
-
-/** A hairline-bordered surface for one object. */
-export function card(cx) {
-  const t = cx.theme();
-  return v_flex().rounded_xl().border_1().border_color(t.border).bg(t.surface).overflow_hidden();
-}
-
-/**
- * A labeled group of rows: hairline-bordered, rows divided at the text column.
- * @param {Context} cx
- * @param {{ title?: string, footer?: string, rows: (Element | null)[], id?: string }} opts
- */
-export function section(cx, { title, footer, rows, id }) {
-  const t = cx.theme();
-  const items = rows.filter(Boolean);
-  return v_flex()
-    .gap_2()
-    .when(Boolean(title), (el) => el.child(div().role("header").px_4().text_sm().font_medium().text_color(t.muted_foreground).child(title)))
-    .child(
-      card(cx)
-        .when(Boolean(id), (el) => el.test_id(id))
-        .children(items.flatMap((row, i) => (i === 0 ? [row] : [div().h(1).ml(48).bg(t.border), row]))),
-    )
-    .when(Boolean(footer), (el) => el.child(div().px_4().text_sm().text_color(t.muted_foreground).child(footer)));
-}
-
-/**
- * One row: an optional icon in a fixed lane, the label and detail, then a trailing value or control.
- * @param {Context} cx
- * @param {{ id: string, icon?: keyof typeof ICONS, label: string, detail?: string, trailing?: Element, on_click?: (e: ClickEvent, cx: Context) => void, chevron?: boolean, disabled?: boolean }} opts
- */
-export function row(cx, { id, icon: name, label, detail, trailing, on_click, chevron, disabled }) {
-  const t = cx.theme();
-  const body = h_flex()
-    .gap_3()
-    .px_4()
-    .py_3()
-    .min_h_12()
-    .when(Boolean(name), (el) => el.child(div().w_5().flex_none().flex().justify_center().child(icon(name, t.muted_foreground))))
-    .child(
-      v_flex()
-        .flex_1()
-        .min_w_0()
-        .gap_0p5()
-        .child(
-          div()
-            .text_base()
-            .text_color(disabled ? t.muted_foreground : t.foreground)
-            .child(label),
-        )
-        .when(Boolean(detail), (el) => el.child(div().text_sm().text_color(t.muted_foreground).child(detail))),
-    )
-    .when(Boolean(trailing), (el) => el.child(trailing))
-    .when(Boolean(chevron), (el) => el.child(icon("chevron_right", t.muted_foreground, 18)));
-  if (!on_click) return body.when(Boolean(id), (el) => el.test_id(id));
-  return Button.new(id)
-    .test_id(id)
-    .accessibility_label(detail ? `${label}, ${detail}` : label)
-    .disabled(!!disabled)
-    .when(!disabled, (el) => el.active((s) => s.bg(t.muted)).on_click(on_click))
-    .child(body);
-}
-
-/**
- * A button at touch size. `variant` keeps the component's meaning (primary
- * for the default commit, outline and ghost for quieter actions, destructive
- * for a destructive commit); this only sets the 44 pt height and body text.
- * `danger` colors a quieter button's label for an action that destroys data
- * but still asks first.
- * @param {Context} cx
- * @param {string} id
- * @param {string} label
- * @param {{ variant?: "primary" | "secondary" | "outline" | "ghost" | "destructive", danger?: boolean, disabled?: boolean, loading?: boolean, icon?: keyof typeof ICONS, on_click?: (e: ClickEvent, cx: Context) => void, full?: boolean }} [opts]
- */
-export function button(
-  cx,
-  id,
-  label,
-  { variant = "outline", danger = false, disabled = false, loading = false, icon: name, on_click, full = false } = {},
-) {
-  const t = cx.theme();
-  const fg = danger
-    ? t.destructive
-    : {
-        primary: t.primary_foreground,
-        secondary: t.secondary_foreground,
-        outline: t.foreground,
-        ghost: t.foreground,
-        destructive: t.destructive_foreground,
-      }[variant];
-  return Button.new(id)
-    .test_id(id)
-    .variant(variant)
-    .disabled(disabled || loading)
-    .h_auto()
-    .min_h_11()
-    .py_2()
-    .px_4()
-    .rounded_lg()
-    .text_base()
-    .when(danger, (el) => el.text_color(t.destructive))
-    .when(full, (el) => el.w_full())
-    .when(loading, (el) => el.child(Spinner.new().size_4()))
-    .when(Boolean(name) && !loading, (el) => el.child(icon(name, fg, 18)))
-    .child(label)
-    .when(!disabled && !loading && Boolean(on_click), (el) => el.on_click(on_click));
-}
-
-/**
- * A labeled text field with optional help and an error that replaces it.
- * @param {Context} cx
- * @param {{ id: string, label: string, state?: import("native-shell").InputState, help?: string, error?: string | null, multiline?: boolean, input?: Element }} opts
- */
-export function field(cx, { id, label, state, help, error, multiline = false, input }) {
-  const t = cx.theme();
-  const control = (input ?? Input.new(state))
-    .test_id(id)
-    .accessibility_label(label)
-    .min_h_11()
-    .px_3()
-    .py_2()
-    .rounded_lg()
-    .border_1()
-    .border_color(error ? t.destructive : t.input)
-    .bg(t.background)
-    .text_base()
-    .text_color(t.foreground)
-    .when(multiline, (el) => el.min_h_24());
-  return v_flex()
-    .gap_1p5()
-    .min_w_0()
-    .child(div().text_sm().font_medium().text_color(t.foreground).child(label))
-    .child(control)
-    .when(Boolean(error), (el) => el.child(div().test_id(`${id}-error`).role("alert").text_sm().text_color(t.destructive).child(error)))
-    .when(!error && Boolean(help), (el) => el.child(div().text_sm().text_color(t.muted_foreground).child(help)));
-}
-
-/**
- * A large title's size: 30 pt, growing with the user's text size only up to
- * 1.6×, as native large titles do, so a long word never breaks mid-word.
- */
-function titleSize(cx) {
-  const scale = cx.window().font_scale;
-  return (30 * Math.min(scale, 1.6)) / scale;
 }

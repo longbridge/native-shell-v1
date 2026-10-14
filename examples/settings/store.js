@@ -3,6 +3,17 @@
 
 const KEY = "settings.v1";
 
+/**
+ * @typedef {{
+ *   account: { name: string, email: string } | null,
+ *   notifications: boolean,
+ *   summary: boolean,
+ *   summaryTime: string,
+ *   theme: "system" | "light" | "dark",
+ *   usageData: boolean,
+ * }} Settings
+ */
+
 const DEFAULTS = Object.freeze({
   account: { name: "Ada Lovelace", email: "ada@example.org" },
   notifications: true,
@@ -12,6 +23,7 @@ const DEFAULTS = Object.freeze({
   usageData: false,
 });
 
+/** @returns {Settings} */
 export function load() {
   let saved = {};
   try {

@@ -1,5 +1,6 @@
-//! The client of `nshell dev`: runs the program a dev server serves and
-//! reloads it in place whenever its files change.
+//! Hot reload: runs the program a dev server serves (`nshell dev`), or a
+//! local program directory, and reloads it in place whenever its files
+//! change.
 //!
 //! The server (crates/cli/src/dev.rs) answers plain HTTP/1.1: `GET /bundle`
 //! (`{manifest, files}`), `GET /version?since=<v>` (held until the program
@@ -10,6 +11,10 @@
 //! or a server that cannot be reached, is shown as the engine's error page
 //! until the next good version arrives. Script and renderer logs are
 //! forwarded to the server, which prints them.
+//!
+//! A local directory is watched the way `nshell dev` watches it: polled
+//! every 250 ms, and a change is published once the files have been quiet
+//! for 200 ms, so an editor saving several files reloads once.
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -18,7 +23,8 @@ use std::net::{TcpStream, ToSocketAddrs};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
+use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant, SystemTime};
 
 use gtk::glib;
 use adw::prelude::*;
@@ -31,6 +37,9 @@ use crate::surface::SurfaceView;
 /// Longer than the server's 25 s long poll.
 const READ_TIMEOUT: Duration = Duration::from_secs(35);
 const RETRY: Duration = Duration::from_secs(1);
+/// As `nshell dev` watches a directory.
+const WATCH_POLL: Duration = Duration::from_millis(250);
+const WATCH_DEBOUNCE: Duration = Duration::from_millis(200);
 
 /// What the poll thread hands to the main thread.
 enum Update {
@@ -67,16 +76,29 @@ impl DevClient {
     /// logger is replaced by one that also forwards to the server.
     pub fn connect(url: &str, runtime: &Runtime) -> Result<DevClient, String> {
         let server = Server::parse(url)?;
+        forward_logs(&server, runtime);
+        DevClient::start(runtime, "nshell-dev-poll", move |stop, tx| poll(&server, &stop, &tx))
+    }
+
+    /// Runs the program in `dir` and reloads it whenever its files change.
+    pub fn watch(dir: &Path, runtime: &Runtime) -> Result<DevClient, String> {
+        if !dir.join("native-shell.json").is_file() {
+            return Err(format!("{} is not a program: it has no native-shell.json", dir.display()));
+        }
+        let dir = dir.to_path_buf();
+        DevClient::start(runtime, "native-shell-watch", move |stop, tx| watch(&dir, &stop, &tx))
+    }
+
+    /// The container and the main-thread side; `source` runs on a thread of its own.
+    fn start(
+        runtime: &Runtime,
+        thread: &str,
+        source: impl FnOnce(Arc<AtomicBool>, async_channel::Sender<Update>) + Send + 'static,
+    ) -> Result<DevClient, String> {
         let stop = Arc::new(AtomicBool::new(false));
         let (tx, rx) = async_channel::unbounded();
-        {
-            let (server, stop) = (server.clone(), stop.clone());
-            std::thread::Builder::new()
-                .name("nshell-dev-poll".into())
-                .spawn(move || poll(&server, &stop, &tx))
-                .map_err(|e| e.to_string())?;
-        }
-        forward_logs(&server, runtime);
+        let thread_stop = stop.clone();
+        std::thread::Builder::new().name(thread.into()).spawn(move || source(thread_stop, tx)).map_err(|e| e.to_string())?;
 
         let container = adw::Bin::builder().hexpand(true).vexpand(true).build();
         let inner = Rc::new(Inner {
@@ -214,6 +236,69 @@ fn poll(server: &Server, stop: &AtomicBool, tx: &async_channel::Sender<Update>) 
         });
         if tx.send_blocking(update).is_err() {
             return;
+        }
+    }
+}
+
+/// Size and modification time of every file below `dir`, in path order.
+fn scan(dir: &Path, out: &mut Vec<(PathBuf, u64, Option<SystemTime>)>) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let mut entries: Vec<_> = entries.flatten().collect();
+    entries.sort_by_key(|e| e.path());
+    for entry in entries {
+        let path = entry.path();
+        match entry.metadata() {
+            Ok(m) if m.is_dir() => scan(&path, out),
+            Ok(m) => out.push((path, m.len(), m.modified().ok())),
+            Err(_) => {}
+        }
+    }
+}
+
+/// The program in `dir` as an update: its sources, or why they cannot be read.
+fn read_program(dir: &Path) -> Update {
+    let read = || -> Result<String, String> {
+        let manifest_json = std::fs::read_to_string(dir.join("native-shell.json"))
+            .map_err(|e| format!("cannot read {}/native-shell.json: {e}", dir.display()))?;
+        let manifest: Value = serde_json::from_str(&manifest_json).map_err(|e| format!("native-shell.json: {e}"))?;
+        let mut files = BTreeMap::new();
+        crate::instance::collect_sources(dir, dir, &mut files)?;
+        files.remove("native-shell.json");
+        Ok(serde_json::json!({ "manifest": manifest, "files": files }).to_string())
+    };
+    match read() {
+        Ok(bundle) => Update::Program { version: format!("{:016x}", fnv(bundle.as_bytes())), bundle },
+        Err(message) => Update::Error { version: format!("error-{:016x}", fnv(message.as_bytes())), message },
+    }
+}
+
+fn fnv(bytes: &[u8]) -> u64 {
+    bytes.iter().fold(0xcbf2_9ce4_8422_2325, |h, b| (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3))
+}
+
+fn watch(dir: &Path, stop: &AtomicBool, tx: &async_channel::Sender<Update>) {
+    let snapshot = || {
+        let mut files = Vec::new();
+        scan(dir, &mut files);
+        files
+    };
+    let mut seen = snapshot();
+    if tx.send_blocking(read_program(dir)).is_err() {
+        return;
+    }
+    let mut changed_at: Option<Instant> = None;
+    while !stop.load(Ordering::Relaxed) {
+        std::thread::sleep(WATCH_POLL);
+        let now = snapshot();
+        if now != seen {
+            seen = now;
+            changed_at = Some(Instant::now());
+        }
+        if changed_at.is_some_and(|t| t.elapsed() >= WATCH_DEBOUNCE) {
+            changed_at = None;
+            if tx.send_blocking(read_program(dir)).is_err() {
+                return;
+            }
         }
     }
 }
