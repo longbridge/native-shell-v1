@@ -17,6 +17,10 @@ time fields, alerts) stay GTK-native.
 * `platforms/linux` is its own Cargo workspace, so the root workspace (built
   on macOS and in the Android job) never needs the GTK libraries:
   `cd platforms/linux && cargo build`.
+* From the repository root, the aliases in `.cargo/config.toml` do the same
+  without changing directory: `cargo linux` (example app), `cargo linux-run
+  examples/tasks`, `cargo linux-run --dev http://HOST:PORT`, `cargo linux-test`,
+  `cargo linux-clippy`.
 * `cargo run --example launcher` runs the example app (the repository's
   `examples/` with the demo host modules of `examples/watchlist/host.json`);
   `cargo run --example run -- <program dir>` opens one program.

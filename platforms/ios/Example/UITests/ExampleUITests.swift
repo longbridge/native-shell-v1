@@ -143,9 +143,9 @@ final class ExampleUITests: XCTestCase {
     func testChat() {
         inBothAppearances {
             let app = launch("chat")
-            wait(app, "bubble-m8")
+            wait(app, "bubble-m10")
             snap("chat")
-            tap(app, "bubble-m7")
+            tap(app, "bubble-m10")
             wait(app, "actions")
             snap("chat-actions")
             tap(app, "action-copy")

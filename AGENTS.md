@@ -162,6 +162,6 @@ cargo run --release -p native-shell --example bench       # core performance
 scripts/build-ios.sh && scripts/build-android.sh          # native libraries
 cd platforms/ios && xcodebuild test -scheme NativeShell -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 cd platforms/android && ./gradlew :native-shell:testDebugUnitTest :native-shell:connectedDebugAndroidTest
-cd platforms/linux && cargo test && cargo clippy --all-targets -- -D warnings   # headless (Broadway)
+cargo linux-test && cargo linux-clippy                       # Linux, headless (Broadway); from the root
 scripts/build-macos.sh && cd platforms/macos && swift test
 ```
