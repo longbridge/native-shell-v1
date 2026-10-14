@@ -230,7 +230,7 @@ declare module "native-shell" {
     readonly clipboard_feedback: boolean;
   }
 
-  /** The modifier keys held when a click was delivered. Always false on touch. */
+  /** The modifier keys held when a click was delivered (a hardware keyboard or pointer); all false for a plain tap. */
   export interface Modifiers {
     shift: boolean;
     control: boolean;
@@ -516,8 +516,16 @@ declare module "native-shell" {
 
     /** Styles applied while the element is pressed. */
     active(declare: (el: StyleMethods) => StyleMethods | void): this;
-    /** Accepted and checked; touch screens have no hover. */
+    /**
+     * Styles applied while a pointer is over the element (iPad pointer, macOS,
+     * Android mice). `declare` receives a detached element that collects the
+     * styles; its return value is ignored. Touch alone never hovers.
+     */
     hover(declare: (el: StyleMethods) => StyleMethods | void): this;
+    /** `(hovered, cx)` when a pointer enters (`true`) or leaves the element. */
+    on_hover(handler: (hovered: boolean, cx: Context) => void): this;
+    /** Text the platform shows after a pointer rests on the element; a string only. */
+    tooltip(text: string): this;
     /** Accepted and checked; focus rings are drawn natively. */
     focus(declare: (el: StyleMethods) => StyleMethods | void): this;
 
@@ -578,14 +586,12 @@ declare module "native-shell" {
 
     // gpui-shell methods for pointers, keyboards and windows a touch screen
     // does not have: accepted and ignored, so desktop render code runs.
-    on_hover(handler: (hovered: boolean, cx: Context) => void): this;
     on_mouse_move(handler: (event: any, cx: Context) => void): this;
     on_mouse_down(button: any, handler?: (event: any, cx: Context) => void): this;
     on_mouse_up(button: any, handler?: (event: any, cx: Context) => void): this;
     on_mouse_down_out(handler: (event: any, cx: Context) => void): this;
     on_scroll_wheel(handler: (event: any, cx: Context) => void): this;
     on_modifiers_changed(handler: (event: any, cx: Context) => void): this;
-    tooltip(text: string): this;
     tab_index(index: number): this;
     tab_stop(value: boolean): this;
     aria_level(level: number): this;
