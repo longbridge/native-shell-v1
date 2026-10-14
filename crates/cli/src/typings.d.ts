@@ -673,6 +673,12 @@ declare module "native-shell" {
       view_box?: [number, number, number, number] | string;
       /** Mobile: how overlapping subpaths fill (default `"nonzero"`). */
       fill_rule?: "nonzero" | "evenodd";
+      /**
+       * Mobile: `"contain"` (default) fits the view box uniformly, as an icon;
+       * `"fill"` stretches it to the laid-out frame on each axis, with strokes
+       * kept in points (a chart's line across a plot of any width).
+       */
+      fit?: "contain" | "fill";
     },
   ): ShapeElement;
   /**
@@ -1627,6 +1633,102 @@ declare module "gpui-component" {
   // --- data (crates/engine/js/gpui_component/data.js) ---
 
   // --- charts (crates/engine/js/gpui_component/charts.js) ---
+  /** gpui-shell's chart row; custom accessors (`x`, `y`, `band`, `value`, `label`) take any row. */
+  export interface ChartRow {
+    label: string;
+    value: number;
+  }
+  /** gpui-shell's row snapshot callback; mobile also takes the rows themselves. */
+  type ChartRows<R> = ((cx: import("native-shell").Context) => readonly R[]) | readonly R[];
+  type ChartConstructor<E> = { new (rows: ChartRows<any>): E; new: (rows: ChartRows<any>) => E };
+
+  interface ChartElement<R = any> extends Element {
+    /** Grid lines at the value ticks (default `true`). */
+    grid(): this;
+    grid(grid: boolean): this;
+    /** gpui-component: the stroke color of the last series (a theme token or a color). */
+    stroke(color: import("native-shell").Color): this;
+    /** gpui-component: the fill color of the last series. */
+    fill(color: import("native-shell").Color): this;
+    /** Mobile: how a value is written in the callout, legends and for screen readers. */
+    value_format(format: (value: number) => string): this;
+  }
+  interface CartesianChartElement<R = any> extends ChartElement<R> {
+    /** Labels every `n`-th category (default 1). */
+    tick_margin(n: number): this;
+  }
+  export interface BarChartElement<R = any> extends CartesianChartElement<R> {
+    /** Category labels under the bars (default `true`). */
+    label_axis(show: boolean): this;
+    /** Value labels on the trailing edge (default `false`). */
+    value_axis(show: boolean): this;
+    /** gpui-component: the category of a row (default `row.label`). */
+    band(band: (row: R, index: number) => string): this;
+    /** gpui-component: the value of a row (default `row.value`). */
+    value(value: (row: R, index: number) => number): this;
+    /** gpui-component: the text over each bar (default: the value), or `false` for none. */
+    label(label: ((row: R, index: number) => string) | false): this;
+    /** One color for every bar, or gpui-component's color per row. */
+    fill(color: import("native-shell").Color | ((row: R, index: number) => import("native-shell").Color)): this;
+    value_tick_count(count: number): this;
+    value_tick_format(format: (value: number) => string): this;
+  }
+  interface SeriesChartElement<R = any> extends CartesianChartElement<R> {
+    /** Category labels under the plot (default `true`). */
+    x_axis(show: boolean): this;
+    /** gpui-component: value labels on the trailing edge (default `false`). */
+    y_axis(show: boolean): this;
+    /** Catmull-Rom curves through the points (the default). */
+    natural(): this;
+    linear(): this;
+    step_after(): this;
+    /** gpui-component: the category of a row (default `row.label`). */
+    x(x: (row: R, index: number) => string): this;
+    /** gpui-component: a series' value; the first call replaces `row.value`, later calls add series. */
+    y(y: (row: R, index: number) => number): this;
+    y_tick_count(count: number): this;
+    y_tick_format(format: (value: number) => string): this;
+    /** gpui-component: pins the value axis instead of fitting the data from zero. */
+    y_domain(min: number, max: number): this;
+  }
+  export interface LineChartElement<R = any> extends SeriesChartElement<R> {
+    /** A dot at every point. */
+    dot(): this;
+  }
+  /** Series stack, each area starting where the one before it ends. */
+  export interface AreaChartElement<R = any> extends SeriesChartElement<R> {}
+  export interface PieChartElement<R = any> extends ChartElement<R> {
+    /** A donut: the hole's radius, in the units of `outer_radius` (default 100). */
+    inner_radius(radius: number): this;
+    outer_radius(radius: number): this;
+    /** The gap between slices, in radians. */
+    pad_angle(angle: number): this;
+    /** A legend of slices and their shares beside the ring; a tap on a row selects its slice. */
+    labels(show: boolean): this;
+    value(value: (row: R, index: number) => number): this;
+    label(label: (row: R, index: number) => string): this;
+    color(color: (row: R, index: number) => import("native-shell").Color): this;
+  }
+  export interface RadarChartElement<R = any> extends ChartElement<R> {
+    /** Rings between the center and the outer value (default 4). */
+    grid_levels(levels: number): this;
+    dot(): this;
+    /** A series' value; the first call replaces `row.value`, later calls add series. */
+    value(value: (row: R, index: number) => number): this;
+    label(label: (row: R, index: number) => string): this;
+    /** Mobile: the value at the outer ring (default: the largest value, rounded up). */
+    max_value(value: number): this;
+  }
+  /**
+   * Charts drawn from one row snapshot per render. A tap on a point (or a pie
+   * legend row) selects it and shows its value; a chart with a `test_id` names
+   * its points `<test_id>-point-<index>`.
+   */
+  export const BarChart: ChartConstructor<BarChartElement>;
+  export const LineChart: ChartConstructor<LineChartElement>;
+  export const AreaChart: ChartConstructor<AreaChartElement>;
+  export const PieChart: ChartConstructor<PieChartElement>;
+  export const RadarChart: ChartConstructor<RadarChartElement>;
 
   // --- chat (crates/engine/js/gpui_component/chat.js) ---
   type ChatHandler = (event: import("native-shell").ClickEvent, cx: import("native-shell").Context) => void;
