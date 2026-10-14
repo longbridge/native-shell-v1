@@ -195,19 +195,9 @@ function polygon(points) {
 
 // Colors -------------------------------------------------------------------------
 
-/**
- * The series palette: the theme's `chart_1`…`chart_5` when it has them, else
- * its tint and status colors, so a program that sets its theme recolors its
- * charts too.
- */
+/** The series palette: the theme's chart colors, in order. */
 function palette(t) {
-  return [
-    t.chart_1 ?? t.primary,
-    t.chart_2 ?? t.success,
-    t.chart_3 ?? t.warning,
-    t.chart_4 ?? t.destructive,
-    t.chart_5 ?? t.muted_foreground,
-  ];
+  return [t.chart_1, t.chart_2, t.chart_3, t.chart_4, t.chart_5];
 }
 
 /** A resolved `#rrggbb[aa]` color at `alpha` of its opacity; anything else passes through. */
