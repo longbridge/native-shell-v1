@@ -51,3 +51,7 @@ harness = false
 [[test]]
 name = "host"
 harness = false
+
+[[test]]
+name = "input"
+harness = false

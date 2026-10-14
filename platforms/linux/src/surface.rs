@@ -97,7 +97,10 @@ impl SurfaceView {
         let weak_self = self.downgrade();
         let events = Rc::new(move |node, event, payload: String| {
             let (Some(instance), Some(surface)) = (weak_instance.upgrade(), weak_self.upgrade()) else { return };
-            let seq = surface.imp().manager.borrow().as_ref().map_or(0, |m| m.seq());
+            // Components also send events while a batch is applied (a focused
+            // field told to blur sends Blur), when the manager is borrowed.
+            let manager = surface.imp().manager.try_borrow();
+            let seq = manager.ok().and_then(|m| m.as_ref().map(|m| m.seq())).unwrap_or(0);
             instance.dispatch_event(node, event, &payload, seq);
         });
         let shared = Rc::new(Shared {
