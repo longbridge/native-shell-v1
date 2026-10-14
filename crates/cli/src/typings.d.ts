@@ -1214,6 +1214,118 @@ declare module "gpui-component" {
   // --- charts (crates/engine/js/gpui_component/charts.js) ---
 
   // --- chat (crates/engine/js/gpui_component/chat.js) ---
+  type ChatHandler = (event: import("native-shell").ClickEvent, cx: import("native-shell").Context) => void;
+  export type MessageAlignment = "start" | "end";
+  export type BubbleVariant = "filled" | "secondary" | "muted" | "tinted" | "outline" | "ghost" | "destructive";
+  export type MarkerVariant = "plain" | "separator" | "border";
+  export type MarkerAlignment = "start" | "center" | "end";
+  export type MarkerLoadingStyle = "spinner" | "shimmer";
+  export type AttachmentStatus = "pending" | "uploading" | "processing" | "failed" | "complete";
+  export type AttachmentAxis = "horizontal" | "vertical";
+  export type AttachmentSize = "xsmall" | "small" | "medium" | "large";
+
+  /** A message row. Ordinary children are composed into its content slot. */
+  export class Message {
+    constructor();
+    /** Sets the sender-edge alignment. */
+    alignment(value: MessageAlignment): this;
+    /** Mobile: the sender's picture, level with the last bubble. */
+    avatar(el: Element): this;
+    /** Mobile: metadata above the content (sender, time). */
+    header(content: Element | string): this;
+    /** Mobile: a line under the row (delivery state, a failure and its retry). */
+    footer(content: Element | string): this;
+  }
+  export interface Message extends Element {}
+
+  /** A message bubble whose ordinary children form its visible content. */
+  export class Bubble {
+    constructor();
+    /** Sets the message-edge alignment; inside a `Message`, the message's applies when unset. */
+    alignment(value: MessageAlignment): this;
+    /** Sets the semantic bubble treatment. */
+    variant(value: BubbleVariant): this;
+    /** Mobile: the last bubble of a burst, its corner toward the sender tightened. */
+    tail(value?: boolean): this;
+  }
+  export interface Bubble extends Element {}
+
+  /** A compact conversation status marker with composable children. */
+  export class Marker {
+    constructor(id: string);
+    /** Sets the marker treatment. */
+    variant(value: MarkerVariant): this;
+    /** Mobile: where the content sits in the row (a separator keeps the line on the far side). */
+    alignment(value: MarkerAlignment): this;
+    /** Sets whether the marker displays a loading treatment. */
+    loading(value?: boolean): this;
+    /** Sets the loading treatment. */
+    loading_style(value: MarkerLoadingStyle): this;
+  }
+  export interface Marker extends Element {}
+
+  /** A file or image attachment. Ordinary children are composed into its metadata content slot. */
+  export class Attachment {
+    constructor(id: string);
+    /** Sets the attachment lifecycle status. */
+    status(value: AttachmentStatus): this;
+    /** Sets the layout axis: a chip, or a vertical tile with a square preview. */
+    axis(value: AttachmentAxis): this;
+    /** Sets the semantic attachment size; a number or length is the `size` style, as on any element. */
+    size(value: AttachmentSize | import("native-shell").Length): this;
+    /** Mobile: the preview, an icon or an `image(src)` that fills the media area. */
+    media(el: Element): this;
+    /** Mobile: the file name. */
+    title(text: string): this;
+    /** Mobile: kind and size; red once failed, the percentage appended while uploading. */
+    description(text: string): this;
+    /** Mobile: upload progress, 0 to 100, drawn while uploading. */
+    progress(percent: number): this;
+    /** Mobile: a Remove control on the attachment. */
+    on_remove(handler: ChatHandler): this;
+    /** Mobile: a Retry control once failed. */
+    on_retry(handler: ChatHandler): this;
+  }
+  export interface Attachment extends Element {}
+
+  /** Retained scroll state for a `MessageScroller`: the row count and whether the reader follows the end. */
+  export interface MessageScrollerState {
+    item_count(): number;
+    is_scrolled_up(): boolean;
+    is_following_tail(): boolean;
+    /** Replaces the row count and returns to the latest row. */
+    reset(item_count: number): void;
+    /** Replaces rows `[start, end)` with `count` rows; false when the range is outside the list. */
+    splice(start: number, end: number, count: number): boolean;
+    append(count: number): boolean;
+    /** Older rows above; the reader's position is kept. */
+    prepend(count: number): boolean;
+    remeasure(): void;
+    remeasure_items(start: number, end: number): boolean;
+    scroll_to_item(index: number): boolean;
+    /** Back to the latest row, following it again. */
+    scroll_to_end(): void;
+  }
+  /** Retained virtual-list and tail-following state for a message transcript; create it in `init`. */
+  export function MessageScrollerState(item_count: number): MessageScrollerState;
+
+  /**
+   * A virtualized message transcript: opens at its end, keeps the newest row in
+   * view, and offers a jump-to-latest button once scrolled away. A row's
+   * `.key()` keeps its identity when history is prepended; `.test_id()` names the list.
+   */
+  export class MessageScroller {
+    constructor(id: string, state: MessageScrollerState, render_item: (index: number) => Element | null);
+    /** Accepted: native lists draw their own scroll indicator. */
+    scrollbar(value: boolean): this;
+    /** Enables the jump-to-latest button (on by default). */
+    jump_button(value: boolean): this;
+    /** Sets the jump-to-latest button label (its accessibility label). */
+    jump_button_label(label: string): this;
+    /** Mobile: the row height assumed before a row is measured. */
+    estimated_row_height(px: number): this;
+  }
+  export interface MessageScroller extends Element {}
 }
 
 declare module "fs/promises" {
