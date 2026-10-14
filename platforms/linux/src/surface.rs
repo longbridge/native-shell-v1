@@ -197,6 +197,7 @@ impl SurfaceView {
             return;
         }
         imp.last_env.replace(Some(env.clone()));
+        crate::text::set_scales(env.scale, env.font_scale);
         instance.set_environment(env);
     }
 
