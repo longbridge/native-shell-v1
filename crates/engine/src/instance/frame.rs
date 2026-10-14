@@ -536,6 +536,23 @@ impl Instance {
         out
     }
 
+    /// A `ScrollTo` the script gave as `{"page": n}` (a paged scroll, which
+    /// cannot know its width) becomes the offset of that page now that the
+    /// frame is laid out: `n` viewport widths.
+    fn page_offset(&self, node: u32, command: Command, payload: String) -> String {
+        if command != Command::ScrollTo {
+            return payload;
+        }
+        let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&payload) else { return payload };
+        let (Some(page), Some(frame)) = (json.get("page").and_then(|p| p.as_f64()), self.tree.frame(node)) else { return payload };
+        if let Some(obj) = json.as_object_mut() {
+            obj.remove("page");
+            obj.insert("x".into(), serde_json::json!(page * f64::from(frame.width)));
+            obj.insert("y".into(), serde_json::json!(0));
+        }
+        json.to_string()
+    }
+
     /// `PresentPage` for pages pushed this frame (none in the initial batch), then the
     /// script's queued commands, resolved to nodes.
     fn commands(&mut self) -> Vec<Mutation> {
@@ -557,7 +574,10 @@ impl Instance {
                 Target::Ref(r) => self.tree.node_for_ref(r),
             };
             match node {
-                Some(node) => out.push(Mutation::Command { node, command: c.command, payload: c.payload }),
+                Some(node) => {
+                    let payload = self.page_offset(node, c.command, c.payload);
+                    out.push(Mutation::Command { node, command: c.command, payload })
+                }
                 None => self.host.log(
                     LogLevel::Warn,
                     &format!("native-shell: {} dropped: nothing rendered with id {:?}", c.command.name(), c.target),
