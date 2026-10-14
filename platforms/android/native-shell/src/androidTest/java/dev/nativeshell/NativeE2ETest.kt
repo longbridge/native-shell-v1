@@ -255,6 +255,22 @@ class NativeE2ETest : ActivityTest() {
         assertEquals("\"copied text\"", cb.callSync("nsh/clipboard", "read", "[]"))
     }
 
+    /** Program-relative `.svg` assets (gpui-todolist's icons) reach the core and arrive as Shape nodes. */
+    @Test
+    fun svgAssetsDrawAsShapes() = explain {
+        start("gpui-todolist")
+        waitFor(10_000, "svg icon shapes (errors: $errors)") {
+            var shapes = 0
+            fun walk(v: View) {
+                if (v is dev.nativeshell.views.ShapeView && v.pathData != null && v.viewBox != null) shapes++
+                if (v is ViewGroup) for (c in 0 until v.childCount) walk(v.getChildAt(c))
+            }
+            walk(surface)
+            shapes > 0
+        }
+        assertTrue(errors.toString(), errors.isEmpty())
+    }
+
     @Test
     fun abiAndProtocolVersionMatch() {
         assertEquals(dev.nativeshell.protocol.Protocol.VERSION, NativeBridge.protocolVersion())

@@ -222,9 +222,9 @@ internal class Presenter(
             if (ime > 0) d.behavior.state = BottomSheetBehavior.STATE_EXPANDED
             insets
         }
+        noInitialFocus(holder)
         d.setContentView(holder)
-        @Suppress("DEPRECATION")
-        d.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        d.window?.let { softInput(it) }
         // Opaque theme background (the behavior's 16 dp top-cornered shape), under the navigation bar too.
         d.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)?.backgroundTintList =
             android.content.res.ColorStateList.valueOf(tokens.background)
@@ -239,6 +239,27 @@ internal class Presenter(
         trackUserDismiss(d, node)
         dialogs[node] = d
         d.show()
+    }
+
+    /**
+     * Overlays open without focusing a field (as on iOS): the window's first focusable view
+     * would otherwise take focus and raise the keyboard. The holder takes the initial focus
+     * instead; a tap on a field still focuses it.
+     */
+    private fun noInitialFocus(holder: ViewGroup) {
+        holder.isFocusable = true
+        holder.isFocusableInTouchMode = true
+        holder.descendantFocusability = ViewGroup.FOCUS_BEFORE_DESCENDANTS
+        holder.post { holder.requestFocus() }
+    }
+
+    /** The overlay resizes for the keyboard (insets reach the holder) and never opens it by itself. */
+    @Suppress("DEPRECATION")
+    private fun softInput(w: Window) {
+        w.setSoftInputMode(
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or
+                android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN,
+        )
     }
 
     /** `safe_area.bottom` the script was told, in px (the surface's own bottom inset). */
@@ -310,15 +331,31 @@ internal class Presenter(
         defaultSurfaceBackground(node, DIALOG_RADIUS)
         node.view.isClickable = true // taps on the card never reach the backdrop
         holder.setOnClickListener { if (node.surfaceProps.dismissable) d.cancel() }
-        // The card stays centered in the space above the keyboard.
+        // Edge to edge: the card stays centered in the safe space between the system bars and
+        // above the keyboard; the scrim covers the bars.
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(holder) { v, insets ->
-            v.setPadding(0, 0, 0, insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime()).bottom)
+            val bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            val ime = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime()).bottom
+            v.setPadding(bars.left, bars.top, bars.right, maxOf(bars.bottom, ime))
             insets
         }
+        noInitialFocus(holder)
         d.setContentView(holder)
-        d.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-        @Suppress("DEPRECATION")
-        d.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        d.window?.let { w ->
+            w.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(w, false)
+            if (android.os.Build.VERSION.SDK_INT >= 28) {
+                w.attributes = w.attributes.apply {
+                    layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+            }
+            androidx.core.view.WindowCompat.getInsetsController(w, w.decorView).apply {
+                // The scrim darkens the app: light icons unless the theme is light and the dim is faint.
+                isAppearanceLightStatusBars = false
+                isAppearanceLightNavigationBars = false
+            }
+            softInput(w)
+        }
         d.setCancelable(p.dismissable)
         d.setCanceledOnTouchOutside(p.dismissable)
         if (node.hasFrame) FrameApplier.layoutNow(node)

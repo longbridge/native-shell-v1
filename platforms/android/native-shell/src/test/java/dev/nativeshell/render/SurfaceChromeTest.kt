@@ -69,6 +69,35 @@ class SurfaceChromeTest {
     }
 
     @Test
+    fun overlaysOpenWithoutFocusingAField() {
+        val h = attached()
+        h.batch {
+            create(20, ViewType.SHEET); insert(20, 0, 0); frame(20, 0f, 0f, 400f, 200f)
+            create(21, ViewType.TEXT_INPUT); insert(21, 20, 0); frame(21, 16f, 40f, 300f, 44f)
+            create(30, ViewType.DIALOG); insert(30, 0, 1); frame(30, 0f, 0f, 352f, 160f)
+            create(31, ViewType.TEXT_INPUT); insert(31, 30, 0); frame(31, 16f, 40f, 300f, 44f)
+        }
+        shadowOf(Looper.getMainLooper()).idle()
+        for (field in listOf(21, 31)) {
+            val v = h.view(field)
+            assertTrue("field $field must not take focus on open", !v.hasFocus())
+        }
+        // Dialogs are edge to edge: transparent system bars under the scrim, card centered in the safe area.
+        val dialog = h.surface.presenter.openDialogs.first { it !is BottomSheetDialog }
+        val w = dialog.window!!
+        assertEquals(android.graphics.Color.TRANSPARENT, w.statusBarColor)
+        val holder = h.view(30).parent as ViewGroup
+        androidx.core.view.ViewCompat.dispatchApplyWindowInsets(
+            holder,
+            androidx.core.view.WindowInsetsCompat.Builder()
+                .setInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars(), androidx.core.graphics.Insets.of(0, 70, 0, 40))
+                .setInsets(androidx.core.view.WindowInsetsCompat.Type.ime(), androidx.core.graphics.Insets.of(0, 0, 0, 600)).build(),
+        )
+        assertEquals(70, holder.paddingTop)
+        assertEquals(600, holder.paddingBottom)
+    }
+
+    @Test
     fun findByTestIdIgnoresRowsNotOnScreen() {
         val h = attached()
         h.batch {

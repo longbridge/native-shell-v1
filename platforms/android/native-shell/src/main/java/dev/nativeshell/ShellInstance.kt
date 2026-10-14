@@ -198,7 +198,8 @@ class ShellInstance internal constructor(
         fun walk(path: String, rel: String) {
             val list = context.assets.list(path) ?: return
             if (list.isEmpty()) {
-                if (rel.endsWith(".js") || rel.endsWith(".mjs") || rel.endsWith(".json")) {
+                // Sources plus text assets the engine reads itself (svg() icons).
+                if (rel.endsWith(".js") || rel.endsWith(".mjs") || rel.endsWith(".json") || rel.endsWith(".svg")) {
                     files[rel] = context.assets.open(path).bufferedReader().use { it.readText() }
                 }
                 return

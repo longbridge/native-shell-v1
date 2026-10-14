@@ -12,6 +12,10 @@
         <item name="android:windowNoTitle">true</item>
         <item name="android:backgroundDimEnabled">true</item>
         <item name="android:backgroundDimAmount">0.4</item>
+        <!-- Edge-to-edge: the dim scrim covers the system bars instead of M3's tinted bar colors. -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
     </style>
 
     <!-- Edge-to-edge bottom sheets: the sheet surface runs under the navigation bar;

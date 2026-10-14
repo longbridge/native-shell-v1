@@ -114,9 +114,12 @@ class SurfacesTest : ActivityTest() {
         // The dialog card is centered in its window.
         waitFor(what = "card laid out") { card.width > 0 }
         onMain {
+            // Centered in the safe area (the holder is padded by the system bars and the keyboard).
             val parent = card.parent as android.view.View
-            assertEquals(parent.width / 2f, card.left + card.width / 2f, 2f)
-            assertEquals(parent.height / 2f, card.top + card.height / 2f, 2f)
+            val cx = parent.paddingLeft + (parent.width - parent.paddingLeft - parent.paddingRight) / 2f
+            val cy = parent.paddingTop + (parent.height - parent.paddingTop - parent.paddingBottom) / 2f
+            assertEquals(cx, card.left + card.width / 2f, 2f)
+            assertEquals(cy, card.top + card.height / 2f, 2f)
         }
         onMain { h.batch { delete(20); delete(30) } }
     }
