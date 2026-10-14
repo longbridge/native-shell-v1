@@ -141,8 +141,8 @@ impl ModalState {
             }
         });
         alert.present(Some(&presenter.stage));
-        let dark = presenter.shared.upgrade().is_some_and(|s| s.theme.borrow().appearance == Appearance::Dark);
-        match_appearance(&alert, &presenter.stage, dark);
+        match_appearance(&alert, &presenter.stage, presenter.appearance() == Appearance::Dark);
+        tint_alert(&alert, presenter);
         self.alert.replace(Some(alert));
     }
 
@@ -222,19 +222,18 @@ impl ModalState {
     }
 
     fn sheet_background(&self) -> u32 {
-        self.presenter.upgrade().map_or(0xFFFF_FFFF, |p| p.color("background", 0xFFFF_FFFF))
+        self.presenter.upgrade().map_or(0xFFFF_FFFF, |p| p.color("background"))
     }
 
     /// The border color in the dark appearance, `None` in the light one.
     fn dark_edge_color(&self) -> Option<u32> {
         let p = self.presenter.upgrade()?;
-        let dark = p.shared.upgrade()?.theme.borrow().appearance == native_shell_core::theme::Appearance::Dark;
-        dark.then(|| p.color("border", 0xFF26_2626))
+        (p.appearance() == Appearance::Dark).then(|| p.color("border"))
     }
 
     fn grabber_color(&self) -> u32 {
         // The muted foreground at reduced opacity, like the system grabber.
-        let c = self.presenter.upgrade().map_or(0xFF73_7373, |p| p.color("muted_foreground", 0xFF73_7373));
+        let c = self.presenter.upgrade().map_or(0xFF8A_8A8E, |p| p.color("muted_foreground"));
         (c & 0x00FF_FFFF) | 0x6600_0000
     }
 }
@@ -282,6 +281,39 @@ fn match_appearance(alert: &adw::AlertDialog, stage: &impl IsA<gtk::Widget>, dar
             window.add_css_class(class);
         }
     }
+}
+
+/// The program's tint and destructive color on the alert's buttons, as
+/// `UIAlertController` takes the app's tint and system red.
+fn tint_alert(alert: &adw::AlertDialog, presenter: &Presenter) {
+    thread_local! {
+        static PROVIDER: RefCell<Option<gtk::CssProvider>> = const { RefCell::new(None) };
+    }
+    let css = |token: &str| {
+        let c = presenter.color(token);
+        format!("rgba({}, {}, {}, {:.3})", (c >> 16) & 0xff, (c >> 8) & 0xff, c & 0xff, ((c >> 24) & 0xff) as f32 / 255.0)
+    };
+    let rules = format!(
+        ".nsh-alert {{ --accent-color: {}; --accent-bg-color: {}; --accent-fg-color: {}; \
+         --destructive-color: {}; --destructive-bg-color: {}; --destructive-fg-color: {}; }}",
+        css("primary"),
+        css("primary"),
+        css("primary_foreground"),
+        css("destructive"),
+        css("destructive"),
+        css("destructive_foreground"),
+    );
+    PROVIDER.with(|p| {
+        let mut p = p.borrow_mut();
+        let provider = p.get_or_insert_with(|| {
+            let provider = gtk::CssProvider::new();
+            // Above the appearance palette, which sets the destructive colors too.
+            gtk::style_context_add_provider_for_display(&alert.display(), &provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
+            provider
+        });
+        provider.load_from_string(&rules);
+    });
+    alert.add_css_class("nsh-alert");
 }
 
 pub struct ModalComponent {
