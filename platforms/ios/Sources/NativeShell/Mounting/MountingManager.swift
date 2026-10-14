@@ -1,9 +1,7 @@
-// Applies decoded batches to UIKit: the node table, the view pool, frames,
-// props, event masks and commands. Main thread only.
-//
-// A batch is validated before it is applied (see `BatchDecoder`), and every
-// instruction that names an unknown node is skipped with a log line rather
-// than trusted: a renderer bug or a hostile buffer must never crash the app.
+// The UIKit side of `MountingCore`: makes views, gives them their context,
+// presents surfaces, runs animations and root services, and holds the theme.
+// The node table, pools and batch application are the shared core's. Main
+// thread only.
 
 import NativeShellShared
 import UIKit
@@ -27,308 +25,143 @@ protocol RootCommandHandler: AnyObject {
     func dismissToast(_ payload: [String: Any])
 }
 
-final class MountingManager: ComponentContext {
+final class MountingManager: ComponentContext, MountingHost {
     let runtime: NSHRuntime
     /// The view node 0 maps to.
     let rootView: NSHComponentView
     weak var presenter: SurfacePresenter?
-    let theme = ThemeState()
     weak var rootCommands: RootCommandHandler?
+    let theme = ThemeState()
     /// Delivers events to the instance: node, type, JSON payload, seq of the last applied batch.
     var eventSink: ((UInt32, EventType, String, UInt32) -> Void)?
     var logger: ((NSHLogLevel, String) -> Void)?
-
-    private(set) var nodes: [UInt32: NSHComponentView] = [:]
-    private var pool: [NSHViewType: [NSHComponentView]] = [:]
-    private var hostPool: [String: [NSHHostComponentView]] = [:]
-    private(set) var lastSeq: UInt32 = 0
-    private(set) var appliedBatches = 0
-    /// Decode + apply time of the last batch buffer (diagnostics).
-    private(set) var lastApplyMs: Double = 0
-    /// Nodes whose `batchDidEnd` runs when the current batch ends.
-    private var touched: [UInt32: NSHComponentView] = [:]
-    private var batchAnimated = false
-    private var batchInitial = false
-    private var pagesAnimated = false
-    private var surfacesChanged = false
-    static let poolLimit = 128
+    private(set) var core: MountingCore!
 
     init(runtime: NSHRuntime, rootView: NSHComponentView) {
         self.runtime = runtime
         self.rootView = rootView
         rootView.nodeId = Wire.rootNode
         rootView.context = self
-        nodes[Wire.rootNode] = rootView
+        core = MountingCore(host: self, rootView: rootView)
     }
 
-    var nodeCount: Int { nodes.count - 1 }
+    // MARK: The core's state (diagnostics, tests)
 
-    func component(_ node: UInt32) -> NSHComponentView? { nodes[node] }
+    var nodes: [UInt32: NSHComponentView] { core.nodes.compactMapValues { $0 as? NSHComponentView } }
+    var nodeCount: Int { core.nodeCount }
+    var lastSeq: UInt32 { core.lastSeq }
+    var appliedBatches: Int { core.appliedBatches }
+    /// Decode + apply time of the last batch buffer.
+    var lastApplyMs: Double { core.lastApplyMs }
+    func pooledCount(_ type: NSHViewType) -> Int { core.pooledCount(type) }
+    /// Memory warning: drop the pools.
+    func trimPools() { core.trimPools() }
 
-    func needsBatchEnd(_ view: NSHComponentView) { touched[view.nodeId] = view }
+    @discardableResult
+    func apply(_ bytes: UnsafeRawBufferPointer) -> Bool { core.apply(bytes) }
+
+    @discardableResult
+    func apply(_ data: Data) -> Bool { core.apply(data) }
+
+    func apply(_ mutations: [Mutation]) { core.apply(mutations) }
+
+    // MARK: ComponentContext
+
+    func component(_ node: UInt32) -> NSHComponentView? { core.component(node) as? NSHComponentView }
+
+    func needsBatchEnd(_ view: NSHComponentView) { core.needsBatchEnd(view) }
 
     func send(_ node: UInt32, _ type: EventType, _ payload: [String: Any]) {
-        eventSink?(node, type, JSON.string(payload), lastSeq)
+        eventSink?(node, type, JSON.string(payload), core.lastSeq)
     }
 
     func log(_ level: NSHLogLevel, _ message: String) {
         if let logger = logger { logger(level, message) } else { runtime.log(level, message) }
     }
 
-    // MARK: Batches
+    // MARK: MountingHost
 
-    /// Decodes and applies one batch buffer. Returns false if it was rejected.
-    @discardableResult
-    func apply(_ bytes: UnsafeRawBufferPointer) -> Bool {
-        let start = CACurrentMediaTime()
-        let mutations: [Mutation]
-        do {
-            mutations = try BatchDecoder.decode(bytes)
-        } catch {
-            log(.error, "native-shell: rejected batch: \(error)")
-            return false
-        }
-        apply(mutations)
-        lastApplyMs = (CACurrentMediaTime() - start) * 1000
+    func makeView(_ type: NSHViewType) -> MountedView { ComponentRegistry.make(type) }
+    func adopt(_ view: MountedView) { (view as? NSHComponentView)?.context = self }
+    func release(_ view: MountedView) { (view as? NSHComponentView)?.context = nil }
+
+    func attachSurface(_ view: MountedView, at index: Int) -> Bool {
+        guard let presenter = presenter, let v = view as? NSHComponentView else { return false }
+        presenter.attachSurface(v, at: index, in: self)
         return true
     }
 
-    @discardableResult
-    func apply(_ data: Data) -> Bool {
-        data.withUnsafeBytes { apply($0) }
+    func detachSurface(_ view: MountedView) -> Bool {
+        guard let presenter = presenter, let v = view as? NSHComponentView else { return false }
+        presenter.detachSurface(v, in: self)
+        return true
     }
 
-    func apply(_ mutations: [Mutation]) {
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        batchAnimated = false
-        pagesAnimated = false
-        surfacesChanged = false
-        for m in mutations { applyOne(m) }
-        for (_, view) in touched { view.batchDidEnd() }
-        touched.removeAll(keepingCapacity: true)
-        appliedBatches += 1
-        CATransaction.commit()
-        // Presentation runs outside the batch's transaction, where transitions animate normally.
-        // Pages present in the INITIAL batch appear without a transition.
-        if surfacesChanged { presenter?.surfacesDidChange(in: self, animatedPages: pagesAnimated && !batchInitial) }
+    func surfacesDidChange(animatedPages: Bool) { presenter?.surfacesDidChange(in: self, animatedPages: animatedPages) }
+
+    func updateTheme(_ tokens: [String: Any]?) {
+        if let o = tokens { theme.update(o) } else { theme.reset() }
     }
 
-    private func node(_ id: UInt32, _ op: String) -> NSHComponentView? {
-        if let n = nodes[id] { return n }
-        log(.warn, "native-shell: \(op) on unknown node \(id)")
-        return nil
+    func themeDidChange() {
+        rootCommands?.themeDidChange()
+        if let p = presenter as? RootCommandHandler, p !== rootCommands { p.themeDidChange() }
     }
 
-    private func applyOne(_ m: Mutation) {
-        switch m {
-        case let .beginBatch(seq, flags):
-            lastSeq = seq
-            batchAnimated = flags & BatchFlags.animated != 0
-            batchInitial = flags & BatchFlags.initial != 0
-        case .endBatch:
-            break
-        case let .create(id, type):
-            guard id != Wire.rootNode else { return log(.warn, "native-shell: Create on the root node") }
-            if let old = nodes[id] {
-                log(.warn, "native-shell: Create on live node \(id); replacing")
-                destroy(old)
-            }
-            let view = dequeue(type)
-            view.nodeId = id
-            view.viewType = type
-            view.context = self
-            nodes[id] = view
-        case let .insert(id, parentId, index):
-            guard let child = node(id, "Insert"), let parent = node(parentId, "Insert") else { return }
-            if let old = child.parentComponent { detach(child, from: old) }
-            if parent === rootView, child.isSurface {
-                parent.insertChildRecordOnly(child, at: Int(index))
-                presenter?.attachSurface(child, at: Int(index), in: self) ?? parent.mountChildView(child, at: Int(index))
-                surfacesChanged = true
-            } else {
-                parent.insertChild(child, at: Int(index))
-            }
-            touched[parentId] = parent
-        case let .remove(id, parentId, _):
-            guard let child = node(id, "Remove"), let parent = node(parentId, "Remove") else { return }
-            detach(child, from: parent)
-            touched[parentId] = parent
-        case let .delete(id):
-            guard id != Wire.rootNode, let view = node(id, "Delete") else { return }
-            if let parent = view.parentComponent {
-                detach(view, from: parent)
-                touched[parent.nodeId] = parent
-            }
-            destroy(view)
-        case let .move(id, parentId, _, to):
-            guard let child = node(id, "Move"), let parent = node(parentId, "Move") else { return }
-            parent.moveChild(child, to: Int(to))
-            touched[parentId] = parent
-        case let .setProp(id, prop, value):
-            guard let view = node(id, "SetProp") else { return }
-            if prop == .themeTokens {
-                if let o = value.jsonObject { theme.update(o) } else { theme.reset() }
-                for (_, n) in nodes { n.themeDidChange() }
-                rootCommands?.themeDidChange()
-                (presenter as? RootCommandHandler)?.themeDidChange()
-            } else if prop == .hostComponent, let host = view as? NSHHostComponentView {
-                attachHostComponent(host, name: value.string)
-            } else if prop == .opacity, batchAnimated, let anim = view.animation?["opacity"] as? [String: Any] {
-                Animator.run(anim) { _ = view.setProp(prop, value) }
-            } else if !view.setProp(prop, value) {
-                log(.debug, "native-shell: prop \(prop) ignored by \(view.viewType)")
-            }
-            touched[id] = view
-        case let .setFrame(id, frame):
-            guard let view = node(id, "SetFrame") else { return }
-            let rect = frame.cgRect
-            guard rect.origin.x.isFinite, rect.origin.y.isFinite, rect.width.isFinite, rect.height.isFinite else {
-                return log(.warn, "native-shell: non-finite frame for node \(id)")
-            }
-            if batchAnimated, let anim = view.animation?["frame"] as? [String: Any], view.window != nil {
-                Animator.run(anim, moves: true) {
-                    view.applyFrame(rect)
-                    view.layoutIfNeeded()
-                }
-            } else {
-                view.applyFrame(rect)
-            }
-            touched[id] = view
-        case let .setEventMask(id, mask):
-            node(id, "SetEventMask")?.setEventMask(mask)
-        case let .command(id, command, payload):
-            runCommand(id, command, payload)
-        }
+    func animate(_ animation: [String: Any], moves: Bool, _ changes: @escaping () -> Void) {
+        Animator.run(animation, moves: moves, changes)
     }
 
-    private func detach(_ child: NSHComponentView, from parent: NSHComponentView) {
-        if parent === rootView, child.isSurface {
-            parent.removeChildRecordOnly(child)
-            if let presenter = presenter { presenter.detachSurface(child, in: self) } else { child.removeFromSuperview() }
-            surfacesChanged = true
-        } else {
-            parent.removeChild(child)
-        }
+    func attachHostComponent(_ container: MountedView, name: String) -> Bool {
+        guard let host = container as? NSHHostComponentView else { return false }
+        host.attachComponent(named: name, runtime: runtime)
+        return host.componentName != nil
     }
 
-    /// Drops a node and everything below it, recycling views into the pool.
-    private func destroy(_ view: NSHComponentView) {
-        // A deleted page, sheet or dialog may still be animating out: its views stay
-        // as they are (and are released with it); only the node table forgets them.
-        if !view.isPoolable {
-            forget(view)
-            view.willDestroy()
-            return
-        }
-        for child in view.children.reversed() {
-            view.removeChild(child)
-            destroy(child)
-        }
-        if nodes[view.nodeId] === view { nodes[view.nodeId] = nil }
-        touched[view.nodeId] = nil
-        view.willDestroy()
-        recycle(view)
-    }
+    func detachHostComponent(_ container: MountedView) { (container as? NSHHostComponentView)?.detachComponent() }
 
-    private func forget(_ view: NSHComponentView) {
-        view.children.forEach(forget)
-        if nodes[view.nodeId] === view { nodes[view.nodeId] = nil }
-        touched[view.nodeId] = nil
-        view.context = nil
-    }
-
-    // MARK: Pool
-
-    private func dequeue(_ type: NSHViewType) -> NSHComponentView {
-        if var list = pool[type], let v = list.popLast() {
-            pool[type] = list
-            return v
-        }
-        return ComponentRegistry.make(type)
-    }
-
-    private func recycle(_ view: NSHComponentView) {
-        if let host = view as? NSHHostComponentView {
-            host.prepareForReuse()
-            if let name = host.componentName, (hostPool[name]?.count ?? 0) < Self.poolLimit {
-                hostPool[name, default: []].append(host)
-            }
-            return
-        }
-        guard view.isPoolable else { return }
-        view.prepareForReuse()
-        view.context = nil
-        if (pool[view.viewType]?.count ?? 0) < Self.poolLimit {
-            pool[view.viewType, default: []].append(view)
-        }
-    }
-
-    func pooledCount(_ type: NSHViewType) -> Int { pool[type]?.count ?? 0 }
-
-    /// Memory warning: drop the pools.
-    func trimPools() {
-        pool.removeAll()
-        hostPool.removeAll()
-    }
-
-    private func attachHostComponent(_ placeholder: NSHHostComponentView, name: String?) {
-        guard let name = name else { return placeholder.detachComponent() }
-        if placeholder.componentName == name { return }
-        // A pooled container that already hosts this component replaces the fresh placeholder.
-        if placeholder.componentName == nil, var list = hostPool[name], let pooled = list.popLast() {
-            hostPool[name] = list
-            pooled.nodeId = placeholder.nodeId
-            pooled.viewType = .hostComponent
-            pooled.context = self
-            nodes[placeholder.nodeId] = pooled
-            touched[placeholder.nodeId] = pooled
-            placeholder.context = nil
-            if (pool[.hostComponent]?.count ?? 0) < Self.poolLimit { pool[.hostComponent, default: []].append(placeholder) }
-            return
-        }
-        placeholder.attachComponent(named: name, runtime: runtime)
-        if placeholder.componentName == nil { log(.error, "native-shell: host component `\(name)` is not registered") }
-    }
-
-    // MARK: Commands
-
-    private func runCommand(_ id: UInt32, _ command: Command, _ payloadString: String) {
-        let payload = JSON.object(payloadString) ?? [:]
+    func runRootCommand(_ command: Command, _ payload: [String: Any]) {
         switch command {
-        case .showToast:
-            rootCommands?.showToast(payload)
-        case .dismissToast:
-            rootCommands?.dismissToast(payload)
-        case .openUrl:
-            if let s = payload.string("url"), let url = URL(string: s) { runtime.openURL(url) }
-        case .setClipboard:
-            UIPasteboard.general.string = payload.string("text") ?? ""
-        case .haptic:
-            Haptics.play(payload.string("kind") ?? "light")
-        case .presentPage, .dismissPage:
-            if payload.bool("animated") ?? true { pagesAnimated = true }
-            surfacesChanged = true
-            node(id, "\(command)")?.runCommand(command, payload)
-        default:
-            node(id, "\(command)")?.runCommand(command, payload)
+        case .showToast: rootCommands?.showToast(payload)
+        case .dismissToast: rootCommands?.dismissToast(payload)
+        case .openUrl: if let s = payload.string("url"), let url = URL(string: s) { runtime.openURL(url) }
+        case .setClipboard: UIPasteboard.general.string = payload.string("text") ?? ""
+        case .haptic: Haptics.play(payload.string("kind") ?? "light")
+        default: break
         }
     }
+
+    func log(_ level: MountLogLevel, _ message: String) { log(NSHLogLevel(rawValue: level.rawValue) ?? .info, message) }
 }
 
-extension NSHComponentView {
-    /// Pages, sheets and dialogs: presented by the surface presenter when attached to the root.
-    var isSurface: Bool {
-        viewType == .page || viewType == .sheet || viewType == .dialog
+extension NSHComponentView: MountedView {
+    var mountedParent: MountedView? { parentComponent }
+    var mountedChildren: [MountedView] { children }
+    var isInWindow: Bool { window != nil }
+
+    // The core only hands back views it got from this renderer.
+    func mountedInsert(_ child: MountedView, at index: Int) {
+        if let c = child as? NSHComponentView { insertChild(c, at: index) }
+    }
+
+    func mountedRemove(_ child: MountedView) {
+        if let c = child as? NSHComponentView { removeChild(c) }
+    }
+
+    func mountedMove(_ child: MountedView, to index: Int) {
+        if let c = child as? NSHComponentView { moveChild(c, to: index) }
     }
 
     /// Child bookkeeping without placing the view (surfaces are placed by the presenter).
-    func insertChildRecordOnly(_ child: NSHComponentView, at index: Int) {
-        insertChild(child, at: index)
-        child.removeFromSuperview()
+    func mountedInsertRecordOnly(_ child: MountedView, at index: Int) {
+        guard let c = child as? NSHComponentView else { return }
+        insertChild(c, at: index)
+        c.removeFromSuperview()
     }
 
-    func removeChildRecordOnly(_ child: NSHComponentView) {
-        removeChild(child)
+    func mountedPlace(_ child: MountedView, at index: Int) {
+        if let c = child as? NSHComponentView { mountChildView(c, at: index) }
     }
+
+    func removeFromNativeParent() { removeFromSuperview() }
 }

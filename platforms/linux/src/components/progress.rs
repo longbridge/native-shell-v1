@@ -90,7 +90,7 @@ fn paint_bar(c: &Canvas, snapshot: &gtk::Snapshot, l: &Link, value: f64, indeter
     let bar = BAR.min(h);
     let y = (h - bar) / 2.0;
     let track = control::round(control::rect(0.0, y, w, bar), bar / 2.0);
-    control::fill(snapshot, &track, l.color("input"));
+    control::fill(snapshot, &track, l.color("secondary"));
     let (start, len) = if indeterminate {
         // A third of the track sweeps across once a second and a half; held
         // still in the middle when animations are off.

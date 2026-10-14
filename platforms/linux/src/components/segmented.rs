@@ -171,7 +171,7 @@ fn paint_track(c: &Canvas, snapshot: &gtk::Snapshot, l: &Link, s: &State) {
         let seg_w = w / n as f32;
         let thumb = s.thumb.get() as f32;
         // Hairlines between segments the thumb is not next to.
-        let sep = control::fade(l.color("muted_foreground"), 0.3);
+        let sep = l.color("border");
         for k in 1..n {
             if (k as f32 - 0.5 - thumb).abs() > 1.0 {
                 let x = (seg_w * k as f32).round() - 0.5;
@@ -209,7 +209,7 @@ fn paint_segment(c: &Canvas, snapshot: &gtk::Snapshot, l: &Link, s: &State, i: u
     control::draw_text(snapshot, &layout, 6.0, (h - th) / 2.0);
     if c.shows_focus() {
         let shape = control::round(control::rect(INSET, INSET, w - 2.0 * INSET, h - 2.0 * INSET), RADIUS - INSET);
-        control::focus_ring(snapshot, &shape, l.accent());
+        control::focus_ring(snapshot, &shape, l.ring());
     }
 }
 

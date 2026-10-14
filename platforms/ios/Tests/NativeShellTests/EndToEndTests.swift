@@ -134,7 +134,11 @@ final class EndToEndTests: XCTestCase {
             v.subviews.forEach(walk)
         }
         walk(vc.view)
-        for (_, node) in vc.surfaceView.manager.nodes where !out.contains(where: { $0 === node }) { out.append(node) }
+        var seen = Set(out.map { ObjectIdentifier($0) })
+        for (_, node) in vc.surfaceView.manager.core.nodes {
+            guard let n = node as? NSHComponentView, seen.insert(ObjectIdentifier(n)).inserted else { continue }
+            out.append(n)
+        }
         return out
     }
 
@@ -369,6 +373,6 @@ extension EndToEndTests: NSHInstanceDelegate {
 
 extension MountingManager {
     func textsContain(_ s: String) -> Bool {
-        nodes.values.contains { ($0 as? NSHTextView)?.parsed?.string.string == s }
+        core.nodes.values.contains { ($0 as? NSHTextView)?.parsed?.string.string == s }
     }
 }

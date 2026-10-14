@@ -101,8 +101,8 @@ final class NSHScrollView: NSHComponentView, UIScrollViewDelegate {
                        "viewport_width": Double(b.width), "viewport_height": Double(b.height)])
     }
 
-    override func prepareForReuse() {
-        super.prepareForReuse()
+    override func resetForReuse() {
+        super.resetForReuse()
         pendingScroll = false
         scrollView.setContentOffset(.zero, animated: false)
     }

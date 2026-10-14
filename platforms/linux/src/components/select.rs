@@ -112,7 +112,7 @@ fn paint(c: &Canvas, snapshot: &gtk::Snapshot, l: &Link, s: &State) {
     control::stroke(snapshot, &[(x + 1.0, y + ch - 5.0), (x + cw / 2.0, y + ch - 1.5), (x + cw - 1.0, y + ch - 5.0)], 1.6, accent);
     snapshot.pop();
     if c.shows_focus() {
-        control::focus_ring(snapshot, &control::round(control::rect(0.0, 0.0, w, h), 8.0), accent);
+        control::focus_ring(snapshot, &control::round(control::rect(0.0, 0.0, w, h), 8.0), l.ring());
     }
 }
 

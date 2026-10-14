@@ -221,8 +221,8 @@ final class NSHSliderView: NSHControlView {
         }
     }
 
-    override func prepareForReuse() {
-        super.prepareForReuse()
+    override func resetForReuse() {
+        super.resetForReuse()
         // The resets above ran in no particular order and clamp each other.
         control.minimumValue = 0
         control.maximumValue = 1

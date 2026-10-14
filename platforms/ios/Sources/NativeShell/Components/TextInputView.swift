@@ -331,9 +331,9 @@ final class NSHTextInputView: NSHComponentView, UITextFieldDelegate, UITextViewD
         }
     }
 
-    override func prepareForReuse() {
+    override func resetForReuse() {
         _ = input.resignFirstResponder()
-        super.prepareForReuse()
+        super.resetForReuse()
         state.reset()
         writing = true
         if let f = field { f.text = "" } else { textView?.text = "" }

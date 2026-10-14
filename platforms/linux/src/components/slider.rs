@@ -164,14 +164,14 @@ fn paint(c: &Canvas, snapshot: &gtk::Snapshot, l: &Link, s: &State) {
         snapshot.push_opacity(control::DISABLED_ALPHA as f64);
     }
     let track = control::round(control::rect(start, cy - TRACK / 2.0, len, TRACK), TRACK / 2.0);
-    control::fill(snapshot, &track, l.color("input"));
+    control::fill(snapshot, &track, l.color("secondary"));
     let filled = control::round(control::rect(start, cy - TRACK / 2.0, x - start, TRACK), TRACK / 2.0);
     control::fill(snapshot, &filled, l.accent());
     let thumb = control::round(control::rect(x - THUMB / 2.0, cy - THUMB / 2.0, THUMB, THUMB), THUMB / 2.0);
     control::knob_shadow(snapshot, &thumb);
     control::fill(snapshot, &thumb, 0xFFFFFFFF);
     if c.shows_focus() {
-        control::focus_ring(snapshot, &thumb, l.accent());
+        control::focus_ring(snapshot, &thumb, l.ring());
     }
     if dim {
         snapshot.pop();
