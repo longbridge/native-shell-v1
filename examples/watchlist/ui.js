@@ -83,15 +83,16 @@ export function largeTitle(cx, { title, subtitle, trailing }) {
  */
 export function textButton(cx, id, text, { on_click, emphasized = false, disabled = false, destructive = false } = {}) {
   const t = cx.theme();
-  const color = disabled ? t.muted_foreground : destructive ? t.destructive : t.primary;
-  return textStyle(Button.new(id), cx, emphasized ? "headline" : "body")
+  return Button.new(id)
     .test_id(id)
+    .link()
     .disabled(disabled)
     .px_2()
     .py_2()
     .hit_slop(6)
-    .text_color(color)
-    .when(!disabled && Boolean(on_click), (el) => el.active((s) => s.opacity(0.4)).on_click(/** @type {OnClick} */ (on_click)))
+    .when(emphasized, (el) => el.font_semibold())
+    .when(destructive, (el) => el.text_color(t.destructive))
+    .when(!disabled && Boolean(on_click), (el) => el.on_click(/** @type {OnClick} */ (on_click)))
     .child(text);
 }
 

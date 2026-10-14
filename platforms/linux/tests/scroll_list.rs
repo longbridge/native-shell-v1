@@ -14,7 +14,7 @@ fn main() -> ExitCode {
         ("scroll content follows the core's content size", content_size),
         ("scrolling reports scroll events", scroll_events),
         ("scroll_to scrolls to the clamped target", scroll_to),
-        ("a mouse wheel scrolls a horizontal scroller sideways", sideways_wheel),
+        ("paging settles on pages, flings turn one page", paging_settles_on_pages),
         ("pull to refresh shows the spinner until the script ends it", pull_to_refresh),
         ("lists render the visible range plus prefetch", list_range),
         ("scroll_to_item positions the row", scroll_to_item),
@@ -98,27 +98,73 @@ fn scroll_to() {
     f.wait_for("y-500");
 }
 
-fn sideways_wheel() {
-    let f = Fixture::new(
-        r#"
+const CAROUSEL: &str = r#"
 import { View, div, h_flex, v_flex } from "native-shell";
 export default class App extends View {
+  init() { this.x = 0; }
   render() {
-    return v_flex().size_full().child(h_flex().test_id("strip").overflow_x_scroll().h(100)
-      .children([0, 1, 2, 3, 4].map((i) => div().flex_none().w(200).h(100))));
+    const strip = h_flex().test_id("carousel").overflow_x_scroll().w_full().h(200)
+      .on_scroll((e, cx) => { this.x = e.x; cx.notify(); })
+      .children([0, 1, 2, 3].map((i) => div().flex_none().w_full().h(200)));
+    // Gpui-component's Carousel sets this; no element method names it yet.
+    strip._P().paging = true;
+    return v_flex().size_full().child(div().test_id(`x-${Math.round(this.x)}`).h(4)).child(strip);
   }
-}"#,
-    );
-    let window = scrolled(&f, "strip");
-    assert_eq!(window.hadjustment().upper(), 1000.0);
+}"#;
+
+/// The scroll controller that pages a carousel's touchpad and wheel input.
+fn paging_controller(window: &gtk::ScrolledWindow) -> gtk::EventControllerScroll {
+    let flags = gtk::EventControllerScrollFlags::BOTH_AXES | gtk::EventControllerScrollFlags::KINETIC;
     let controllers = window.observe_controllers();
-    let wheel = (0..controllers.n_items())
+    (0..controllers.n_items())
         .filter_map(|i| controllers.item(i).and_downcast::<gtk::EventControllerScroll>())
-        .find(|c| c.flags() == gtk::EventControllerScrollFlags::VERTICAL)
-        .expect("the sideways wheel controller");
-    wheel.emit_by_name::<bool>("scroll", &[&0.0f64, &1.0f64]);
-    assert!(window.hadjustment().value() > 0.0, "one notch down scrolled right");
-    assert_eq!(window.vadjustment().value(), 0.0);
+        .find(|c| c.flags() == flags)
+        .expect("the paging controller")
+}
+
+/// A touchpad gesture moving the content by `dx`, released with `velocity`.
+fn swipe(c: &gtk::EventControllerScroll, dx: f64, velocity: f64) {
+    c.emit_by_name::<()>("scroll-begin", &[]);
+    c.emit_by_name::<bool>("scroll", &[&dx, &0.0f64]);
+    c.emit_by_name::<()>("scroll-end", &[]);
+    if velocity != 0.0 {
+        c.emit_by_name::<()>("decelerate", &[&velocity, &0.0f64]);
+    }
+}
+
+fn paging_settles_on_pages() {
+    let f = Fixture::new(CAROUSEL);
+    let window = scrolled(&f, "carousel");
+    let hadj = window.hadjustment();
+    assert_eq!(hadj.upper(), 4.0 * 390.0);
+    assert!(!window.is_kinetic_scrolling(), "settling replaces GTK's momentum");
+    let c = paging_controller(&window);
+    let rest = |x: f64| pump_until(Duration::from_secs(1), || hadj.value() == x);
+
+    // Less than half a page springs back; more turns the page.
+    swipe(&c, 150.0, 0.0);
+    assert_eq!(hadj.value(), 150.0, "the content follows the fingers");
+    assert!(rest(0.0), "back to the first page, at {}", hadj.value());
+    swipe(&c, 250.0, 0.0);
+    assert!(rest(390.0), "on to the second page, at {}", hadj.value());
+    f.wait_for("x-390");
+
+    // A fling turns exactly one page, however fast.
+    swipe(&c, 40.0, 5000.0);
+    assert!(rest(780.0), "a fling turns one page, at {}", hadj.value());
+    swipe(&c, -40.0, -800.0);
+    assert!(rest(390.0), "and back, at {}", hadj.value());
+
+    // A sideways wheel notch turns a page; a vertical one belongs to the page around.
+    c.emit_by_name::<bool>("scroll", &[&1.0f64, &0.0f64]);
+    assert!(rest(780.0), "a notch turns one page, at {}", hadj.value());
+    let handled = c.emit_by_name::<bool>("scroll", &[&0.0f64, &1.0f64]);
+    assert!(!handled, "a vertical wheel is not the carousel's");
+    f.wait_for("x-780");
+
+    // A narrower viewport keeps the same page in view.
+    f.resize(320, HEIGHT);
+    assert!(rest(640.0), "page 2 at the new width, at {}", hadj.value());
 }
 
 fn pull_to_refresh() {

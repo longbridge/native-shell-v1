@@ -6,6 +6,7 @@ mod host_component;
 pub mod image;
 mod input;
 mod list;
+mod paging;
 pub mod modal;
 #[cfg(test)]
 mod overlay_tests;
