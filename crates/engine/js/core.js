@@ -204,7 +204,12 @@ function isViewClass(cls) {
   return typeof cls === "function" && (cls === View || cls.prototype instanceof View);
 }
 
-function createEntity(cls, props) {
+/**
+ * `attach(rec)` runs before `init`, so what `init` registers against its
+ * surface (`cx.on_back`, `cx.set_can_go_back`) finds a pushed page; it
+ * returns the undo for an `init` that throws.
+ */
+function createEntity(cls, props, attach) {
   if (!isViewClass(cls)) {
     throw new TypeError("cx.new(Class, props) expects a class that extends View");
   }
@@ -214,10 +219,12 @@ function createEntity(cls, props) {
   rec.view = view;
   entities.set(rec.id, rec);
   sinks.set(rec.key, rec);
+  const detach = attach ? attach(rec) : null;
   const prev = enter("event", rec, null);
   try {
     settleAsync(view.init(props, new Cx(rec, null)));
   } catch (e) {
+    if (detach) detach();
     entities.delete(rec.id);
     sinks.delete(rec.key);
     rec.released = true;
@@ -619,14 +626,18 @@ function inEvent(owner, fn) {
 const navigator = Object.freeze({
   push(cls, props, opts = {}) {
     refuseInRender("navigator.push(Class, props)", EFFECT_HINT);
-    const rec = createEntity(cls, props);
-    pages.push({
+    const page = {
       key: `page:${nextSurface++}`,
-      rec,
+      rec: null,
       title: String(opts.title ?? ""),
       nav_bar_hidden: !!opts.nav_bar_hidden,
       can_go_back: true,
       on_back: null,
+    };
+    const rec = createEntity(cls, props, (r) => {
+      page.rec = r;
+      pages.push(page);
+      return () => pages.splice(pages.indexOf(page), 1);
     });
     surfacesDirty();
     return (rec.handle = new Entity(rec));

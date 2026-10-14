@@ -106,6 +106,39 @@ fn back_pops_unless_the_page_takes_it() {
 }
 
 #[test]
+fn a_page_can_take_back_from_its_init() {
+    let mut h = Harness::new(&[(
+        "main.js",
+        r##"
+import { View, div, Button } from "native-shell";
+class Editor extends View {
+  init(_props, cx) {
+    this.asked = false;
+    cx.set_can_go_back(false);
+    cx.on_back((cx) => { this.asked = true; cx.notify(); });
+  }
+  render() { return div().test_id("editor").child(this.asked ? "asked" : "editing"); }
+}
+export default class App extends View {
+  render() {
+    return div().child(Button.new("push").test_id("push").label("push")
+      .on_click((_e, cx) => cx.navigator.push(Editor, {}, { title: "Edit" })));
+  }
+}
+"##,
+    )]);
+    assert!(h.load_error().is_none(), "{:?}", h.load_error());
+    h.tap("push");
+    let page = h.surfaces()[1].0;
+    assert_eq!(h.native().prop(page, Prop::CanGoBack), Some(&PropValue::Bool(false)));
+    h.back();
+    assert_eq!(h.surfaces().len(), 2, "the page kept back");
+    assert_eq!(h.text_of("editor"), "asked");
+    // The root surface was not affected.
+    assert_eq!(h.native().prop(ROOT_NODE, Prop::CanGoBack), None);
+}
+
+#[test]
 fn sheets_re_evaluate_with_their_opener_and_dismiss() {
     let mut h = app();
     h.tap("sheet");
