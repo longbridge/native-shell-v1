@@ -262,8 +262,7 @@ export default class Notes extends View {
                 .active((s) => s.opacity(0.6))
                 .on_click((_e, cx) => this.openTag(tag, cx))
                 .child(
-                  // Cast: the typings' Tag.size(variant) hides Element's size(length) for now.
-                  /** @type {import("native-shell").Element} */ (/** @type {unknown} */ (Tag.new()))
+                  Tag.new()
                     .rounded_full()
                     .gap_1()
                     .px_3()

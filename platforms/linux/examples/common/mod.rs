@@ -27,6 +27,7 @@ pub const SECTIONS: [(&str, &[Example]); 2] = [
             Example { name: "notes", title: "Notes", summary: "Folders, Markdown and search", icon: "accessories-text-editor-symbolic", tint: "#ffcc00" },
             Example { name: "watchlist", title: "Watchlist", summary: "Host modules and a native cell", icon: "power-profile-performance-symbolic", tint: "#5856d6" },
             Example { name: "settings", title: "Settings", summary: "Grouped preferences and pages", icon: "preferences-system-symbolic", tint: "#8e8e93" },
+            Example { name: "portfolio", title: "Portfolio", summary: "Charts, holdings and a form", icon: "x-office-spreadsheet-symbolic", tint: "#30d158" },
         ],
     ),
     (
