@@ -51,11 +51,14 @@ fn private_display() -> bool {
     let display = 1000 + pid % 800;
     let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| std::env::temp_dir().display().to_string());
     let socket = std::path::PathBuf::from(runtime_dir).join(format!("broadway{}.socket", display + 1));
+    // A socket left by a killed display would pass for the new one.
+    let _ = std::fs::remove_file(&socket);
     // A watchdog stops the display once this process is gone.
     let script = format!(
         "gtk4-broadwayd :{display} --port {port} --address 127.0.0.1 >/dev/null 2>&1 & b=$!; \
-         while kill -0 {pid} 2>/dev/null; do sleep 0.5; done; kill $b",
-        port = 20000 + display
+         while kill -0 {pid} 2>/dev/null; do sleep 0.5; done; kill $b; rm -f '{socket}'",
+        port = 20000 + display,
+        socket = socket.display()
     );
     if std::process::Command::new("sh").arg("-c").arg(script).spawn().is_err() {
         return false;

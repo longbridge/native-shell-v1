@@ -25,7 +25,7 @@ const GAP: f32 = 8.0;
 const RADIUS: f32 = 8.0;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-enum Level {
+pub enum Level {
     Info,
     Success,
     Warning,
@@ -510,7 +510,7 @@ mod icon_imp {
         fn snapshot(&self, snapshot: &gtk::Snapshot) {
             let color = rgba(self.color.get());
             let (outline, mark, dot) = symbol(self.level.get());
-            let mut stroke = gsk::Stroke::new(1.6);
+            let stroke = gsk::Stroke::new(1.6);
             stroke.set_line_cap(gsk::LineCap::Round);
             stroke.set_line_join(gsk::LineJoin::Round);
             snapshot.append_stroke(&outline, &stroke, &color);
