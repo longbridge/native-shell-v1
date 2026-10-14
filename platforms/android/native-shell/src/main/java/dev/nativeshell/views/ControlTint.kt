@@ -55,10 +55,13 @@ internal object ControlTint {
                 view.setIndicatorColor(accent)
                 view.trackColor = t.muted
             }
+            // Material 3's segmented button: a quiet secondary-container fill for the selected
+            // segment, not a solid accent; a script's TintColor still tints it.
             is MaterialButtonToggleGroup -> for (i in 0 until view.childCount) {
                 val b = view.getChildAt(i) as? MaterialButton ?: continue
-                b.backgroundTintList = checked(accent, 0x00000000)
-                b.setTextColor(checked(t.primaryForeground, t.foreground))
+                val tinted = view.getTag(R.id.nsh_tint) as? Int
+                b.backgroundTintList = checked(tinted ?: t.secondary, 0x00000000)
+                b.setTextColor(checked(if (tinted != null) t.primaryForeground else t.secondaryForeground, t.foreground))
                 b.strokeColor = ColorStateList.valueOf(t.border)
                 b.rippleColor = ColorStateList.valueOf((t.foreground and 0x00FFFFFF) or 0x1F000000)
             }

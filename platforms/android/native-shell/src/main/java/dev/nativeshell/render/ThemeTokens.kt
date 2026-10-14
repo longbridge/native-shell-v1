@@ -22,6 +22,8 @@ internal class ThemeTokens(private val colors: Map<String, Int>, val dark: Boole
     val destructive get() = c("destructive")
     val primary get() = c("primary")
     val primaryForeground get() = c("primary_foreground")
+    val secondary get() = c("secondary")
+    val secondaryForeground get() = c("secondary_foreground")
     val selection get() = c("selection")
     val success get() = c("success")
     val warning get() = c("warning")
