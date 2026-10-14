@@ -225,6 +225,7 @@ export function textButton(cx, id, label, on_click, { bold = false, disabled = f
   return Button.new(id)
     .test_id(id)
     .disabled(disabled)
+    .flex_none()
     .px_2()
     .py_2()
     .hit_slop(6)

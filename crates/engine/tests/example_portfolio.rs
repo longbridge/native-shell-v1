@@ -133,9 +133,17 @@ fn adding_a_transaction_updates_totals_and_can_be_undone() {
     // A purchase of ORBT, a new holding, at the prefilled market price.
     h.select("form-symbol", 6);
     let price = amount(&h.native_input("form-price").text);
-    h.type_text("form-shares", "abc");
-    h.submit("form-shares");
+    // Decimal keyboards; Return on shares moves to the price.
+    for id in ["form-shares", "form-price"] {
+        assert_eq!(h.prop(id, Prop::KeyboardType), Some(PropValue::I32(2)), "decimal");
+    }
+    assert_eq!(h.prop("form-shares", Prop::ReturnKey), Some(PropValue::I32(3)), "next");
+    assert_eq!(h.prop("form-price", Prop::ReturnKey), Some(PropValue::I32(1)), "done");
     h.type_text("form-shares", "12.5");
+    h.clear_commands();
+    h.submit("form-shares");
+    let price_node = h.find("form-price").unwrap();
+    assert!(h.commands().iter().any(|(n, c, _)| *n == price_node && *c == Command::Focus), "{:?}", h.commands());
     assert_eq!(amount(&h.text_of("form-total")), (12.5 * price * 100.0).round() / 100.0);
     h.submit("form-price");
     assert_eq!(h.surfaces().len(), 1, "{}", h.dump());

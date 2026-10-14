@@ -248,26 +248,21 @@ export default class Portfolio extends View {
       );
   }
 
+  /** iOS's large-title layout: the bar's buttons above, the title on its own line beneath. */
   header(cx) {
     const t = cx.theme();
-    return h_flex()
+    return v_flex()
       .px_4()
-      .pt_3()
       .pb_2()
-      .gap_1()
       .child(
-        div()
-          .flex_1()
-          .min_w_0()
-          .role("header")
-          .text_size(titleSize(cx))
-          .font_bold()
-          .line_height(1.15)
-          .text_color(t.foreground)
-          .child("Portfolio"),
+        h_flex()
+          .justify_end()
+          .gap_1()
+          .mr_neg_2()
+          .child(barButton(cx, "alerts", "bell", "Alerts", (_e, cx) => this.openAlerts(cx)))
+          .child(barButton(cx, "add", "plus", "Add transaction", (_e, cx) => this.openForm(cx))),
       )
-      .child(barButton(cx, "alerts", "bell", "Alerts", (_e, cx) => this.openAlerts(cx)))
-      .child(barButton(cx, "add", "plus", "Add transaction", (_e, cx) => this.openForm(cx)));
+      .child(div().role("header").text_size(titleSize(cx)).font_bold().line_height(1.15).text_color(t.foreground).child("Portfolio"));
   }
 
   body(cx, held) {
