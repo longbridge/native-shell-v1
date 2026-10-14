@@ -149,6 +149,8 @@ machines (platform work happens where the platform runs).
   in a dedicated commit that says so in its subject, with every existing
   renderer updated or a note on what it still needs.
 - A commit leaves the tests of the crates and platforms it touches green.
+- Before starting work in a shared area (engine, core, examples, docs), read
+  `docs/in-progress.md` and add your row there; remove it when the work lands.
 
 ## Commands
 
