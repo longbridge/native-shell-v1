@@ -35,7 +35,7 @@ has not been built.
 | `Select` | `NSPopUpButton`; a hidden item shows the placeholder before a choice |
 | `DatePicker` | `NSDatePicker`, text field and stepper, system short formats |
 | `Page` | A page stack in `NSHViewController`: pages slide in from the trailing edge (instantly with Reduce Motion) |
-| `Sheet`, `Dialog` | Window sheets sized to their content |
+| `Sheet`, `Dialog` | Window sheets: sized to the largest detent (reported with `Resize`), else to their content |
 | `Dialog` with `AlertSpec` | `NSAlert` as a sheet |
 | Toasts | An in-window overlay at the bottom of the surface |
 | `Haptic` | `NSHapticFeedbackManager` (Force Touch trackpads only) |
@@ -93,8 +93,9 @@ stays safe on the JS thread.
 
 ## Differences from iOS
 
-* Sheets fit their content; `Detents` describe resting heights for a sheet
-  dragged on a touch screen and do not apply to window sheets.
+* Window sheets cannot be dragged between detents: a sheet with `Detents` is
+  as tall as its largest one (within the window) and reports that size with
+  `Resize`, so its content fills it; a sheet without detents fits its content.
 * Alert buttons follow macOS order: the primary action trailing (the default
   button, `hasDestructiveAction` when destructive), Cancel next to it with
   Escape.

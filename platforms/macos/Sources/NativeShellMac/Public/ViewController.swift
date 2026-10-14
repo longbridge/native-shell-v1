@@ -48,6 +48,12 @@ open class NSHViewController: NSViewController, SurfacePresenter, SurfaceObserve
         view = v
     }
 
+    override open func viewDidLayout() {
+        super.viewDidLayout()
+        // A resized window resizes its sheets (detents are fractions of it).
+        modals.values.forEach { $0.resize() }
+    }
+
     // MARK: SurfacePresenter
 
     func attachSurface(_ view: NSHComponentView, at index: Int, in manager: MountingManager) {
@@ -307,16 +313,35 @@ final class ModalSheet: NSObject {
         parent?.beginSheet(window)
     }
 
-    /// The sheet's size: the surface's, within the parent window. Window sheets
-    /// fit their content on macOS, so detents (resting heights for a sheet
-    /// dragged on a touch screen) do not apply.
+    /// The size last reported with `Resize`.
+    private(set) var reportedSize: CGSize?
+
+    /// The sheet's size, within the parent window. A sheet with detents is as tall
+    /// as its largest one and reports that size (`Resize`), so the core lays its
+    /// content out to fill it; without detents the window fits the content.
     func resize() {
         if let p = parent?.contentView?.bounds.size { parentSize = p }
         let f = surface.nodeFrame
-        let height = parentSize.height > 0 ? min(f.height, parentSize.height - 40) : f.height
         let width = parentSize.width > 0 ? min(f.width, parentSize.width) : f.width
-        window.setContentSize(NSSize(width: max(1, width), height: max(1, height)))
-        surface.applyFrame(CGRect(x: 0, y: 0, width: width, height: f.height))
+        let detents = (surface as? NSHSheetView)?.detents ?? []
+        var height = f.height
+        if !detents.isEmpty, parentSize.height > 0 {
+            height = detents.map { d -> CGFloat in
+                switch d {
+                case .large: return parentSize.height - 40
+                case .medium: return parentSize.height / 2
+                case let .height(h): return h
+                }
+            }.max() ?? f.height
+        }
+        if parentSize.height > 0 { height = min(height, parentSize.height - 40) }
+        let size = CGSize(width: max(1, width), height: max(1, height))
+        window.setContentSize(size)
+        surface.applyFrame(CGRect(x: 0, y: 0, width: width, height: detents.isEmpty ? f.height : size.height))
+        if !detents.isEmpty, size != reportedSize {
+            reportedSize = size
+            (surface as? NSHSheetView)?.send(.resize, ["width": Double(size.width), "height": Double(size.height)])
+        }
     }
 
     func applyTheme() {

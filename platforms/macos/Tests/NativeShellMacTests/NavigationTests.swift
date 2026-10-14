@@ -139,8 +139,19 @@ final class NavigationTests: XCTestCase {
         guard let modal = vc.modal(for: sheet) else { return XCTFail("no modal") }
         XCTAssertTrue(window.sheetsBegun.first === modal.window, "a window sheet")
         XCTAssertTrue(sheet.isDescendant(of: modal.window.contentView!))
-        // Window sheets fit their content; detents are for touch.
-        XCTAssertEqual(modal.window.contentView?.frame.size, CGSize(width: 390, height: 300))
+        // With detents: the largest one (844 / 2 = 422 > 320), reported so the core lays the content out at it.
+        XCTAssertEqual(modal.window.contentView?.frame.size, CGSize(width: 390, height: 422))
+        XCTAssertEqual(sheet.frame.size, CGSize(width: 390, height: 422))
+        let resize = events.filter { $0.type == .resize }
+        XCTAssertEqual(resize.map(\.node), [30])
+        XCTAssertEqual(resize.first?.payload.double("width"), 390)
+        XCTAssertEqual(resize.first?.payload.double("height"), 422)
+        // Unchanged size, no new report; a larger window, a new one.
+        modal.resize()
+        XCTAssertEqual(events.filter { $0.type == .resize }.count, 1)
+        window.setContentSize(CGSize(width: 390, height: 900))
+        vc.view.layoutSubtreeIfNeeded()
+        XCTAssertEqual(events.filter { $0.type == .resize }.last?.payload.double("height"), 450)
         XCTAssertNotNil(modal.window.contentView?.layer?.backgroundColor, "an opaque theme background")
 
         // Not dismissable: Escape does nothing.
@@ -162,7 +173,8 @@ final class NavigationTests: XCTestCase {
         }
         let second = vc.surfaceView.manager.component(32)!
         let modal2 = vc.modal(for: second)!
-        XCTAssertEqual(modal2.window.contentView?.frame.height, 200)
+        XCTAssertEqual(modal2.window.contentView?.frame.height, 200, "no detents: the window fits the content")
+        XCTAssertEqual(events.filter { $0.type == .resize && $0.node == 32 }.count, 0, "and nothing is reported")
         apply { $0.delete(32) }
         XCTAssertNil(vc.modal(for: second))
         XCTAssertEqual(events.filter { $0.type == .dismiss }.count, 1)

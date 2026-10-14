@@ -90,7 +90,7 @@ public enum EventMask {
 
 public enum EventType: UInt32 {
     case click = 1, doubleClick, longPress, change, submit, focus, blur, scroll, refresh, pan, pinch, link, key,
-         dismiss, action, rangeChange, rowHeight, backPressed, pressIn, pressOut, hostEvent, toastAction, hover
+         dismiss, action, rangeChange, rowHeight, backPressed, pressIn, pressOut, hostEvent, toastAction, hover, resize
 }
 
 public enum PropValue: Equatable {
