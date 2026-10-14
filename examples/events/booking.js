@@ -204,8 +204,8 @@ export default class BookingPage extends View {
                 Stepper.new("steps")
                   .test_id("steps")
                   .selected_index(this.step)
-                  .items(STEPS.map((label) => StepperItem.new().child(label)))
                   // Done steps can be revisited; later ones open only through Continue.
+                  .items(STEPS.map((label, i) => StepperItem.new().disabled(i > this.step).child(label)))
                   .on_change((index, cx) => this.goTo(index, cx)),
               )
               .child(this.eventSummary(cx))
