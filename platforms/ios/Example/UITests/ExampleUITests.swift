@@ -162,6 +162,20 @@ final class ExampleUITests: XCTestCase {
         }
     }
 
+    func testNotes() {
+        inBothAppearances {
+            let app = launch("notes")
+            wait(app, "folder-f-recipes")
+            snap("notes")
+            tap(app, "folder-notes")
+            wait(app, "note-n1")
+            snap("notes-folder")
+            tap(app, "note-n1")
+            wait(app, "rendered")
+            snap("notes-note")
+        }
+    }
+
     func testWatchlist() {
         inBothAppearances {
             let app = launch("watchlist")

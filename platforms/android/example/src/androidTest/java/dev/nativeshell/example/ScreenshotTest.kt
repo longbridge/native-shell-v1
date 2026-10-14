@@ -210,6 +210,18 @@ class ScreenshotTest {
     }
 
     @Test
+    fun notes() = inBothAppearances("notes") {
+        wait("folder-f-recipes")
+        snap("notes")
+        push("folder-notes")
+        wait("note-n1")
+        snap("notes-folder")
+        push("note-n1")
+        wait("rendered")
+        snap("notes-note")
+    }
+
+    @Test
     fun watchlist() = inBothAppearances("watchlist") {
         wait("cell-HALO.US")
         SystemClock.sleep(2_000)
