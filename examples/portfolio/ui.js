@@ -6,6 +6,7 @@
 // areas and the keyboard.
 
 import { div, h_flex, v_flex, shape, Button } from "native-shell";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from "gpui-component";
 /** @import { ClickEvent, Color, Context, Element, Theme } from "native-shell" */
 
 /** Outline icons on a 24-unit grid, drawn with a 2-unit round stroke. */
@@ -206,20 +207,16 @@ export function row(cx, { id, label, detail, value, trailing, on_click, chevron,
  */
 export function emptyState(cx, { id, icon: name, title, message, action }) {
   const t = cx.theme();
-  return v_flex()
+  return Empty.new()
     .test_id(id)
-    .items_center()
-    .gap_2()
-    .px_8()
     .py_12()
-    .child(
-      div()
-        .mb_2()
-        .child(icon(name, t.muted_foreground, 40)),
+    .header(
+      EmptyHeader.new()
+        .media(EmptyMedia.new().child(icon(name, t.muted_foreground, 40)))
+        .title(EmptyTitle.new().child(title))
+        .description(EmptyDescription.new().child(message)),
     )
-    .child(div().role("header").text_lg().font_semibold().text_center().text_color(t.foreground).child(title))
-    .child(div().text_sm().text_center().text_color(t.muted_foreground).child(message))
-    .when(Boolean(action), (el) => el.child(div().mt_4().child(action)));
+    .when(Boolean(action), (el) => el.content(EmptyContent.new().child(action)));
 }
 
 /** A text button in the tint color, for bars and section headers. */

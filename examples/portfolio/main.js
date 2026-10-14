@@ -9,7 +9,7 @@
 // app is in the background. See README.md for the design notes.
 
 import { View, div, h_flex, v_flex, Button, Select, Spinner } from "native-shell";
-import { PieChart } from "gpui-component";
+import { PieChart, Skeleton, WarningAlert } from "gpui-component";
 import { Market, instrument } from "./market.js";
 import {
   loadTransactions,
@@ -277,17 +277,7 @@ export default class Portfolio extends View {
       .pt_2()
       .pb(cx.window().safe_area.bottom + 32)
       .gap_6();
-    if (this.status === "loading" || (!this.loaded && this.retrying)) {
-      return content.child(
-        v_flex()
-          .test_id("loading")
-          .items_center()
-          .gap_3()
-          .py_16()
-          .child(Spinner.new().size_6())
-          .child(div().text_sm().text_color(t.muted_foreground).child("Getting the latest prices…")),
-      );
-    }
+    if (this.status === "loading" || (!this.loaded && this.retrying)) return content.child(this.placeholder(cx));
     if (!this.loaded) {
       return content.child(
         emptyState(cx, {
@@ -356,6 +346,34 @@ export default class Portfolio extends View {
       );
   }
 
+  /** The page's shape while the first prices load, as iOS draws redacted content. */
+  placeholder(cx) {
+    const t = cx.theme();
+    const line = (w, h = 16) => Skeleton.new().w(w).h(h);
+    return v_flex()
+      .test_id("loading")
+      .accessibility_label("Loading your portfolio")
+      .gap_6()
+      .child(v_flex().gap_2().child(line(88, 14)).child(line(200, 36)).child(line(150)))
+      .child(Skeleton.new().h(32).rounded_lg())
+      .child(Skeleton.new().h(184).rounded_xl())
+      .child(
+        v_flex()
+          .rounded_xl()
+          .bg(t.surface)
+          .p_4()
+          .gap_4()
+          .children(
+            [0, 1, 2, 3].map(() =>
+              h_flex()
+                .gap_4()
+                .child(v_flex().flex_1().gap_2().child(line(64)).child(line(160, 12)))
+                .child(line(72)),
+            ),
+          ),
+      );
+  }
+
   summary(cx, held) {
     const t = cx.theme();
     const sum = totals(held);
@@ -394,37 +412,17 @@ export default class Portfolio extends View {
 
   offlineBanner(cx) {
     const t = cx.theme();
-    return h_flex()
+    return WarningAlert.new("offline", "Prices may be out of date.")
       .test_id("offline")
-      .role("alert")
-      .gap_3()
-      .pl_4()
-      .pr_2()
-      .py_2()
-      .rounded_xl()
-      .bg(t.surface)
-      .child(icon("wifi_off", t.warning))
-      .child(
-        v_flex()
-          .flex_1()
-          .min_w_0()
-          .child(div().text_sm().font_medium().text_color(t.foreground).child("You’re offline"))
-          .child(div().text_sm().text_color(t.muted_foreground).child("Prices may be out of date.")),
-      )
+      .title("You’re offline")
+      .icon(icon("wifi_off", t.warning))
       .child(
         Button.new("offline-retry")
           .test_id("offline-retry")
+          .ghost()
+          .size("small")
           .disabled(this.retrying)
-          .flex()
-          .items_center()
-          .gap_2()
-          .px_3()
-          .min_h_11()
-          .rounded_lg()
-          .text_sm()
-          .font_semibold()
-          .text_color(this.retrying ? t.muted_foreground : t.primary)
-          .when(!this.retrying, (el) => el.active((s) => s.opacity(0.5)).on_click((_e, cx) => this.retry(cx)))
+          .on_click((_e, cx) => this.retry(cx))
           .when(this.retrying, (el) => el.child(Spinner.new().size_3()))
           .child(this.retrying ? "Retrying" : "Retry"),
       );
