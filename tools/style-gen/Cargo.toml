@@ -1,0 +1,12 @@
+[package]
+name = "style-gen"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Generates crates/core/src/style_table.rs from GPUI's reflected style methods."
+
+# Standalone: not a member of the native-shell workspace (the root excludes `tools`).
+[workspace]
+
+[dependencies]
+gpui = { package = "gpui-pre", version = "=0.3.9", default-features = false, features = ["inspector"] }

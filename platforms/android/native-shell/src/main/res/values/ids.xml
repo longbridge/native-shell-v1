@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="nsh_test_id" type="id" />
+    <item name="nsh_node_id" type="id" />
+    <item name="nsh_hit_slop" type="id" />
+    <item name="nsh_frame_animator" type="id" />
+    <item name="nsh_image_source" type="id" />
+    <item name="nsh_native_background" type="id" />
+</resources>

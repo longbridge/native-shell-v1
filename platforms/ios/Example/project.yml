@@ -1,0 +1,58 @@
+# XcodeGen spec of the example app: `xcodegen generate` in this directory.
+name: NativeShellExample
+options:
+  bundleIdPrefix: dev.nativeshell
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+packages:
+  NativeShell:
+    path: ..
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGNING_ALLOWED: "NO"
+targets:
+  NativeShellExample:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      # The repository's example programs, bundled as a folder.
+      - path: ../../../examples
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - package: NativeShell
+        product: NativeShell
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: native-shell
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIApplicationSupportsIndirectInputEvents: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.nativeshell.example
+        TARGETED_DEVICE_FAMILY: "1,2"
+  NativeShellExampleUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    dependencies:
+      - target: NativeShellExample
+    settings:
+      base:
+        TEST_TARGET_NAME: NativeShellExample
+        PRODUCT_BUNDLE_IDENTIFIER: dev.nativeshell.example.uitests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  NativeShellExample:
+    build:
+      targets:
+        NativeShellExample: all
+        NativeShellExampleUITests: [test]
+    test:
+      targets: [NativeShellExampleUITests]

@@ -1,0 +1,27 @@
+[package]
+name = "native-shell"
+description = "A QuickJS-scripted, natively rendered UI runtime for iOS (UIKit) and Android (View): the mobile sibling of gpui-shell."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+native-shell-core.workspace = true
+native-shell-tree.workspace = true
+native-shell-services.workspace = true
+rquickjs.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+pulldown-cmark = { version = "0.13", default-features = false }
+base64.workspace = true
+sha2.workspace = true
+
+[build-dependencies]
+rquickjs.workspace = true
+
+# quickjs-jit-sys ships pre-generated bindings for desktop triples only; mobile
+# triples generate them at build time (needs libclang, present with Xcode).
+[target.'cfg(any(target_os = "ios", target_os = "android"))'.dependencies]
+rquickjs = { workspace = true, features = ["bindgen"] }
+

@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  rust:
+    name: cargo test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install TypeScript (the CLI's typings test runs tsc)
+        run: npm install -g typescript@5.6.3
+      - name: Test
+        env:
+          NATIVE_SHELL_REQUIRE_TSC: "1"
+        run: cargo test --workspace --all-features
+      - name: Test ffi without the jni feature
+        run: cargo test -p native-shell-ffi
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: Check the examples
+        if: hashFiles('examples/*/native-shell.json') != ''
+        run: |
+          for d in examples/*/; do
+            [ -f "$d/native-shell.json" ] || continue
+            registry=()
+            [ -f "$d/host.json" ] && registry=(--registry "$d/host.json")
+            cargo run -q -p native-shell-cli -- check "$d" "${registry[@]}"
+          done
+
+  ios:
+    name: iOS (xcframework + XCTest)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+      - uses: Swatinem/rust-cache@v2
+      - name: Build NativeShellFFI.xcframework
+        run: scripts/build-ios.sh
+      - name: XCTest on the simulator
+        working-directory: platforms/ios
+        run: |
+          DEVICE=$(xcrun simctl list devices available -j \
+            | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["name"] for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")))')
+          xcodebuild test -scheme NativeShell -destination "platform=iOS Simulator,name=$DEVICE"
+
+  android:
+    name: Android (.so + JVM tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - name: Install the NDK
+        run: sdkmanager "ndk;27.2.12479018"
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+      - name: Build libnative_shell.so (16 KB aligned)
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.2.12479018
+        run: scripts/build-android.sh
+      - name: JVM unit tests
+        working-directory: platforms/android
+        run: ./gradlew :native-shell:testDebugUnitTest

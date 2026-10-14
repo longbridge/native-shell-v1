@@ -1,0 +1,8 @@
+{
+  "id": "dev.native-shell.chat",
+  "name": "Chat",
+  "version": "1.0.0",
+  "entry": "main.js",
+  "description": "A message thread: grouped bubbles, delivery state, older history on request, message actions and a keyboard-aware composer.",
+  "capabilities": { "clipboard": { "write": true } }
+}

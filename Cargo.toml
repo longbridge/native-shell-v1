@@ -1,0 +1,38 @@
+[workspace]
+resolver = "2"
+members = ["crates/core", "crates/tree", "crates/services", "crates/engine", "crates/ffi", "crates/cli"]
+exclude = ["tools"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+
+[workspace.dependencies]
+native-shell-core = { path = "crates/core" }
+native-shell-tree = { path = "crates/tree" }
+native-shell-services = { path = "crates/services" }
+native-shell = { path = "crates/engine" }
+# Same fork as gpui-shell, interpreter only: no `jit-abi`, no `quickjs-jit-runtime`,
+# so cranelift is never linked (iOS forbids mapping executable memory).
+rquickjs = { package = "quickjs-jit", version = "0.12.6", default-features = false, features = ["std", "loader"] }
+taffy = { version = "0.9", default-features = false, features = ["std", "taffy_tree", "flexbox", "grid", "block_layout", "content_size"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+base64 = "0.22"
+anyhow = "1"
+thiserror = "2"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "unwind"
+strip = "debuginfo"
+
+# The interpreter loop is the hot path on devices; optimize it for speed and
+# keep the rest of the crate graph at "s" for size.
+[profile.release.package.quickjs-jit-sys]
+opt-level = 3

@@ -1,0 +1,8 @@
+{
+  "id": "dev.native-shell.tasks",
+  "name": "Tasks",
+  "version": "1.0.0",
+  "entry": "main.js",
+  "description": "Capture, complete, edit and delete tasks, with undo and on-device persistence.",
+  "capabilities": { "storage": true }
+}

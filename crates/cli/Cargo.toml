@@ -1,0 +1,23 @@
+[package]
+name = "native-shell-cli"
+description = "native-shell command line: new, check, types, bundle, keygen, dev."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "native-shell"
+path = "src/main.rs"
+
+[dependencies]
+native-shell.workspace = true
+native-shell-core.workspace = true
+native-shell-services.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+base64.workspace = true
+anyhow.workspace = true
+clap = { version = "4.5", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3"

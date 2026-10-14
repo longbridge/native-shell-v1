@@ -1,0 +1,8 @@
+{
+  "id": "dev.native-shell.settings",
+  "name": "Settings",
+  "version": "1.0.0",
+  "entry": "main.js",
+  "description": "A preferences screen: grouped switches and pickers, an account page, theme choice and a confirmed destructive action.",
+  "capabilities": { "storage": true, "open_url": true }
+}

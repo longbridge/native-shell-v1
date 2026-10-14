@@ -1,0 +1,34 @@
+[package]
+name = "native-shell-ffi"
+description = "C ABI (iOS) and JNI (Android) entry points of native-shell."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# The crate is `native_shell_ffi` (the engine is `native_shell`); the build
+# scripts ship its artifacts as libnative_shell.a / libnative_shell.so.
+[lib]
+name = "native_shell_ffi"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+# Compiles the JNI layer on any target (it is always on for Android), so the
+# host can type-check and test it.
+jni = ["dep:jni"]
+
+[dependencies]
+native-shell.workspace = true
+native-shell-core.workspace = true
+native-shell-services.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+jni = { version = "0.21", default-features = false, optional = true }
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = { version = "0.21", default-features = false }
+
+[dev-dependencies]
+# `invocation` loads libjvm at run time (libloading), so tests build without a JDK and skip without one.
+jni = { version = "0.21", features = ["invocation"] }
+sha2.workspace = true
+tempfile = "3"

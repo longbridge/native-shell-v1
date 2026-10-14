@@ -1,0 +1,7 @@
+{
+  "id": "dev.native-shell.gpui-todolist",
+  "name": "Todo (gpui-shell)",
+  "version": "1.0.0",
+  "description": "gpui-shell's examples/js_todolist, copied unchanged from gpui-kit (Apache-2.0): the same script runs on native-shell.",
+  "capabilities": { "storage": true }
+}

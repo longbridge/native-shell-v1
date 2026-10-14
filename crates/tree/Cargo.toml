@@ -1,0 +1,11 @@
+[package]
+name = "native-shell-tree"
+description = "Keyed diff, view flattening, taffy layout and list windowing: descriptions in, mutations out."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+native-shell-core.workspace = true
+taffy.workspace = true
+serde_json.workspace = true

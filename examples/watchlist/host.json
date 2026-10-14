@@ -1,0 +1,32 @@
+{
+  "modules": [
+    {
+      "name": "demo/quote",
+      "methods": [
+        { "name": "quote", "kind": "async", "ts": "(symbol: string) => Promise<Quote>" },
+        { "name": "subscribe", "kind": "async", "ts": "(symbols: string[]) => Promise<void>" },
+        { "name": "unsubscribe", "kind": "async", "ts": "(symbols: string[]) => Promise<void>" }
+      ],
+      "events": ["tick"],
+      "requires_permission": true,
+      "dts": "interface Quote { symbol: string; last: number; prev_close: number; change_percent: number }"
+    },
+    {
+      "name": "demo/user",
+      "methods": [
+        { "name": "current_user", "kind": "sync", "ts": "() => { id: string; name: string } | null" }
+      ],
+      "events": [],
+      "requires_permission": false
+    }
+  ],
+  "components": [
+    {
+      "name": "demo-stock-cell",
+      "events": ["select"],
+      "measurable": true,
+      "requires_permission": true,
+      "props_ts": "{ symbol: string; name: string; last?: number | null; change_percent?: number | null }"
+    }
+  ]
+}

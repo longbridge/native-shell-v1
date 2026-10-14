@@ -1,0 +1,8 @@
+{
+  "id": "dev.native-shell.components",
+  "name": "Components",
+  "version": "1.0.0",
+  "entry": "main.js",
+  "description": "Every control in a believable scenario with its states: buttons, fields, selection, sliders, progress, pickers and overlays.",
+  "capabilities": { "clipboard": { "write": true } }
+}

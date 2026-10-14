@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The app's accent, shared with the shell's theme and the stock cell (AppPalette). -->
+    <color name="accent">#FF2563EB</color>
+
+    <style name="Theme.Example" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/accent</item>
+    </style>
+</resources>

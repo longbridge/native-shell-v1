@@ -1,0 +1,12 @@
+{
+  "id": "dev.native-shell.watchlist",
+  "name": "Watchlist",
+  "version": "1.0.0",
+  "entry": "main.js",
+  "description": "Live prices from a host module, rows drawn by the host app's own native cell, with sorting, pause and an editable list.",
+  "capabilities": {
+    "storage": true,
+    "host_modules": ["demo/quote"],
+    "host_components": ["demo-stock-cell"]
+  }
+}
