@@ -4,7 +4,7 @@ The preferences screen of a typical app: notifications, appearance, privacy,
 storage, about, and the account behind them.
 
 ```bash
-nshell check examples/settings
+native-shell check examples/settings
 ```
 
 ## Design notes

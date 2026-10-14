@@ -136,7 +136,7 @@ fn copy_dir(from: &Path, to: &Path) {
 }
 
 fn nshell(args: &[&str]) {
-    let o = Command::new(env!("CARGO_BIN_EXE_nshell")).args(args).output().unwrap();
+    let o = Command::new(env!("CARGO_BIN_EXE_native-shell")).args(args).output().unwrap();
     assert!(o.status.success(), "{args:?}: {}", String::from_utf8_lossy(&o.stderr));
 }
 
@@ -203,7 +203,7 @@ fn examples_and_new_programs_type_check() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-/// The jsconfig `nshell new` writes.
+/// The jsconfig `native-shell new` writes.
 fn default_config() -> String {
     let tmp = tempfile::tempdir().unwrap();
     let dir = tmp.path().join("p");

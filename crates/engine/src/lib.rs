@@ -18,7 +18,7 @@
 //!
 //! [`runner::ThreadedInstance`] puts an instance on its own thread for the
 //! platform bindings; [`testing::Harness`] drives one headlessly for tests and
-//! `nshell check`.
+//! `native-shell check`.
 
 mod assets;
 mod convert;

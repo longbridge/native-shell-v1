@@ -6,7 +6,7 @@
 // The script owns the screen around them, laid out as an iOS plain list under
 // a large title: sorting, pausing the feed, the detail sheet, and adding or
 // removing symbols. `host.json` describes what the host registers, for
-// `nshell check` and `nshell types`. See README.md for the design notes.
+// `native-shell check` and `native-shell types`. See README.md for the design notes.
 
 import { View, div, h_flex, v_flex, list, host_component, Button, Tabs, Spinner } from "native-shell";
 import { quote, subscribe, unsubscribe, on } from "demo/quote";

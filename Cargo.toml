@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/core", "crates/tree", "crates/services", "crates/engine", "crates/ffi", "crates/cli"]
 exclude = ["tools"]
 # Every crate, so `cargo build` / `cargo test` cover the workspace as before;
-# `nshell` is its only binary, so a bare `cargo run` runs it.
+# `native-shell` is its only binary, so a bare `cargo run` runs it.
 default-members = ["crates/core", "crates/tree", "crates/services", "crates/engine", "crates/ffi", "crates/cli"]
 
 [workspace.package]

@@ -4,7 +4,7 @@ Every control the shell renders, each shown in a small, believable task with
 its states, rather than in a dump of widgets.
 
 ```bash
-nshell check examples/components
+native-shell check examples/components
 ```
 
 ## Pages

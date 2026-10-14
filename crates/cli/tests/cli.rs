@@ -1,4 +1,4 @@
-//! End-to-end tests of the `nshell` binary.
+//! End-to-end tests of the `native-shell` binary.
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpStream;
@@ -7,11 +7,11 @@ use std::process::{Child, Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
 fn bin() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_nshell"))
+    Command::new(env!("CARGO_BIN_EXE_native-shell"))
 }
 
 fn run(args: &[&str], cwd: &Path) -> Output {
-    bin().args(args).current_dir(cwd).output().expect("run nshell")
+    bin().args(args).current_dir(cwd).output().expect("run native-shell")
 }
 
 fn stdout(o: &Output) -> String {
@@ -24,6 +24,16 @@ fn stderr(o: &Output) -> String {
 
 fn assert_ok(o: &Output) {
     assert!(o.status.success(), "failed: {}\nstdout:\n{}\nstderr:\n{}", o.status, stdout(o), stderr(o));
+}
+
+#[test]
+fn executable_name_and_version() {
+    let version = bin().arg("--version").output().unwrap();
+    assert_ok(&version);
+    assert_eq!(stdout(&version).trim(), concat!("native-shell ", env!("CARGO_PKG_VERSION")));
+    let help = bin().arg("--help").output().unwrap();
+    assert_ok(&help);
+    assert!(stdout(&help).contains("Usage: native-shell"));
 }
 
 #[test]

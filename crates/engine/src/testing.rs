@@ -1,4 +1,4 @@
-//! A headless instance for tests and `nshell check`.
+//! A headless instance for tests and `native-shell check`.
 //!
 //! [`Harness`] wires an [`Instance`] to a recording [`FakeHost`] (deterministic
 //! text metrics from `native_shell_tree::testing::FakeMeasurer`, scripted

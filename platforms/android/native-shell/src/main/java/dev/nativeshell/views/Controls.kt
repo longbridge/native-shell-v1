@@ -361,6 +361,7 @@ internal class SegmentedManager : ControlManager(ViewType.SEGMENTED) {
                 setEnabled(g, value)
                 for (i in 0 until g.childCount) g.getChildAt(i).isEnabled = g.isEnabled
             }
+            Prop.TINT_COLOR -> ControlTint.setOverride(g, if (value.kind == ValueKind.COLOR) value.int else null)
             else -> return false
         }
         return true

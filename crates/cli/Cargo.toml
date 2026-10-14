@@ -1,12 +1,12 @@
 [package]
 name = "native-shell-cli"
-description = "nshell, the native-shell command line: new, check, types, bundle, keygen, verify, dev."
+description = "native-shell, the native-shell command line: new, check, types, bundle, keygen, verify, dev."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "nshell"
+name = "native-shell"
 path = "src/main.rs"
 
 [dependencies]
