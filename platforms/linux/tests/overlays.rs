@@ -15,6 +15,7 @@ fn main() -> ExitCode {
         ("settings: an edited page refuses back until discarded", settings_back),
         ("tasks: the edit sheet", tasks_sheet),
         ("an alert follows the program's appearance", alert_appearance),
+        ("transitions run: push, sheet spring, pop", animated_transitions),
     ])
 }
 
@@ -237,4 +238,37 @@ export default class App extends View {
     let luma = ((bg >> 16) & 0xff) + ((bg >> 8) & 0xff) + (bg & 0xff);
     assert!(luma < 3 * 0x60, "a dark alert on a light desktop, got {bg:08x}");
     choose(&a, "Cancel");
+}
+
+/// With the frame clock running, the springs reach their end states.
+fn animated_transitions() {
+    if let Some(settings) = gtk::Settings::default() {
+        settings.set_gtk_enable_animations(true);
+    }
+    set_dark(false);
+    let f = Fixture::open_dir("../../examples/components");
+    let index = f.expect("index");
+    f.tap("open-overlays");
+    assert!(pump_until(Duration::from_secs(3), || !index.is_mapped()), "the push transition ends and hides the list");
+
+    f.tap("share");
+    let sheet = f.wait_for("share-sheet");
+    // Medium detent: the card rests with its top at half the surface height.
+    let rest = f.surface.height() as f32 / 2.0;
+    assert!(
+        pump_until(Duration::from_secs(3), || {
+            f.layout();
+            (f.bounds(&sheet).y() - rest).abs() < 1.0
+        }),
+        "the sheet springs up to its detent, at {}",
+        f.bounds(&sheet).y()
+    );
+    assert!(f.surface.go_back());
+    assert!(pump_until(Duration::from_secs(3), || f.find("share-sheet").is_none_or(|w| !w.is_mapped())), "the sheet slides away");
+    f.settle();
+
+    assert!(f.surface.go_back());
+    assert!(pump_until(Duration::from_secs(3), || index.is_mapped()), "the pop reveals the list");
+    f.settle();
+    no_animations();
 }
