@@ -36,3 +36,5 @@ pub use native_shell_core::theme::Appearance;
 pub use runtime::{CallContext, EventSink, HostComponent, HostComponentType, HostModule, Responder, Runtime};
 pub use node_view::NodeView;
 pub use surface::SurfaceView;
+/// The user's text size factor (desktop text scaling), for host components that size text like the shell.
+pub use text::font_scale;

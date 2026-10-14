@@ -62,12 +62,15 @@ pub const MANIFEST: &str = r#"{
 
 // MARK: Harness
 
-struct Broadway(Child);
+/// The private Broadway display; stopped when dropped.
+pub struct Broadway(Child, PathBuf);
 
 impl Drop for Broadway {
     fn drop(&mut self) {
         let _ = self.0.kill();
         let _ = self.0.wait();
+        // Killed, the daemon leaves its socket behind.
+        let _ = std::fs::remove_file(&self.1);
     }
 }
 
@@ -80,6 +83,8 @@ fn start_display() -> Option<Broadway> {
     let display = 100 + std::process::id() % 800;
     let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| std::env::temp_dir().display().to_string());
     let socket = PathBuf::from(runtime_dir).join(format!("broadway{}.socket", display + 1));
+    // A socket left by a killed daemon would pass for this one before it listens.
+    let _ = std::fs::remove_file(&socket);
     let child = Command::new("gtk4-broadwayd")
         .arg(format!(":{display}"))
         .arg("--port")
@@ -90,7 +95,7 @@ fn start_display() -> Option<Broadway> {
         .stderr(std::process::Stdio::null())
         .spawn()
         .expect("gtk4-broadwayd is needed to run the GTK tests (package libgtk-4-bin)");
-    let guard = Broadway(child);
+    let guard = Broadway(child, socket.clone());
     let deadline = Instant::now() + Duration::from_secs(10);
     while !socket.exists() && Instant::now() < deadline {
         std::thread::sleep(Duration::from_millis(20));
@@ -100,6 +105,23 @@ fn start_display() -> Option<Broadway> {
     std::env::remove_var("WAYLAND_DISPLAY");
     std::env::remove_var("DISPLAY");
     Some(guard)
+}
+
+/// Starts GTK and libadwaita headless: on a private Broadway display unless
+/// one was chosen, with temporary files kept off the small /tmp. Keep the
+/// guard alive while GTK runs.
+pub fn init() -> Option<Broadway> {
+    if std::env::var_os("TMPDIR").is_none() {
+        let dir = option_env!("CARGO_TARGET_TMPDIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("target/tmp"));
+        let _ = std::fs::create_dir_all(&dir);
+        std::env::set_var("TMPDIR", dir);
+    }
+    let display = start_display();
+    gtk::init().expect("GTK cannot start");
+    adw::init().expect("libadwaita cannot start");
+    display
 }
 
 /// Runs the cases on the main thread. `cargo test --test x -- word` runs the cases whose name contains `word`.
@@ -112,13 +134,7 @@ pub fn run(cases: &[(&str, fn())]) -> ExitCode {
         }
         return ExitCode::SUCCESS;
     }
-    // Temporary data directories stay off the small /tmp.
-    if std::env::var_os("TMPDIR").is_none() {
-        std::env::set_var("TMPDIR", env!("CARGO_TARGET_TMPDIR"));
-    }
-    let _display = start_display();
-    gtk::init().expect("GTK cannot start");
-    adw::init().expect("libadwaita cannot start");
+    let _display = init();
 
     println!("\nrunning {} tests", selected.len());
     let mut failed = Vec::new();

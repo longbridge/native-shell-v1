@@ -67,3 +67,7 @@ harness = false
 [[test]]
 name = "overlays"
 harness = false
+
+[[test]]
+name = "examples"
+harness = false
