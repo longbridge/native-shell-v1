@@ -1662,7 +1662,7 @@ declare module "gpui-component" {
     bordered(bordered: boolean): this;
     /** Sets the vertical layout's column count, 1 through 10 (default 2 on a phone). */
     columns(columns: number): this;
-    size(size: DataSize): this;
+    size(size: DataSize | import("native-shell").Length): this;
     /** gpui-component's `item(label, value, span)`. */
     item(label: string, value: string | Element, span?: number): this;
   }
@@ -1708,7 +1708,7 @@ declare module "gpui-component" {
     variant(variant: "tab" | "outline" | "pill" | "segmented" | "underline"): this;
     /** Accepted; the row scrolls instead of an overflow menu. */
     menu(menu: boolean): this;
-    size(size: DataSize): this;
+    size(size: DataSize | import("native-shell").Length): this;
     /** Reports the newly selected zero-based index. */
     on_change(handler: (index: number, cx: DataContext) => void): this;
   }
@@ -1719,6 +1719,8 @@ declare module "gpui-component" {
   export interface BreadcrumbElement extends Element {
     /** Mobile: `(index, cx)` when an earlier place in the path is tapped. */
     on_click(handler: (index: number, cx: DataContext) => void): this;
+    /** Declared so the element stays an `Element`; the handler receives `(index, cx)`. */
+    on_click(handler: (event: import("native-shell").ClickEvent, cx: import("native-shell").Context) => void): this;
   }
   /** A path of places, the current one last. */
   export const Breadcrumb: DataConstructor<[labels: string[]], BreadcrumbElement>;
@@ -1750,7 +1752,7 @@ declare module "gpui-component" {
   }
   export const SettingPage: DataConstructor<[title: string], SettingPageElement>;
   export interface SettingsElement extends Element {
-    size(size: DataSize): this;
+    size(size: DataSize | import("native-shell").Length): this;
     /** Accepted; a phone has no sidebar. */
     sidebar_width(pixels: number): this;
     sidebar_size_range(minimum: number, maximum: number): this;
@@ -1832,7 +1834,7 @@ declare module "gpui-component" {
   /** One indexed slide. */
   export const CarouselItem: DataConstructor<[id: string, index: number, state: CarouselState], Element>;
   export interface CarouselControlElement extends Element {
-    size(size: DataSize): this;
+    size(size: DataSize | import("native-shell").Length): this;
   }
   export const CarouselPrevious: DataConstructor<[state: CarouselState], CarouselControlElement>;
   export const CarouselNext: DataConstructor<[state: CarouselState], CarouselControlElement>;
@@ -1865,7 +1867,7 @@ declare module "gpui-component" {
     /** iOS's tinted button. */
     outline(): this;
     variant(variant: "primary" | "secondary" | "danger" | "ghost"): this;
-    size(size: DataSize): this;
+    size(size: DataSize | import("native-shell").Length): this;
     disabled(disabled: boolean): this;
     selected(selected: boolean): this;
     /** Accepted; the platform places the menu. */
@@ -1880,7 +1882,7 @@ declare module "gpui-component" {
 
   export interface IconElement extends Element {
     /** `xsmall` 12, `small` 16, `medium` 20 (default), `large` 24; mobile also takes points. */
-    size(size: DataSize | number): this;
+    size(size: DataSize | import("native-shell").Length): this;
     /** The glyph's color: a theme token or a color literal. */
     color(color: import("native-shell").Color): this;
     /** Rotates the icon by radians. */
