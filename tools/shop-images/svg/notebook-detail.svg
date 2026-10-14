@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+<defs>
+<radialGradient id="backdrop" cx="0.5" cy="0.4" r="0.75">
+<stop offset="0" stop-color="#f3f4ef"/><stop offset="1" stop-color="#e0e3d9"/></radialGradient>
+<linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#3a2f22" stop-opacity="0"/><stop offset="1" stop-color="#3a2f22" stop-opacity="0.05"/></linearGradient>
+<filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="12"/></filter>
+<filter id="blur-s" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
+</defs>
+<rect width="600" height="600" fill="url(#backdrop)"/>
+<rect y="360" width="600" height="240" fill="url(#floor)"/>
+<g transform="translate(0 0)">
+<ellipse cx="300" cy="452" rx="230" ry="16" fill="#3a2f22" opacity="0.16" filter="url(#blur)"/>
+<ellipse cx="300" cy="450" rx="184" ry="8" fill="#3a2f22" opacity="0.22" filter="url(#blur-s)"/>
+<defs>
+<pattern id="dots" x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
+<circle cx="8" cy="8" r="1.4" fill="#a49d8c"/></pattern>
+<linearGradient id="left" x1="0" x2="1">
+<stop offset="0" stop-color="#ebe5d6"/><stop offset="0.12" stop-color="#fbf8f0"/>
+<stop offset="0.85" stop-color="#fbf8f0"/><stop offset="1" stop-color="#d8d0bc"/></linearGradient>
+<linearGradient id="right" x1="0" x2="1">
+<stop offset="0" stop-color="#d8d0bc"/><stop offset="0.15" stop-color="#fbf8f0"/>
+<stop offset="0.88" stop-color="#fbf8f0"/><stop offset="1" stop-color="#ebe5d6"/></linearGradient>
+</defs>
+<rect x="66" y="152" width="468" height="300" rx="10" fill="#2f5b45"/>
+<path d="M66 440 H534" stroke="#1f3f2f" stroke-width="12" opacity="0.5"/>
+<path d="M300 432 L80 440 L80 168 C 150 158, 240 160, 300 172 Z" fill="#e2dac6"/>
+<path d="M300 432 L520 440 L520 168 C 450 158, 360 160, 300 172 Z" fill="#e2dac6"/>
+<path d="M300 426 L84 434 L84 162 C 150 152, 240 154, 300 166 Z" fill="url(#left)"/>
+<path d="M300 426 L516 434 L516 162 C 450 152, 360 154, 300 166 Z" fill="url(#right)"/>
+<clipPath id="pages"><path d="M108 418 L108 182 C 170 174, 240 176, 286 186 L286 412 Z M314 412 L314 186 C 360 176, 430 174, 492 182 L492 418 Z"/></clipPath>
+<rect x="100" y="170" width="400" height="260" fill="url(#dots)" clip-path="url(#pages)"/>
+<path d="M300 166 V426" stroke="#c6bca5" stroke-width="2"/>
+<path d="M352 160 C 350 260, 368 340, 356 476 L366 468 L374 480 C 386 340, 366 260, 364 160 Z" fill="#b5483c"/>
+<rect x="528" y="190" width="10" height="250" rx="2" fill="#1a221d"/>
+</g>
+</svg>

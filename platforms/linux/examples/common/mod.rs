@@ -26,6 +26,7 @@ pub const SECTIONS: [(&str, &[Example]); 2] = [
             Example { name: "chat", title: "Chat", summary: "A thread and its composer", icon: "chat-message-new-symbolic", tint: "#34c759" },
             Example { name: "notes", title: "Notes", summary: "Folders, Markdown and search", icon: "accessories-text-editor-symbolic", tint: "#ffcc00" },
             Example { name: "watchlist", title: "Watchlist", summary: "Host modules and a native cell", icon: "power-profile-performance-symbolic", tint: "#5856d6" },
+            Example { name: "shop", title: "Shop", summary: "Catalog, cart and checkout", icon: "package-x-generic-symbolic", tint: "#af52de" },
             Example { name: "events", title: "Events", summary: "Discover, calendar and booking", icon: "x-office-calendar-symbolic", tint: "#ff3b30" },
             Example { name: "settings", title: "Settings", summary: "Grouped preferences and pages", icon: "preferences-system-symbolic", tint: "#8e8e93" },
             Example { name: "portfolio", title: "Portfolio", summary: "Charts, holdings and a form", icon: "x-office-spreadsheet-symbolic", tint: "#30d158" },

@@ -1,0 +1,8 @@
+{
+  "id": "dev.native-shell.shop",
+  "name": "Shop",
+  "version": "1.0.0",
+  "entry": "main.js",
+  "description": "A small store: categories and a product grid, product pages with a photo gallery and variants, search, a cart with promo codes and undo, checkout and order history.",
+  "capabilities": { "storage": true }
+}
