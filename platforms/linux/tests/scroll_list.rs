@@ -18,6 +18,7 @@ fn main() -> ExitCode {
         ("pull to refresh shows the spinner until the script ends it", pull_to_refresh),
         ("lists render the visible range plus prefetch", list_range),
         ("scroll_to_item positions the row", scroll_to_item),
+        ("a bottom-aligned list opens at its end and follows it", bottom_aligned_list),
         ("chat opens at the newest message", chat_opens_at_the_newest_message),
     ])
 }
@@ -202,6 +203,43 @@ fn rows(content: &gtk::Widget) -> usize {
         child = c.next_sibling();
     }
     n
+}
+
+fn bottom_aligned_list() {
+    let f = Fixture::new(
+        r#"
+import { View, div, v_flex, list } from "native-shell";
+export default class App extends View {
+  init() { this.n = 100; this.panel = false; }
+  render() {
+    return v_flex().size_full()
+      .child(div().test_id("add").h(44).on_click((_e, cx) => { this.n += 1; cx.notify(); }))
+      .child(div().test_id("panel").h(44).on_click((_e, cx) => { this.panel = !this.panel; cx.notify(); }))
+      .child(list("thread", this.n, (i) => `m${i}`, (i) => div().h(50).test_id(`m-${i}`))
+        .alignment("bottom").test_id("thread").flex_1())
+      .when(this.panel, (el) => el.child(div().h(200)));
+  }
+}"#,
+    );
+    let vadj = scrolled(&f, "thread").vadjustment();
+    let end = |rows: f64| rows * 50.0 - vadj.page_size();
+    assert_eq!(vadj.value(), end(100.0), "opens at its end");
+    f.expect("m-99");
+    assert!(f.find("m-0").is_none(), "the first range covers the end");
+
+    f.tap("add");
+    assert_eq!(vadj.value(), end(101.0), "a new row at the end stays in view");
+    f.wait_for("m-100");
+
+    let page = vadj.page_size();
+    f.tap("panel");
+    assert_eq!(vadj.page_size(), page - 200.0);
+    assert_eq!(vadj.value(), end(101.0), "a shorter viewport keeps the end in view");
+
+    vadj.set_value(1000.0);
+    f.settle();
+    f.tap("add");
+    assert_eq!(vadj.value(), 1000.0, "scrolled away, the position is kept");
 }
 
 /// The chat example opens at its newest message, in both appearances.

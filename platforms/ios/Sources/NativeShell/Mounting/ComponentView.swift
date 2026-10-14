@@ -4,7 +4,7 @@
 // share; subclasses add their own props on top.
 //
 // Reset contract: every prop handled here restores its default on `.null`.
-// `prepareForReuse` replays `.null` for every prop the view has seen, so a
+// `resetForReuse` replays `.null` for every prop the view has seen, so a
 // pooled view comes back exactly as a fresh one.
 
 import NativeShellShared
@@ -23,7 +23,7 @@ protocol ComponentContext: AnyObject {
 }
 
 @objc(NSHComponentView)
-open class NSHComponentView: UIView, UIGestureRecognizerDelegate {
+class NSHComponentView: UIView, UIGestureRecognizerDelegate {
     var nodeId: UInt32 = 0
     var viewType: NSHViewType = .view
     weak var context: ComponentContext?
@@ -38,12 +38,12 @@ open class NSHComponentView: UIView, UIGestureRecognizerDelegate {
     /// The frame the core gave, kept independent of transforms.
     private(set) var nodeFrame: CGRect = .zero
 
-    required override public init(frame: CGRect) {
+    required override init(frame: CGRect) {
         super.init(frame: frame)
         commonInit()
     }
 
-    required public init?(coder: NSCoder) { fatalError("not supported") }
+    required init?(coder: NSCoder) { fatalError("not supported") }
 
     /// Subclasses set up their subviews here.
     func commonInit() {}
@@ -101,6 +101,8 @@ open class NSHComponentView: UIView, UIGestureRecognizerDelegate {
         let size = CGSize(width: max(0, rect.width), height: max(0, rect.height))
         if bounds.size != size { bounds = CGRect(origin: bounds.origin, size: size) }
         center = CGPoint(x: rect.midX, y: rect.midY)
+        // Inside an animation block (a declared transition), lay out now so subviews animate along.
+        if UIView.inheritedAnimationDuration > 0 { layoutIfNeeded() }
     }
 
     /// A theme token as a dynamic color (defaults, overridden by the host's theme provider).
@@ -117,12 +119,18 @@ open class NSHComponentView: UIView, UIGestureRecognizerDelegate {
     /// Surfaces are not pooled: they may still be animating out when deleted.
     var isPoolable: Bool { !isSurface }
 
+    /// Pages, sheets and dialogs: presented by the surface presenter when attached to the root.
+    var isSurface: Bool { viewType == .page || viewType == .sheet || viewType == .dialog }
+
+    /// The registered component a host component container holds (pooled by it).
+    var hostComponentName: String? { nil }
+
     /// The node is being deleted (before it is reset and pooled).
     func willDestroy() {}
 
     func runCommand(_ command: Command, _ payload: [String: Any]) {}
 
-    override open func layoutSubviews() {
+    override func layoutSubviews() {
         super.layoutSubviews()
         layoutDecorations()
     }
@@ -235,7 +243,7 @@ open class NSHComponentView: UIView, UIGestureRecognizerDelegate {
         return true
     }
 
-    func prepareForReuse() {
+    func resetForReuse() {
         for raw in seenProps {
             if let p = Prop(rawValue: raw) { setProp(p, .null) }
         }
@@ -461,12 +469,12 @@ open class NSHComponentView: UIView, UIGestureRecognizerDelegate {
 
     // MARK: Keys
 
-    override open func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+    override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
         KeyEvents.route(presses, phase: "down", to: self)
         super.pressesBegan(presses, with: event)
     }
 
-    override open func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+    override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
         KeyEvents.route(presses, phase: "up", to: self)
         super.pressesEnded(presses, with: event)
     }
@@ -474,13 +482,13 @@ open class NSHComponentView: UIView, UIGestureRecognizerDelegate {
     // MARK: Touch
 
     /// VoiceOver activation (and UI tests) performs the click the script listens for.
-    override open func accessibilityActivate() -> Bool {
+    override func accessibilityActivate() -> Bool {
         guard listens(EventMask.click) else { return super.accessibilityActivate() }
         send(.click, ["x": Double(bounds.midX), "y": Double(bounds.midY), "count": 1])
         return true
     }
 
-    override open func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
         if hitSlop == .zero { return super.point(inside: point, with: event) }
         let r = bounds.inset(by: UIEdgeInsets(top: -hitSlop.top, left: -hitSlop.left, bottom: -hitSlop.bottom, right: -hitSlop.right))
         return r.contains(point)
@@ -674,7 +682,7 @@ open class NSHComponentView: UIView, UIGestureRecognizerDelegate {
         }
     }
 
-    public func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+    func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
         g is PressGestureRecognizer || other is PressGestureRecognizer || g is UIPinchGestureRecognizer
     }
 }
@@ -777,7 +785,7 @@ enum Paths {
 }
 
 extension NSHComponentView: UIPointerInteractionDelegate {
-    public func pointerInteraction(_ interaction: UIPointerInteraction, styleFor region: UIPointerRegion) -> UIPointerStyle? {
+    func pointerInteraction(_ interaction: UIPointerInteraction, styleFor region: UIPointerRegion) -> UIPointerStyle? {
         pointerStyle()
     }
 }

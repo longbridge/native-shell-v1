@@ -222,8 +222,8 @@ final class NSHListView: NSHComponentView, UICollectionViewDataSource, UICollect
         }
     }
 
-    override func prepareForReuse() {
-        super.prepareForReuse()
+    override func resetForReuse() {
+        super.resetForReuse()
         rowsByIndex.removeAll()
         reportedRange = nil
         bottomAligned = false
