@@ -14,7 +14,7 @@ use native_shell_core::style::{Arg, Resolved, StyleOp, TextStyle};
 use rquickjs::{Function, Object, Value};
 
 use super::{Instance, SurfaceRecord, SurfaceUpdate};
-use crate::convert::Converter;
+use crate::convert::{Converter, DualForm};
 use crate::error::{script_error, ScriptError};
 use crate::natives::{PendingCommand, Target};
 use crate::sandbox::Phase;
@@ -212,8 +212,21 @@ impl Instance {
     /// Dev mode: warns when a keyed switch, checkbox, radio or progress went from
     /// its native form to the drawn one (or back) since `scope` last rendered. The
     /// node is recreated when that happens, so a tap in flight is lost.
-    fn check_dual_forms(&mut self, scope: &str, now: Vec<(String, bool)>) {
-        let now: HashMap<String, bool> = now.into_iter().collect();
+    fn check_dual_forms(&mut self, scope: &str, forms: Vec<DualForm>) {
+        for f in forms.iter().filter(|f| f.empty) {
+            if self.warned_empty.insert(format!("{scope}/{}", f.key)) {
+                self.host.log(
+                    LogLevel::Warn,
+                    &format!(
+                        "native-shell: control `{}` is drawn (it has a style that draws a box) but has no \
+                         children, so nothing shows its state; give it children (a check mark, a track), or \
+                         drop the box styles to use the native control",
+                        f.key
+                    ),
+                );
+            }
+        }
+        let now: HashMap<String, bool> = forms.into_iter().map(|f| (f.key, f.drawn)).collect();
         if let Some(before) = self.dual_forms.get(scope) {
             for (key, drawn) in &now {
                 if before.get(key).is_some_and(|was| was != drawn) {
@@ -222,8 +235,8 @@ impl Instance {
                         LogLevel::Warn,
                         &format!(
                             "native-shell: control `{key}` changed from its {from} form to the {to} one between renders, \
-                             so its view is recreated; give it a style or `.headless()` to keep it drawn, or no \
-                             children and styles to keep it native"
+                             so its view is recreated; give it `.headless()` or a box style to keep it drawn, or \
+                             no children and only layout styles to keep it native"
                         ),
                     );
                 }

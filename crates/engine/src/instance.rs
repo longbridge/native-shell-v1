@@ -212,6 +212,8 @@ pub struct Instance {
     list_owner: HashMap<String, EntityId>,
     /// Dev mode: per view or overlay, its keyed dual-form controls and whether each was drawn.
     dual_forms: HashMap<String, HashMap<String, bool>>,
+    /// Dev mode: drawn controls already warned about for showing no state.
+    warned_empty: HashSet<String>,
     surfaces: Vec<SurfaceRecord>,
     overlay_content: HashMap<String, Desc>,
     /// Render failures by owner (`e<id>` or an overlay key), newest last.
@@ -312,6 +314,7 @@ impl Instance {
             entities: HashMap::new(),
             list_owner: HashMap::new(),
             dual_forms: HashMap::new(),
+            warned_empty: HashSet::new(),
             surfaces: Vec::new(),
             overlay_content: HashMap::new(),
             errors: BTreeMap::new(),

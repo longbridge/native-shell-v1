@@ -31,8 +31,8 @@ pub(crate) struct Converter<'a> {
     pub lists: Vec<String>,
     /// Description nodes built.
     pub nodes: u64,
-    /// Keyed controls with a native and a drawn form, and whether each was drawn.
-    pub dual: Vec<(String, bool)>,
+    /// Keyed controls with a native and a drawn form, and how each came out.
+    pub dual: Vec<DualForm>,
 }
 
 /// What every text leaf of a text view carries.
@@ -150,6 +150,29 @@ fn role(name: &str) -> Option<i32> {
 
 fn field<'js>(obj: &Object<'js>, name: &str) -> Result<Value<'js>> {
     obj.get(name).map_err(|e| format!("reading `{name}` of an element: {e}"))
+}
+
+/// A switch, checkbox, radio or progress with a key, as converted.
+pub(crate) struct DualForm {
+    pub key: String,
+    pub drawn: bool,
+    /// Drawn but with no children to show its state.
+    pub empty: bool,
+}
+
+/// Whether a style draws a box of its own (background, border, radius,
+/// shadow, padding, text style) rather than only placing the element.
+/// Opacity does not count: dimming a native control is not drawing it.
+fn draws_a_box(style: &Resolved, base: &Resolved) -> bool {
+    let (v, b) = (&style.visual, &base.visual);
+    v.background != b.background
+        || v.gradient != b.gradient
+        || v.radii != b.radii
+        || v.border_color != b.border_color
+        || !v.shadows.is_empty()
+        || style.border_widths != base.border_widths
+        || style.layout.padding != base.layout.padding
+        || style.text != base.text
 }
 
 /// A remote image (or a data URL), passed to renderers as is.
@@ -370,14 +393,23 @@ impl Converter<'_> {
                 return Ok(d);
             }
             "switch" | "checkbox" | "progress" => {
-                // Decided by how the element was built (children, styles,
-                // `.headless()`), not by this render's children, so the view
-                // kind stays put while the content changes.
-                let drawn = field(obj, "_hl")?.as_bool().unwrap_or(false)
-                    || string_field(obj, "_sk")?.is_some_and(|s| !s.is_empty())
-                    || array(obj, "_c")?.is_some_and(|c| !c.is_empty());
+                // Decided by how the element was built — a `.child`/`.children`
+                // call, `.headless()`, or a style that draws a box — not by this
+                // render's children, so the view kind stays put while the
+                // content changes. Layout-only styles (margin, size, flex,
+                // position) lay out the native control instead.
+                let children = array(obj, "_c")?.is_some_and(|c| !c.is_empty());
+                let asked = children || field(obj, "_hl")?.as_bool().unwrap_or(false);
+                let drawn = asked || draws_a_box(&*self.style(obj)?, &self.base);
                 if let Some(key) = string_field(obj, "_k")? {
-                    self.dual.push((key, drawn));
+                    // A drawn control with nothing inside shows no state (a
+                    // drawn checkbox's mark is its children).
+                    let checked = match field(obj, "_p")?.into_object() {
+                        Some(p) => p.get::<_, Option<bool>>("checked").ok().flatten().unwrap_or(false),
+                        None => false,
+                    };
+                    let empty = drawn && !children && (el == "progress" || checked);
+                    self.dual.push(DualForm { key, drawn, empty });
                 }
                 return match (drawn, el) {
                     (true, _) => self.drawn(obj, el),

@@ -33,7 +33,7 @@ only; `"gpui-shell"` exists and exports nothing, as in gpui-shell;
 | --- | --- |
 | `image`, `svg` | `image` is a native image view (program-relative assets are materialized to files); `svg` is parsed in Rust into a native shape drawn in one color (its `text_color`, else the theme foreground), like gpui |
 | `Button`, `Link`, `Tab` | headless pressables as in gpui-base; mobile adds `.variant()` and `.label()` |
-| `Checkbox`, `Switch`, `Radio`, `Progress` (+ Track / Indicator) | drawn (headless, as in gpui-base) when the element gets any child, style method or `.headless()`; a bare element is the native control |
+| `Checkbox`, `Switch`, `Radio`, `Progress` (+ Track / Indicator) | drawn (headless, as in gpui-base) when the element gets a child, `.headless()`, or a style that draws a box (background, border, radius, shadow, padding, text); the native control when bare or only placed by layout styles (margin, size, flex, position) |
 | `Slider(state)` and its parts | always the native slider; the part components are accepted and ignored |
 | `Tabs` | headless row of `Tab`s; `.items([...])` makes it a native segmented control |
 | `on_click` event | `{click_count, modifiers, x, y}`; modifiers come from pointer platforms and are all false on touch |

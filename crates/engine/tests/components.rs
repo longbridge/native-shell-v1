@@ -141,14 +141,16 @@ export default class F extends View {
   render() {
     const mark = div().child("✓");
     return v_flex()
-      .child(Checkbox.new("styled").test_id("styled").checked(this.done).size_6()
+      .child(Checkbox.new("styled").test_id("styled").checked(this.done).size_6().rounded_md().border_1()
         .on_change((v, cx) => { this.done = v; cx.notify(); })
         .when(this.done, (el) => el.child(mark)))
       .child(Checkbox.new("bare").test_id("bare").checked(this.done).when(this.done, (el) => el.child("✓")))
       .child(Switch.new("explicit").test_id("explicit").headless())
       .child(Checkbox.new("native").test_id("native").label("Native").checked(this.done).disabled(false))
-      .child(Progress.new("drawn").test_id("drawn").value(40).h_2())
-      .child(Progress.new("bar").test_id("bar").value(40));
+      .child(Progress.new("drawn").test_id("drawn").value(40).h_2().bg("muted").child(div().h_2().w_10()))
+      .child(Progress.new("bar").test_id("bar").value(40))
+      .child(Checkbox.new("placed").test_id("placed").checked(this.done).ml_2().size_6().flex_none())
+      .child(Switch.new("box").test_id("box").checked(true).bg("muted").rounded_full());
   }
 }
 "#;
@@ -156,7 +158,9 @@ export default class F extends View {
 #[test]
 fn a_control_is_drawn_or_native_by_how_it_is_built_not_by_this_renders_children() {
     let mut h = Harness::build(&[("main.js", FORMS)]).dev(true).start();
-    assert_eq!(h.view_type("styled"), ViewType::View, "a style makes it drawn even with no children yet");
+    assert_eq!(h.view_type("styled"), ViewType::View, "a box style makes it drawn even with no children yet");
+    assert_eq!(h.view_type("placed"), ViewType::Checkbox, "margin and size only place the native control");
+    assert_eq!(h.view_type("box"), ViewType::View);
     assert_eq!(h.view_type("explicit"), ViewType::View, ".headless() makes it drawn");
     assert_eq!(h.view_type("drawn"), ViewType::View);
     assert_eq!(h.view_type("bar"), ViewType::Progress);
@@ -175,4 +179,7 @@ fn a_control_is_drawn_or_native_by_how_it_is_built_not_by_this_renders_children(
         .collect::<Vec<_>>();
     assert_eq!(warnings.len(), 1, "dev mode names the flip once: {warnings:?}");
     assert!(warnings[0].contains("`bare`"), "{warnings:?}");
+    let empty: Vec<_> = h.logs().into_iter().filter(|l| l.contains("nothing shows its state")).collect();
+    assert_eq!(empty.len(), 1, "the checked drawn switch without children, once: {empty:?}");
+    assert!(empty[0].contains("`box`"), "{empty:?}");
 }

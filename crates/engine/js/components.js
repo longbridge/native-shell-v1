@@ -2,8 +2,9 @@
 //
 // gpui-base's components are headless: they carry activation, focus, value and
 // accessibility, and the script draws them. The same code works here: a
-// `Checkbox` or `Switch` the script draws (it was given children, a style or
-// `.headless()`) is a pressable view that announces its state, a `Progress`
+// `Checkbox` or `Switch` the script draws (it was given children,
+// `.headless()`, or a style that draws a box: background, border, radius,
+// shadow, padding, text) is a pressable view that announces its state, a `Progress`
 // with a `ProgressTrack` is a plain view. Left bare, the controls a phone has
 // natively (switch, checkbox, slider, progress, segmented tabs, menus, date
 // pickers) become those native controls instead. Which one is decided by how
@@ -89,8 +90,9 @@ export const Link = Object.freeze({ new: (id) => new ButtonElement(id, "link") }
 
 /**
  * Mixed into the controls that have a native and a drawn form: any
- * `.child`/`.children` call (even one adding nothing), any style method, or
- * `.headless()` makes the element the drawn form (see `Converter::element`).
+ * `.child`/`.children` call (even one adding nothing), `.headless()`, or a
+ * box-drawing style makes the element the drawn form; layout-only styles
+ * place the native control (see `Converter::element`).
  */
 const Drawable = (Base) =>
   class extends Base {
@@ -112,8 +114,9 @@ const Drawable = (Base) =>
   };
 
 /**
- * `Switch`, `Checkbox`, `Radio`: a native control when bare; given children or
- * styles, a pressable view the script draws (as gpui-base's are), toggled by a tap.
+ * `Switch`, `Checkbox`, `Radio`: a native control when bare or only placed by
+ * layout styles; given children or box styles, a pressable view the script
+ * draws (as gpui-base's are), toggled by a tap.
  */
 class ToggleElement extends Drawable(Element) {
   constructor(kind, id, style) {
