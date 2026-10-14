@@ -249,8 +249,8 @@ fn progress_and_spinner_draw() {
     let bar = f.bounds(&f.expect("bar"));
     let y = (bar.y() + bar.height() / 2.0) as i32;
     // Half filled with the theme's primary, the rest is the track.
-    assert_eq!(f.pixel((bar.x() + 20.0) as i32, y), 0xff171717);
-    assert_ne!(f.pixel((bar.x() + bar.width() - 20.0) as i32, y), 0xff171717);
+    assert_eq!(f.pixel((bar.x() + 20.0) as i32, y), 0xff007aff);
+    assert_ne!(f.pixel((bar.x() + bar.width() - 20.0) as i32, y), 0xff007aff);
     // A new primary redraws the chrome drawn from it.
     f.tap("brand");
     assert_eq!(f.pixel((bar.x() + 20.0) as i32, y), 0xffff0000);
@@ -309,7 +309,7 @@ fn settings_example() {
     let list = find(popover.upcast_ref(), |w| w.is::<gtk::ListBox>()).and_downcast::<gtk::ListBox>().expect("menu list");
     list.emit_by_name::<()>("row-activated", &[&list.row_at_index(2).expect("Dark")]);
     f.settle();
-    assert_eq!(f.pixel(4, 200), 0xff0a0a0a, "the dark background");
+    assert_eq!(f.pixel(4, 200), 0xff000000, "the dark background");
 }
 
 /// A components example page as the program's root view.
