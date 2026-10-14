@@ -489,6 +489,10 @@ impl NodeView {
         self.update_press(|p| p.pressed = pressed);
     }
 
+    pub fn hit_slop(&self) -> [f32; 4] {
+        self.imp().hit_slop.get()
+    }
+
     pub fn set_hit_slop(&self, slop: [f32; 4]) {
         self.imp()
             .hit_slop

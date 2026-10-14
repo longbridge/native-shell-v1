@@ -203,7 +203,8 @@ fn pans_report_phases_and_offsets() {
     return v_flex().size_full().test_id(`log-${{this.log.join(",")}}`)
       .child(div().test_id("card").w(200).h(200)
         .on_click((e, cx) => this.note("click", cx))
-        .on_pan((e, cx) => this.note(`${{e.phase}}:${{Math.round(e.dx)}}`, cx)));
+        .on_pan((e, cx) => this.note(`${{e.phase}}:${{Math.round(e.dx)}}`, cx))
+        .on_pinch((e, cx) => this.note(`pinch-${{e.phase}}:${{e.scale}}`, cx)));
   }}
 }}"##
     ));
@@ -423,6 +424,8 @@ export default class App extends View {
 }
 
 fn transitions_animate_frames_and_opacity() {
+    let settings = gtk::Settings::default().expect("settings");
+    settings.set_gtk_enable_animations(true);
     let f = Fixture::new(
         r##"
 import { View, div, v_flex } from "native-shell";
@@ -462,7 +465,6 @@ export default class App extends View {
     assert!(!panel.is_animating());
 
     // Reduce Motion: frames jump, fades still run.
-    let settings = gtk::Settings::default().expect("settings");
     settings.set_gtk_enable_animations(false);
     f.tap("toggle");
     assert_eq!(panel.presented_frame().map(|r| r.height), Some(100.0));

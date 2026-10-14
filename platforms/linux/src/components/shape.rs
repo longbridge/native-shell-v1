@@ -148,4 +148,24 @@ mod tests {
             (-10.0, -10.0, 1.0)
         );
     }
+
+    #[test]
+    fn path_data_parses_like_svg() {
+        let bounds = |d: &str| parse_path(d).and_then(|p| p.bounds()).map(|b| (b.x(), b.y(), b.width(), b.height()));
+        // Implicit line-tos after a move, relative commands, compact numbers.
+        assert_eq!(bounds("m1 1 9 0 0 9z"), Some((1.0, 1.0, 9.0, 9.0)));
+        assert_eq!(bounds("M1.5.5L2.5.5V3"), Some((1.5, 0.5, 1.0, 2.5)));
+        assert_eq!(bounds("M0,0L1e1,1E1"), Some((0.0, 0.0, 10.0, 10.0)));
+        // Arcs, as icon sets draw circles: a full circle of radius 5 around (10, 10).
+        let (x, y, w, h) = bounds("M5 10a5 5 0 1 0 10 0a5 5 0 1 0-10 0").expect("arc");
+        assert!((x - 5.0).abs() < 0.01 && (y - 5.0).abs() < 0.01 && (w - 10.0).abs() < 0.01 && (h - 10.0).abs() < 0.01);
+        // Curves with reflected control points.
+        assert!(parse_path("M0 0C1 1 2 1 3 0S5-1 6 0Q7 1 8 0T10 0").is_some());
+        // A dot drawn as a tiny segment, as Lucide does.
+        assert!(parse_path("M12 12h.01").is_some());
+        // Malformed or empty data draws nothing.
+        assert!(parse_path("").is_none());
+        assert!(parse_path("L 1 1").is_none());
+        assert!(parse_path("M 1").is_none());
+    }
 }
