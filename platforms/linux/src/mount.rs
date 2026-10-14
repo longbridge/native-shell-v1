@@ -62,6 +62,28 @@ impl MountingManager {
         self.nodes.get(&node).map_or(0, |n| n.mask)
     }
 
+    pub fn parent(&self, node: u32) -> Option<u32> {
+        self.nodes.get(&node).and_then(|n| n.parent)
+    }
+
+    /// The node whose view is `widget` or contains it.
+    pub fn node_of(&self, widget: &gtk::Widget) -> Option<u32> {
+        let mut current = Some(widget.clone());
+        while let Some(w) = current {
+            if let Some(view) = w.downcast_ref::<NodeView>() {
+                if let Some((id, _)) = self.nodes.iter().find(|(_, n)| &n.view == view) {
+                    return Some(*id);
+                }
+            }
+            current = w.parent();
+        }
+        None
+    }
+
+    pub fn node_count(&self) -> usize {
+        self.nodes.len()
+    }
+
     /// Decodes and applies one batch buffer. A malformed buffer is rejected whole.
     pub fn apply_buffer(&mut self, bytes: &[u8]) -> Result<(), protocol::DecodeError> {
         let mutations = protocol::decode(bytes)?;

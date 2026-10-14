@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use native_shell::runner::ThreadedInstance;
-use native_shell::InstanceConfig;
+use native_shell::{InstanceConfig, Metrics};
 use native_shell_core::host::{Environment, Host, LogLevel, Measurer, TextMetrics, WidthMode};
 use native_shell_core::manifest::Manifest;
 use native_shell_core::protocol::EventType;
@@ -72,6 +72,22 @@ impl Instance {
         let mut files = BTreeMap::new();
         collect_sources(dir, dir, &mut files)?;
         self.threaded.load_sources(manifest, files).map_err(|e| e.to_string())
+    }
+
+    /// Loads a program from memory: the manifest JSON and its files by path (`main.js`…).
+    pub fn load_sources(&self, manifest_json: &str, files: BTreeMap<String, String>) -> Result<(), String> {
+        let manifest = Manifest::parse(manifest_json).map_err(|e| e.to_string())?;
+        self.threaded.load_sources(manifest, files).map_err(|e| e.to_string())
+    }
+
+    /// Runtime counters, asked of the JS thread: every message sent before is handled when it answers.
+    pub fn metrics(&self) -> Option<Metrics> {
+        self.threaded.metrics()
+    }
+
+    /// The counters as of the JS thread's last tick; never blocks.
+    pub fn metrics_snapshot(&self) -> Metrics {
+        self.threaded.metrics_snapshot()
     }
 
     pub fn set_environment(&self, env: Environment) {

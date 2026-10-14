@@ -28,3 +28,9 @@ opt-level = "s"
 lto = true
 codegen-units = 1
 panic = "unwind"
+
+# GTK runs on one thread per process: each test file is its own harness
+# (tests/support/mod.rs).
+[[test]]
+name = "surface"
+harness = false
