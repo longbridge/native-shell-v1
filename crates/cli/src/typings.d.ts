@@ -682,7 +682,8 @@ declare module "native-shell" {
       /**
        * Mobile: `"contain"` (default) fits the view box uniformly, as an icon;
        * `"fill"` stretches it to the laid-out frame on each axis, with strokes
-       * kept in points (a chart's line across a plot of any width).
+       * kept in points (a chart's line across a plot of any width). Every path
+       * command stretches except an arc with a rotated ellipse, which throws.
        */
       fit?: "contain" | "fill";
     },
