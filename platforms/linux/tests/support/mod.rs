@@ -45,7 +45,7 @@ use std::time::{Duration, Instant};
 pub use gtk::prelude::*;
 use gtk::{gdk, glib, graphene};
 use native_shell_core::protocol::{event_mask, EventType};
-use native_shell_gtk::{Instance, InstanceOptions, SurfaceView};
+use native_shell_gtk::{Instance, InstanceOptions, Runtime, SurfaceView};
 
 /// Phone-sized by default, like the other platforms' test surfaces.
 pub const WIDTH: i32 = 390;
@@ -111,6 +111,10 @@ pub fn run(cases: &[(&str, fn())]) -> ExitCode {
             println!("{name}: test");
         }
         return ExitCode::SUCCESS;
+    }
+    // Temporary data directories stay off the small /tmp.
+    if std::env::var_os("TMPDIR").is_none() {
+        std::env::set_var("TMPDIR", env!("CARGO_TARGET_TMPDIR"));
     }
     let _display = start_display();
     gtk::init().expect("GTK cannot start");
@@ -197,6 +201,8 @@ pub struct Fixture {
     pub surface: SurfaceView,
     pub instance: Rc<Instance>,
     size: Cell<(i32, i32)>,
+    /// The program's data directory, removed with the fixture.
+    pub data_dir: tempfile::TempDir,
 }
 
 impl Fixture {
@@ -218,18 +224,27 @@ impl Fixture {
     }
 
     fn start(load: impl FnOnce(&Instance) -> Result<(), String>) -> Fixture {
-        Fixture::start_with(InstanceOptions::default(), load)
+        Fixture::start_with(&Runtime::new(), InstanceOptions::default(), load)
     }
 
-    /// Like the constructors above, with explicit instance options.
-    pub fn start_with(options: InstanceOptions, load: impl FnOnce(&Instance) -> Result<(), String>) -> Fixture {
+    /// Runs `files` with the host modules and components registered in `runtime`.
+    pub fn with_runtime(runtime: &Runtime, manifest_json: &str, files: &[(&str, &str)]) -> Fixture {
+        let files: BTreeMap<String, String> = files.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+        Fixture::start_with(runtime, InstanceOptions::default(), |instance| instance.load_sources(manifest_json, files))
+    }
+
+    /// The general constructor: a runtime, instance options (the data
+    /// directory defaults to a fresh temporary one) and how to load the program.
+    pub fn start_with(runtime: &Runtime, mut options: InstanceOptions, load: impl FnOnce(&Instance) -> Result<(), String>) -> Fixture {
+        let data_dir = tempfile::tempdir().expect("temporary data directory");
+        options.data_dir.get_or_insert_with(|| data_dir.path().to_path_buf());
         let surface = SurfaceView::new();
         let window = gtk::Window::builder().decorated(false).child(&surface).build();
         window.present();
         pump();
-        let instance = Rc::new(Instance::new("dev.native-shell.test", options).expect("instance"));
+        let instance = Rc::new(Instance::with_runtime("dev.native-shell.test", options, runtime).expect("instance"));
         surface.attach(instance.clone());
-        let f = Fixture { window, surface, instance, size: Cell::new((WIDTH, HEIGHT)) };
+        let f = Fixture { window, surface, instance, size: Cell::new((WIDTH, HEIGHT)), data_dir };
         // The first environment carries the real size, so the first frame is laid out for it.
         f.layout();
         load(&f.instance).unwrap_or_else(|e| panic!("the program did not load: {e}"));
@@ -305,12 +320,10 @@ impl Fixture {
         widget.compute_bounds(&self.surface).unwrap_or_else(|| panic!("{widget:?} is not inside the surface"))
     }
 
-    /// Taps the node with `test_id` through GTK: emits the press and release of
-    /// the first click gesture at or above its widget (or `clicked` on a
-    /// `gtk::Button`), at the widget's center, then settles.
+    /// Taps the node with `test_id` through GTK ([`click_widget`]), then settles.
     pub fn click(&self, test_id: &str) {
         let widget = self.expect(test_id);
-        assert!(click_widget(&widget), "no click gesture at or above {test_id:?}");
+        assert!(click_widget(&widget, self.surface.upcast_ref()), "nothing clickable at {test_id:?}");
         self.settle();
     }
 
@@ -378,28 +391,65 @@ fn find_widget(root: &gtk::Widget, matches: &dyn Fn(&gtk::Widget) -> bool) -> Op
     None
 }
 
-/// Emits a full click on the first click gesture at or above `widget`; false when there is none.
-pub fn click_widget(widget: &gtk::Widget) -> bool {
-    let (w, h) = (widget.width() as f64, widget.height() as f64);
+/// Emits a full click where a finger on `widget`'s center would land: on a
+/// `gtk::Button` or click gesture in the node's own content (not its child
+/// nodes), else on the first click gesture at or above it, up to the surface.
+/// False when there is none.
+pub fn click_widget(widget: &gtk::Widget, surface: &gtk::Widget) -> bool {
+    if let Some(target) = content_target(widget) {
+        return emit_click(&target, widget);
+    }
     let mut current = Some(widget.clone());
     while let Some(target) = current {
-        if let Some(button) = target.downcast_ref::<gtk::Button>() {
-            button.emit_clicked();
-            return true;
+        if has_click(&target) {
+            return emit_click(&target, widget);
         }
-        let point = widget
-            .compute_point(&target, &graphene::Point::new((w / 2.0) as f32, (h / 2.0) as f32))
-            .map_or((w / 2.0, h / 2.0), |p| (p.x() as f64, p.y() as f64));
-        let controllers = target.observe_controllers();
-        for i in 0..controllers.n_items() {
-            let Some(gesture) = controllers.item(i).and_downcast::<gtk::GestureClick>() else { continue };
-            gesture.emit_by_name::<()>("pressed", &[&1i32, &point.0, &point.1]);
-            gesture.emit_by_name::<()>("released", &[&1i32, &point.0, &point.1]);
-            return true;
+        if &target == surface {
+            break;
         }
         current = target.parent();
     }
     false
+}
+
+fn has_click(widget: &gtk::Widget) -> bool {
+    widget.is::<gtk::Button>() || click_gesture(widget).is_some()
+}
+
+fn click_gesture(widget: &gtk::Widget) -> Option<gtk::GestureClick> {
+    let controllers = widget.observe_controllers();
+    (0..controllers.n_items()).find_map(|i| controllers.item(i).and_downcast::<gtk::GestureClick>())
+}
+
+/// The first clickable widget inside `node`'s content, skipping child nodes.
+fn content_target(node: &gtk::Widget) -> Option<gtk::Widget> {
+    let mut child = node.first_child();
+    while let Some(w) = child {
+        if !w.is::<native_shell_gtk::NodeView>() {
+            if has_click(&w) {
+                return Some(w);
+            }
+            if let Some(found) = content_target(&w) {
+                return Some(found);
+            }
+        }
+        child = w.next_sibling();
+    }
+    None
+}
+
+fn emit_click(target: &gtk::Widget, origin: &gtk::Widget) -> bool {
+    if let Some(button) = target.downcast_ref::<gtk::Button>() {
+        button.emit_clicked();
+        return true;
+    }
+    let Some(gesture) = click_gesture(target) else { return false };
+    let center = graphene::Point::new(origin.width() as f32 / 2.0, origin.height() as f32 / 2.0);
+    let point = origin.compute_point(target, &center).unwrap_or(center);
+    let (x, y) = (point.x() as f64, point.y() as f64);
+    gesture.emit_by_name::<()>("pressed", &[&1i32, &x, &y]);
+    gesture.emit_by_name::<()>("released", &[&1i32, &x, &y]);
+    true
 }
 
 /// Renders `widget` (inside a realized window) into a texture.

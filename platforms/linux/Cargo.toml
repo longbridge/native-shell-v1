@@ -47,3 +47,7 @@ harness = false
 [[test]]
 name = "controls"
 harness = false
+
+[[test]]
+name = "host"
+harness = false

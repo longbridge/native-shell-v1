@@ -22,6 +22,8 @@ pub struct Shared {
     pub theme: RefCell<ThemeTokens>,
     /// The surface's root node view (node 0), for overlays and toasts.
     pub root: NodeView,
+    /// Host component types and the log sink.
+    pub runtime: crate::runtime::Runtime,
 }
 
 /// The node a component call is about.

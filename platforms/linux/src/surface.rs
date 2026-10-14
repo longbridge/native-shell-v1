@@ -100,7 +100,12 @@ impl SurfaceView {
             let seq = surface.imp().manager.borrow().as_ref().map_or(0, |m| m.seq());
             instance.dispatch_event(node, event, &payload, seq);
         });
-        let shared = Rc::new(Shared { events, theme: RefCell::new(ThemeTokens::default()), root: imp.root.clone() });
+        let shared = Rc::new(Shared {
+            events,
+            theme: RefCell::new(ThemeTokens::default()),
+            root: imp.root.clone(),
+            runtime: instance.runtime().clone(),
+        });
         imp.manager.replace(Some(MountingManager::new(shared)));
         imp.instance.replace(Some(instance.clone()));
         imp.last_env.replace(None);
@@ -177,16 +182,7 @@ impl SurfaceView {
     pub fn environment(&self) -> Environment {
         // Fractional scales (125 %…) are only known to the realized surface.
         let scale = self.native().and_then(|n| n.surface()).map_or(self.scale_factor() as f64, |s| s.scale());
-        Environment {
-            width: self.width() as f32,
-            height: self.height() as f32,
-            scale: scale as f32,
-            font_scale: font_scale(),
-            appearance: if adw::StyleManager::default().is_dark() { Appearance::Dark } else { Appearance::Light },
-            platform: "linux".into(),
-            locale: locale(),
-            ..Environment::default()
-        }
+        Environment { width: self.width() as f32, height: self.height() as f32, scale: scale as f32, ..initial_environment() }
     }
 
     fn sync_environment(&self) {
@@ -226,6 +222,18 @@ impl SurfaceView {
                 surface.sync_environment();
             }
         });
+    }
+}
+
+/// What an instance starts with before a surface reports its size.
+pub(crate) fn initial_environment() -> Environment {
+    Environment {
+        scale: 1.0,
+        font_scale: font_scale(),
+        appearance: if adw::StyleManager::default().is_dark() { Appearance::Dark } else { Appearance::Light },
+        platform: "linux".into(),
+        locale: locale(),
+        ..Environment::default()
     }
 }
 

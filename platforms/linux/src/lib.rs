@@ -8,15 +8,24 @@
 //! (background, border, corner radii, shadow). Native GTK controls (entries,
 //! switches, scrolled windows, drop-downs…) live inside a node as its content.
 
+mod clipboard;
 mod component;
 mod components;
 mod instance;
 mod mount;
 mod node_view;
+mod runtime;
 mod surface;
 mod text;
 mod theme;
 
-pub use instance::{Instance, InstanceOptions};
+pub use instance::{default_data_dir, Instance, InstanceOptions};
+pub use native_shell::{Limits, Metrics, ThemeConfig};
+pub use native_shell_core::host::{
+    Environment, HostComponentDescriptor, HostMethod, HostModuleDescriptor, HostRegistry, LogLevel, MethodKind, WidthMode,
+};
+pub use native_shell_core::manifest::Capabilities;
+pub use native_shell_core::theme::Appearance;
+pub use runtime::{CallContext, EventSink, HostComponent, HostComponentType, HostModule, Responder, Runtime};
 pub use node_view::NodeView;
 pub use surface::SurfaceView;
