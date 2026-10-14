@@ -3,10 +3,9 @@
 
 /** @import { AsyncContext, Context, Element } from "native-shell" */
 
-// Spelled in the order the runtime writes a keystroke: ctrl, alt, shift, cmd.
 const CHORDS = {
   new_note: ["cmd-n", "ctrl-n"],
-  new_folder: ["shift-cmd-n", "ctrl-shift-n"],
+  new_folder: ["cmd-shift-n", "ctrl-shift-n"],
   search: ["cmd-f", "ctrl-f"],
 };
 

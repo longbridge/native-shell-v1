@@ -82,7 +82,7 @@ export function openEditor(cx, task, actions) {
                 rows: [
                   row(cx, {
                     id: "editor-due-row",
-                    label: "Due date",
+                    label: "Due Date",
                     trailing: Switch.new("editor-due")
                       .test_id("editor-due")
                       .accessibility_label("Due date")
@@ -112,7 +112,7 @@ export function openEditor(cx, task, actions) {
                 rows: [
                   row(cx, {
                     id: "editor-delete",
-                    label: "Delete task",
+                    label: "Delete Task",
                     destructive: true,
                     on_click: (_e, cx) => {
                       actions.remove(task, cx);
