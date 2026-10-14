@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+<defs>
+<radialGradient id="backdrop" cx="0.5" cy="0.4" r="0.75">
+<stop offset="0" stop-color="#f3f4f4"/><stop offset="1" stop-color="#dfe2e3"/></radialGradient>
+<linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#3a2f22" stop-opacity="0"/><stop offset="1" stop-color="#3a2f22" stop-opacity="0.05"/></linearGradient>
+<filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="12"/></filter>
+<filter id="blur-s" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
+</defs>
+<rect width="600" height="600" fill="url(#backdrop)"/>
+<rect y="360" width="600" height="240" fill="url(#floor)"/>
+<g transform="translate(0 0)">
+<ellipse cx="300" cy="474" rx="170" ry="18" fill="#3a2f22" opacity="0.16" filter="url(#blur)"/>
+<ellipse cx="300" cy="472" rx="136" ry="9" fill="#3a2f22" opacity="0.22" filter="url(#blur-s)"/>
+<defs>
+<linearGradient id="body" x1="196" x2="414" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#767b83"/><stop offset="0.28" stop-color="#f2f4f6"/>
+<stop offset="0.55" stop-color="#b2b6bb"/><stop offset="1" stop-color="#767b83"/></linearGradient>
+<linearGradient id="lid" x1="227" x2="383" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#767b83"/><stop offset="0.35" stop-color="#f2f4f6"/><stop offset="1" stop-color="#767b83"/></linearGradient>
+<linearGradient id="metal" x1="80" y1="220" x2="220" y2="460" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#b2b6bb"/><stop offset="1" stop-color="#767b83"/></linearGradient>
+</defs>
+<path d="M398 314 C 470 298, 482 318, 478 360 L470 420 C 467 440, 442 446, 412 440" fill="none" stroke="#767b83" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M404 312 C 462 302, 472 318, 470 352" fill="none" stroke="#f2f4f6" stroke-opacity="0.6" stroke-width="5" stroke-linecap="round"/>
+<path d="M226 442 C 178 446, 158 432, 154 400" fill="none" stroke="url(#metal)" stroke-width="26" stroke-linecap="round"/>
+<path d="M214 446 C 150 450, 140 420, 145 370 C 150 310, 142 262, 96 238 C 90 235, 84 236, 80 241" fill="none" stroke="url(#metal)" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M146 400 C 142 380, 146 340, 146 312" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="3" stroke-linecap="round"/>
+<path d="M210 290 L196 452 Q195 474 218 474 L392 474 Q415 474 414 452 L400 290 Z" fill="url(#body)"/>
+<rect x="232" y="300" width="22" height="160" rx="11" fill="#ffffff" opacity="0.18" filter="url(#blur-s)"/>
+<path d="M197 444 L413 444" stroke="#767b83" stroke-opacity="0.5" stroke-width="2"/>
+<ellipse cx="305" cy="290" rx="95" ry="15" fill="#f2f4f6"/>
+<path d="M226 290 C 238 254, 372 254, 384 290 A79 12 0 0 1 226 290 Z" fill="url(#lid)"/>
+<rect x="298" y="246" width="14" height="14" fill="#767b83"/>
+<ellipse cx="305" cy="246" rx="20" ry="9" fill="#767b83"/>
+<ellipse cx="301" cy="244" rx="9" ry="3" fill="#f2f4f6" opacity="0.6"/>
+</g>
+</svg>

@@ -202,6 +202,7 @@ impl Tree {
                 l.padding.left,
             ];
             n.abs = abs;
+            let mut restretch = None;
             let below = if let Some(t) = n.native {
                 let rel = Frame {
                     x: round(abs.x - pabs.x),
@@ -210,11 +211,15 @@ impl Tree {
                     height: abs.height,
                 };
                 if n.frame != Some(rel) {
+                    let resized = n.frame.is_none_or(|f| f.width != rel.width || f.height != rel.height);
                     n.frame = Some(rel);
                     b.frames.push(Mutation::SetFrame {
                         node: id,
                         frame: rel,
                     });
+                    if resized && matches!(n.src_kind, Some(ElementKind::Shape { stretch: true })) {
+                        restretch = Some((rel.width, rel.height));
+                    }
                 }
                 match t {
                     // A text field's padding insets its editable text natively.
@@ -242,6 +247,9 @@ impl Tree {
             } else {
                 pabs
             };
+            if let Some((w, h)) = restretch {
+                self.stretch_to(b, id, w, h);
+            }
             let Some(n) = self.nodes.get(&id) else {
                 continue;
             };

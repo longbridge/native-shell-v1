@@ -100,8 +100,7 @@ export default class EditorPage extends View {
           destructive: true,
           run: (cx) => {
             cx.navigator.pop();
-            // The toast's Undo outlives this page, so the delete runs owned by none.
-            cx.timer.after(0, (cx) => deleteNotes(cx, [note.id]), { owner: null });
+            deleteNotes(cx, [note.id]);
           },
         },
       ],

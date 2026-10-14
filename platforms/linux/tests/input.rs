@@ -18,6 +18,7 @@ fn main() -> ExitCode {
         ("filters limit what is typed", filters_limit_what_is_typed),
         ("submit, done and focus", submit_done_and_focus),
         ("multiline editor", multiline_editor),
+        ("multiline placeholder sits on the first line", multiline_placeholder_sits_on_the_first_line),
         ("selection uses the theme's selection color", selection_uses_the_theme_token),
         ("chat composer sends and clears", chat_composer_sends_and_clears),
         ("address form: return moves on, validation", address_form),
@@ -185,6 +186,52 @@ fn multiline_editor() {
     f.expect("notes=Gate code 1234\nLeave at the door");
     assert_eq!(log(&f), "notes.change,notes.change");
     assert!(notes.wrap_mode() != gtk::WrapMode::None, "long notes wrap");
+}
+
+fn multiline_placeholder_sits_on_the_first_line() {
+    let f = Fixture::new(
+        r##"
+import { View, v_flex, Textarea, TextareaState } from "native-shell";
+export default class App extends View {
+  init() { this.notes = TextareaState.new({ placeholder: "Gate code, a safe place to leave it", rows: 4 }); }
+  render() {
+    return v_flex().size_full().bg("#ffffff").p(16)
+      .child(Textarea.new(this.notes).test_id("notes").px(12).py(10).text_base().text_color("#000000"));
+  }
+}"##,
+    );
+    let node = f.expect("notes");
+    let field = f.bounds(&node);
+    let label = find_in(&node, &|w| w.is::<gtk::Label>()).expect("the placeholder");
+    assert!(label.is_visible());
+    assert!(f.bounds(&label).height() < field.height() / 2.0, "one line, not stretched over the field");
+    // No (blinking) caret in the way of the ink.
+    area(&f, "notes").set_cursor_visible(false);
+    let placeholder = ink(&f, &field);
+    // The same words typed: the placeholder must sit exactly where they land.
+    area(&f, "notes").buffer().set_text("Gate code, a safe place to leave it");
+    f.settle();
+    let typed = ink(&f, &field);
+    assert!(!label.is_visible());
+    assert!(placeholder.0.abs_diff(typed.0) <= 1 && placeholder.1.abs_diff(typed.1) <= 1, "placeholder ink at {placeholder:?}, typed text at {typed:?}");
+    // At the insets, at the top: not centered in the four rows.
+    let (left, top) = (typed.0 as f32 - field.x(), typed.1 as f32 - field.y());
+    assert!((12.0..16.0).contains(&left), "leading inset: ink {left} from the edge");
+    assert!((10.0..20.0).contains(&top), "top inset: ink {top} from the top");
+}
+
+/// The top-left of the ink (non-white pixels) inside `rect` of the surface.
+fn ink(f: &Fixture, rect: &gtk::graphene::Rect) -> (u32, u32) {
+    let texture = render(f.surface.upcast_ref());
+    let mut downloader = gtk::gdk::TextureDownloader::new(&texture);
+    downloader.set_format(gtk::gdk::MemoryFormat::B8g8r8a8);
+    let (bytes, stride) = downloader.download_bytes();
+    let (x0, y0) = (rect.x() as usize + 2, rect.y() as usize + 2);
+    let (x1, y1) = ((rect.x() + rect.width()) as usize - 2, (rect.y() + rect.height()) as usize - 2);
+    let dark = |x: usize, y: usize| bytes[y * stride + x * 4 + 1] < 200;
+    let top = (y0..y1).find(|&y| (x0..x1).any(|x| dark(x, y))).expect("ink in the field");
+    let left = (x0..x1).find(|&x| (y0..y1).any(|y| dark(x, y))).expect("ink in the field");
+    (left as u32, top as u32)
 }
 
 fn selection_uses_the_theme_token() {

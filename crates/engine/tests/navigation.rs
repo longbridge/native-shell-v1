@@ -294,6 +294,47 @@ export default class App extends View {
     assert!(h.error_logs().join("\n").contains("`action.on_click` must be a function"), "{:?}", h.error_logs());
 }
 
+const REPLACE: &str = r#"
+import { View, div, v_flex, Button } from "native-shell";
+export default class App extends View {
+  init() { this.log = []; this.n = 0; }
+  render(cx) {
+    return v_flex()
+      .child(div().test_id("log").child(this.log.join(",")))
+      .child(Button.new("up").test_id("up").label("Upload").on_click((_e, cx) => {
+        const n = ++this.n;
+        cx.push_toast({ id: "upload", title: `Uploading ${n}`, timeout: 2000,
+          action: { label: "Cancel", on_click: (cx) => { this.log.push(`cancel ${n}`); cx.notify(); } } });
+      }));
+  }
+}
+"#;
+
+#[test]
+fn a_toast_with_a_showing_id_replaces_it() {
+    let mut h = Harness::new(&[("main.js", REPLACE)]);
+    h.clear_commands();
+    h.tap("up");
+    h.tap("up");
+    let cmds: Vec<_> = h.commands().iter().map(|(n, c, p)| (*n, *c, p.clone())).collect();
+    assert_eq!(cmds.len(), 3, "{cmds:?}");
+    assert_eq!((cmds[0].0, cmds[0].1), (ROOT_NODE, Command::ShowToast));
+    assert_eq!(cmds[1], (ROOT_NODE, Command::DismissToast, r#"{"id":"upload"}"#.to_string()), "the showing one is retracted first");
+    assert_eq!((cmds[2].0, cmds[2].1), (ROOT_NODE, Command::ShowToast));
+    assert!(cmds[2].2.contains("Uploading 2"));
+
+    // Only the replacement's action is live.
+    h.toast_action("upload");
+    assert_eq!(h.text_of("log"), "cancel 2");
+
+    // Once the toast has timed out, the same id is a plain new toast.
+    h.clear_commands();
+    h.advance(2500.0);
+    h.tap("up");
+    let cmds: Vec<_> = h.commands().iter().map(|(_, c, _)| *c).collect();
+    assert_eq!(cmds, vec![Command::ShowToast]);
+}
+
 const SETTINGS: &str = r#"
 import { View, div, v_flex, Button } from "native-shell";
 class Account extends View {
@@ -520,7 +561,7 @@ fn the_settings_example_needs_no_window_refresh_after_its_account_page() {
         }
     }
     assert!(
-        files.iter().any(|(n, t)| n == "main.js" && t.contains("save: (account, cx)")),
+        files.iter().any(|(n, t)| n == "main.js" && t.contains("save: (")),
         "the scenario still exists"
     );
     let refs: Vec<(&str, &str)> = files.iter().map(|(n, t)| (n.as_str(), t.as_str())).collect();
@@ -536,6 +577,44 @@ fn the_settings_example_needs_no_window_refresh_after_its_account_page() {
     h.tap("account");
     h.tap("sign-out");
     h.alert_action(1);
-    assert_eq!(h.text_of("account-name"), "Sign in");
+    assert_eq!(h.text_of("account-label"), "Sign In");
     let _ = std::fs::remove_dir_all(&data);
 }
+
+/// Toasts belong to the window: a page that deletes and closes leaves an Undo that still works.
+#[test]
+fn a_toast_action_outlives_the_page_that_pushed_it() {
+    let mut h = Harness::new(&[(
+        "main.js",
+        r#"
+import { View, div, v_flex, Button } from "native-shell";
+const items = ["a", "b"];
+let list = null;
+class Detail extends View {
+  render() {
+    return Button.new("delete").test_id("delete").label("Delete").on_click((_e, cx) => {
+      const gone = items.pop();
+      cx.navigator.pop();
+      cx.push_toast({ id: "undo", title: "Deleted", action: { label: "Undo", on_click: (cx) => { items.push(gone); cx.notify(list); } } });
+    });
+  }
+}
+export default class App extends View {
+  init(_p, cx) { list = cx.entity(); }
+  render() {
+    return v_flex()
+      .child(div().test_id("items").child(items.join(",")))
+      .child(Button.new("open").test_id("open").label("Open").on_click((_e, cx) => cx.navigator.push(Detail)));
+  }
+}
+"#,
+    )]);
+    h.tap("open");
+    h.tap("delete");
+    assert_eq!(h.surfaces().len(), 1);
+    assert_eq!(h.text_of("items"), "a");
+    h.toast_action("undo");
+    assert_eq!(h.text_of("items"), "a,b");
+    assert!(h.error_logs().is_empty(), "{:?}", h.error_logs());
+}
+

@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+<defs>
+<radialGradient id="backdrop" cx="0.5" cy="0.4" r="0.75">
+<stop offset="0" stop-color="#f3f4ef"/><stop offset="1" stop-color="#e0e3d9"/></radialGradient>
+<linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#3a2f22" stop-opacity="0"/><stop offset="1" stop-color="#3a2f22" stop-opacity="0.05"/></linearGradient>
+<filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="12"/></filter>
+<filter id="blur-s" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
+</defs>
+<rect width="600" height="600" fill="url(#backdrop)"/>
+<rect y="360" width="600" height="240" fill="url(#floor)"/>
+<g transform="translate(-450 -840) scale(3)">
+<ellipse cx="300" cy="500" rx="150" ry="16" fill="#3a2f22" opacity="0.16" filter="url(#blur)"/>
+<ellipse cx="300" cy="498" rx="120" ry="8" fill="#3a2f22" opacity="0.22" filter="url(#blur-s)"/>
+<defs>
+<linearGradient id="canvas" x1="180" x2="420" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#4a4c29"/><stop offset="0.3" stop-color="#8e905a"/>
+<stop offset="0.65" stop-color="#6f7140"/><stop offset="1" stop-color="#4a4c29"/></linearGradient>
+<linearGradient id="flap" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#8e905a"/><stop offset="1" stop-color="#6f7140"/></linearGradient>
+<linearGradient id="leather" x1="0" x2="1">
+<stop offset="0" stop-color="#ad7a4f"/><stop offset="1" stop-color="#8b5a36"/></linearGradient>
+<pattern id="weave" width="4" height="4" patternUnits="userSpaceOnUse">
+<path d="M0 0.5 H4 M0.5 0 V4" stroke="#000000" stroke-opacity="0.04" stroke-width="1"/></pattern>
+</defs>
+<path d="M190 210 C 160 260, 160 420, 176 480" fill="none" stroke="#4a4c29" stroke-width="20" stroke-linecap="round"/>
+<path d="M410 210 C 440 260, 440 420, 424 480" fill="none" stroke="#4a4c29" stroke-width="20" stroke-linecap="round"/>
+<path d="M270 156 C 270 108, 330 108, 330 156" fill="none" stroke="#8b5a36" stroke-width="12" stroke-linecap="round"/>
+<path d="M273 150 C 276 118, 324 118, 327 150" fill="none" stroke="#ad7a4f" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+<rect x="180" y="146" width="240" height="354" rx="64" fill="url(#canvas)"/>
+<rect x="180" y="146" width="240" height="354" rx="64" fill="url(#weave)"/>
+<path d="M180 210 C 180 166, 210 146, 250 146 L350 146 C 390 146, 420 166, 420 210 L420 280 Q420 302 398 302 L202 302 Q180 302 180 280 Z" fill="url(#flap)"/>
+<path d="M192 210 C 192 174, 216 158, 252 158 L348 158 C 384 158, 408 174, 408 210 L408 278 Q408 290 396 290 L204 290 Q192 290 192 278 Z" fill="none" stroke="#4a4c29" stroke-opacity="0.55" stroke-width="1.6" stroke-dasharray="5 4"/>
+<path d="M180 302 H420" stroke="#4a4c29" stroke-opacity="0.5" stroke-width="2"/>
+<rect x="212" y="336" width="176" height="140" rx="26" fill="#6f7140"/>
+<rect x="212" y="336" width="176" height="140" rx="26" fill="url(#weave)"/>
+<rect x="221" y="345" width="158" height="122" rx="20" fill="none" stroke="#4a4c29" stroke-opacity="0.55" stroke-width="1.6" stroke-dasharray="5 4"/>
+<path d="M212 362 H388" stroke="#4a4c29" stroke-opacity="0.35" stroke-width="2"/>
+<rect x="196" y="190" width="200" height="40" rx="18" fill="#ffffff" opacity="0.12" filter="url(#blur-s)"/>
+<rect x="242" y="236" width="18" height="170" rx="4" fill="url(#leather)"/>
+<path d="M245 240 V398 M257 240 V398" stroke="#5f3a20" stroke-opacity="0.6" stroke-width="1" stroke-dasharray="3 3"/>
+<rect x="241" y="404" width="20" height="40" rx="3" fill="#8b5a36"/>
+<rect x="238" y="372" width="26" height="22" rx="4" fill="none" stroke="#d1ab58" stroke-width="4"/>
+<path d="M251 372 V394" stroke="#d1ab58" stroke-width="3"/>
+<circle cx="251" cy="347" r="2.6" fill="#5f3a20"/>
+<circle cx="251" cy="330" r="2.6" fill="#5f3a20"/>
+<rect x="340" y="236" width="18" height="170" rx="4" fill="url(#leather)"/>
+<path d="M343 240 V398 M355 240 V398" stroke="#5f3a20" stroke-opacity="0.6" stroke-width="1" stroke-dasharray="3 3"/>
+<rect x="339" y="404" width="20" height="40" rx="3" fill="#8b5a36"/>
+<rect x="336" y="372" width="26" height="22" rx="4" fill="none" stroke="#d1ab58" stroke-width="4"/>
+<path d="M349 372 V394" stroke="#d1ab58" stroke-width="3"/>
+<circle cx="349" cy="347" r="2.6" fill="#5f3a20"/>
+<circle cx="349" cy="330" r="2.6" fill="#5f3a20"/>
+</g>
+</svg>

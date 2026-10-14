@@ -17,11 +17,13 @@ fn main() -> ExitCode {
         ("slider drags, steps and resets", slider_drags_steps_and_resets),
         ("segmented control selects by tap and arrows", segmented_selects),
         ("select chooses from its menu", select_chooses),
+        ("select without a selection shows its placeholder as a label", select_placeholder),
         ("date picker picks date and time", date_picker_picks),
         ("progress and spinner follow the theme", progress_and_spinner_draw),
         ("controls screenshots", controls_screenshots),
         ("settings example: switches, time and theme", settings_example),
         ("components example: control pages", components_pages),
+        ("components example: charts page", components_charts),
     ])
 }
 
@@ -222,6 +224,34 @@ fn select_chooses() {
     assert!(!popover.is_visible());
 }
 
+fn select_placeholder() {
+    let f = Fixture::new(
+        r#"
+import { View, h_flex, Select } from "native-shell";
+export default class App extends View {
+  render() {
+    return h_flex().child(Select.new("sort").test_id("sort").placeholder("Sort by")
+      .items([{ label: "Name", value: "name" }, { label: "Date", value: "date" }]));
+  }
+}"#,
+    );
+    // The darkest text pixel is the foreground (black), not placeholder gray.
+    let b = f.bounds(&f.expect("sort"));
+    let texture = render(f.surface.upcast_ref());
+    let mut downloader = gdk::TextureDownloader::new(&texture);
+    downloader.set_format(gdk::MemoryFormat::B8g8r8a8);
+    let (bytes, stride) = downloader.download_bytes();
+    let darkest = (b.y() as usize..(b.y() + b.height()) as usize)
+        .flat_map(|y| (b.x() as usize..(b.x() + b.width() / 2.0) as usize).map(move |x| (x, y)))
+        .map(|(x, y)| {
+            let i = y * stride + x * 4;
+            bytes[i..i + 3].iter().map(|c| *c as u32).max().unwrap_or(255)
+        })
+        .min()
+        .unwrap_or(255);
+    assert!(darkest < 40, "placeholder drawn in the label color, darkest channel {darkest}");
+}
+
 fn date_picker_picks() {
     let f = fixture();
     let pill = controls(&f, "date").remove(1);
@@ -358,6 +388,16 @@ fn components_pages() {
     list.emit_by_name::<()>("row-activated", &[&list.row_at_index(3).expect("4 guests")]);
     f.settle();
     screenshots(&f, "components-pickers");
+}
+
+fn components_charts() {
+    let f = components_page("charts");
+    // Prices arrive after a moment; until then the portfolio shows a spinner.
+    f.expect("portfolio-loading");
+    f.wait_for("portfolio-chart");
+    f.tap("steps-chart-point-4");
+    f.tap("portfolio-chart-point-12");
+    screenshots(&f, "components-charts");
 }
 
 fn descendants(w: &gtk::Widget) -> Vec<gtk::Widget> {

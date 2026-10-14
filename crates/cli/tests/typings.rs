@@ -19,6 +19,37 @@ const STRICT: &str = r#"{
   "include": ["**/*.js", "*.d.ts"]
 }"#;
 
+/// Every element a "gpui-component" constructor returns must still be an
+/// `Element`, so it can be passed to `.child()`. A method that narrows a style
+/// method's signature (`size(FormSize)` against `size(Length)`) breaks that;
+/// the error names the export.
+const COMPONENT_CHILDREN: &str = r#"// @ts-check
+import { div } from "native-shell";
+/** @typedef {typeof import("gpui-component")} Exports */
+/** @typedef {import("native-shell").Element} Element */
+/**
+ * Retained states (`CalendarState`…) are not elements; anything with `test_id` is.
+ * @typedef {{ [K in keyof Exports]: Exports[K] extends { new: (...args: any[]) => infer E }
+ *   ? (E extends { test_id: any } ? (E extends Element ? true : K) : true) : true }} Children
+ */
+/** @type {{ [K in keyof Exports]: true }} */
+export const everyComponentIsAChild = /** @type {Children} */ (/** @type {any} */ (null));
+/** @param {import("gpui-component").TagElement} tag */
+export const tagChild = (tag) => div().child(tag).children([tag]);
+/** Charts override `grid`, `fill`, `stroke`, `label` and `value`; each stays a child, configured or not. */
+export const charts = () => {
+  const { BarChart, LineChart, AreaChart, PieChart, RadarChart } = /** @type {Exports} */ (/** @type {any} */ (null));
+  const rows = [{ label: "Mon", value: 1 }];
+  return div()
+    .child(new BarChart(() => rows).grid(true).fill("chart_1").label(false).value((r) => r.value))
+    .child(BarChart.new(rows).fill((_r, i) => (i ? "chart_2" : "chart_3")).size_full())
+    .child(new LineChart(() => rows).stroke("success").fill("success").y((r) => r.value).dot().grid())
+    .child(new AreaChart(rows).stroke("destructive").x((r) => r.label).accessibility_label("Area"))
+    .child(new PieChart(() => rows).color(() => "chart_4").label((r) => r.label).labels(true))
+    .children([new RadarChart(() => rows).value((r) => r.value).label((r) => r.label).max_value(100)]);
+};
+"#;
+
 /// Uses the declarations beyond what the examples reach.
 const API_PROGRAM: &str = r#"// @ts-check
 import { View, div, v_flex, h_flex, shape, Toggle, Popover, Accordion, AccordionItem, AccordionHeader, AccordionTrigger,
@@ -165,6 +196,7 @@ fn examples_and_new_programs_type_check() {
     nshell(&["new", api.to_str().unwrap()]);
     std::fs::write(api.join("jsconfig.json"), STRICT).unwrap();
     std::fs::write(api.join("main.js"), API_PROGRAM).unwrap();
+    std::fs::write(api.join("children.js"), COMPONENT_CHILDREN).unwrap();
     if let Err(e) = check(&tsc, &api) {
         failures.push(format!("the API program:\n{e}"));
     }

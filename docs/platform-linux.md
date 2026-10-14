@@ -174,7 +174,7 @@ screenshots. The crate's own GTK unit tests use `src/gtk_test.rs`.
   set, `tests/support/display.rs` starts a private `gtk4-broadwayd`.
 * GDK throttles Broadway windows to one frame per second while no browser is
   attached. The display therefore connects a minimal Broadway client that
-  acknowledges each frame's roundtrip and reports a 1600 × 1600 screen, so
+  acknowledges each frame's roundtrip and reports a 4096 × 4096 screen, so
   frame clocks, animations and phone-sized windows behave as on a desktop.
 * `example_runtime()` is a runtime with the example apps' accent (`primary`
   #2563eb light, #60a5fa dark, as the iOS, Android and Linux example apps set

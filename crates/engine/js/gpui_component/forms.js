@@ -17,7 +17,7 @@
 
 import { scope, Entity, markDirty, startTimer, cancelTimer, popoverState, deferPopover, refuseStateInRender, windowInfo } from "nsh:core";
 import { Element, chainKey, div, h_flex, v_flex, text, span, shape, svg } from "nsh:elements";
-import { Input, InputState, TextareaState, DatePicker, Spinner } from "nsh:components";
+import { Input, InputState, Textarea, TextareaState, DatePicker, Spinner } from "nsh:components";
 
 // Shared --------------------------------------------------------------------------
 
@@ -563,7 +563,7 @@ class InputGroupControl extends Element {
     const name = multiline ? "InputGroupTextarea" : "InputGroupInput";
     const kind = multiline ? TextareaState : InputState;
     if (!(state instanceof kind)) throw new TypeError(`${name} expects one ${kind.name} entity`);
-    Object.assign(this, Input.new(state));
+    Object.assign(this, (multiline ? Textarea : Input).new(state));
     this._what = name;
     this._state = state;
     this._disabled = false;
@@ -1028,7 +1028,8 @@ class StepperItemElement extends Composite {
       .when(current, (el) => el.font_semibold())
       .when(center, (el) => el.items_center().text_center())
       .children(this._kids.map((k) => (typeof k === "string" ? text(k) : k)));
-    const pressed = disabled ? ["opacity", 0.4] : ["@active", [["opacity", 0.6]]];
+    // A step not reached yet looks unavailable when it cannot be chosen; done ones keep their color.
+    const pressed = !disabled ? ["@active", [["opacity", 0.6]]] : index > selected ? ["opacity", 0.4] : ["opacity", 1];
     const dot = this._dot(done, current, size);
 
     if (vertical) {
@@ -1043,7 +1044,7 @@ class StepperItemElement extends Composite {
     if (center || !last) ops.push(["flex_1"]);
     this._preset(ops);
     const track = h_flex().gap_2();
-    if (center) track.child(line(index <= selected, !first)).child(dot).child(line(done, !last));
+    if (center) track.child(line(index <= selected, !first)).child(dot).child(line(done, !last)).gap_1();
     else track.child(dot).when(!last, (el) => el.pr_2().child(line(done, true)));
     return [track, body];
   }
@@ -1125,7 +1126,9 @@ class StepperElement extends Composite {
   }
 
   _build() {
-    this._preset(this._vertical ? [["flex"], ["flex_col"], ["w_full"]] : [["flex"], ["flex_row"], ["items_start"], ["w_full"], ["gap_2"]]);
+    // Centered steps draw their connectors edge to edge, so they touch.
+    const gap = this._center ? 0 : 8;
+    this._preset(this._vertical ? [["flex"], ["flex_col"], ["w_full"]] : [["flex"], ["flex_row"], ["items_start"], ["w_full"], ["gap", gap]]);
     const total = this._kids.length;
     this._kids.forEach((item, index) => {
       item._stepper = this;
@@ -1554,6 +1557,7 @@ class ColorPickerElement extends Composite {
 
   _swatch(hex, selected, size) {
     return withId(div(), partId(this, `swatch-${hex.slice(1)}`))
+      .hit_slop(Math.max(0, (44 - size) / 2))
       .key(hex)
       .role("button")
       .accessibility_label(hex)
@@ -1609,7 +1613,7 @@ class ColorPickerElement extends Composite {
         v_flex()
           .gap_2()
           .child(heading("Suggested"))
-          .child(h_flex().flex_wrap().gap_1().children(this._featured.map((c) => this._swatch(c, c === value, 44)))),
+          .child(h_flex().flex_wrap().gap_0p5().children(this._featured.map((c) => this._swatch(c, c === value, 40)))),
       )
       .child(
         v_flex()

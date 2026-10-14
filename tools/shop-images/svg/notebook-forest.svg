@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+<defs>
+<radialGradient id="backdrop" cx="0.5" cy="0.4" r="0.75">
+<stop offset="0" stop-color="#f3f4ef"/><stop offset="1" stop-color="#e0e3d9"/></radialGradient>
+<linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#3a2f22" stop-opacity="0"/><stop offset="1" stop-color="#3a2f22" stop-opacity="0.05"/></linearGradient>
+<filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="12"/></filter>
+<filter id="blur-s" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
+</defs>
+<rect width="600" height="600" fill="url(#backdrop)"/>
+<rect y="360" width="600" height="240" fill="url(#floor)"/>
+<g transform="translate(0 0)">
+<ellipse cx="304" cy="494" rx="140" ry="14" fill="#3a2f22" opacity="0.16" filter="url(#blur)"/>
+<ellipse cx="304" cy="492" rx="112" ry="7" fill="#3a2f22" opacity="0.22" filter="url(#blur-s)"/>
+<defs>
+<linearGradient id="cover" x1="176" x2="424" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#1f3f2f"/><stop offset="0.08" stop-color="#477a5d"/>
+<stop offset="0.5" stop-color="#2f5b45"/><stop offset="1" stop-color="#1f3f2f"/></linearGradient>
+<pattern id="cloth" width="3" height="3" patternUnits="userSpaceOnUse">
+<path d="M0 0.5 H3 M0.5 0 V3" stroke="#000000" stroke-opacity="0.1" stroke-width="0.8"/></pattern>
+</defs>
+<g transform="rotate(-3 300 300)">
+<path d="M262 486 L262 532 L270 524 L278 532 L278 486 Z" fill="#b5483c"/>
+<rect x="182" y="112" width="248" height="380" rx="10" fill="#e9e1cd"/>
+<path d="M426 122 V482" stroke="#c9bfa6" stroke-width="1"/>
+<path d="M190 488 H420" stroke="#c9bfa6" stroke-width="1"/>
+<rect x="176" y="106" width="248" height="380" rx="10" fill="url(#cover)"/>
+<rect x="176" y="106" width="248" height="380" rx="10" fill="url(#cloth)"/>
+<path d="M198 108 V484" stroke="#1f3f2f" stroke-opacity="0.7" stroke-width="2"/>
+<path d="M200 108 V484" stroke="#477a5d" stroke-opacity="0.5" stroke-width="1"/>
+<rect x="388" y="102" width="12" height="390" rx="2" fill="#1a221d"/>
+<rect x="390" y="102" width="3" height="390" fill="#3b4740"/>
+<rect x="230" y="130" width="40" height="330" rx="20" fill="#ffffff" opacity="0.07" filter="url(#blur-s)"/>
+</g>
+</g>
+</svg>

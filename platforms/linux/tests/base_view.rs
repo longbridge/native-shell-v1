@@ -658,6 +658,15 @@ fn example_screenshots() {
     screenshots(&f, "components-buttons");
     drop(f);
 
+    // The status page loads its recommendations on a timer; shoot it loaded.
+    let f = open_example("components");
+    f.click("open-status");
+    pump_for(Duration::from_millis(1500));
+    f.settle();
+    f.expect("order-alert");
+    screenshots(&f, "components-status");
+    drop(f);
+
     let f = open_example("gpui-todolist");
     screenshots(&f, "gpui-todolist-empty");
     let entry = f.find_where(|w| w.is::<gtk::Text>()).and_downcast::<gtk::Text>().expect("the draft field");
