@@ -347,6 +347,23 @@ fn a_toast_with_the_id_of_a_showing_one_replaces_it() {
         assert_eq!(p.toasts.title("a").as_deref(), Some("Uploading 2 of 3"));
         assert_eq!(p.toasts.cards(), 2, "the old card is gone");
 
+        // The engine's replacement: DismissToast {id}, then ShowToast with that id, in one batch.
+        rig.manager.apply(&[
+            native_shell::core::protocol::Mutation::Command {
+                node: ROOT_NODE,
+                command: native_shell::core::protocol::Command::DismissToast,
+                payload: r#"{"id":"a"}"#.into(),
+            },
+            native_shell::core::protocol::Mutation::Command {
+                node: ROOT_NODE,
+                command: native_shell::core::protocol::Command::ShowToast,
+                payload: r#"{"id":"a","title":"Uploading 3 of 3","duration":0}"#.into(),
+            },
+        ]);
+        assert_eq!(p.toasts.visible_ids(), ["a", "b"], "swapped in place");
+        assert_eq!(p.toasts.title("a").as_deref(), Some("Uploading 3 of 3"));
+        assert_eq!(p.toasts.cards(), 2);
+
         // Queued ones are replaced in the queue.
         show_toast(&mut rig, r#"{"id":"c","title":"Third","duration":0}"#);
         show_toast(&mut rig, r#"{"id":"d","title":"Queued","duration":0}"#);
