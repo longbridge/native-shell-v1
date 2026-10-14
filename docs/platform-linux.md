@@ -35,7 +35,7 @@ time fields, alerts) stay GTK-native.
 | `Image` | `http(s)`, file paths and `data:` URIs fetched and decoded off the main thread, downsampled to the node's pixels and cached decoded; cover, contain, fill and center modes |
 | `Shape` | GSK paths from SVG path data, view box scaled like `xMidYMid meet`, round caps and joins |
 | `Scroll` | `GtkScrolledWindow` around a content node of `ContentSize`; kinetic scrolling and overlay indicators are GTK's; `ScrollTo` animates with a critically damped spring |
-| `List` | A scrolled content widget as tall as `RowOffsets`; rendered rows are placed at their offsets (the core recycles row nodes as `RangeChange` moves its window), placeholders for visible rows not rendered yet |
+| `List` | A scrolled content widget as tall as `RowOffsets`; rendered rows are placed at their offsets (the core recycles row nodes as `RangeChange` moves its window), placeholders for visible rows not rendered yet; `ListAlignment` bottom opens at the end and keeps it in view while the user is there (as rows arrive or the viewport shrinks) |
 | `Switch`, `Checkbox` | Drawn as on iOS (system green when on unless tinted; checkbox or radio by `CheckStyle`) |
 | `Slider` | Drawn as on iOS; `{value, final: false}` at most every 50 ms while dragging, `final: true` at the end; arrow keys step |
 | `Progress`, `Spinner` | Drawn: a thin bar (a sliding segment when indeterminate), the iOS activity indicator |
