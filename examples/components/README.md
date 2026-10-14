@@ -16,6 +16,7 @@ native-shell check examples/components
 | Selection controls | Checkout preferences | Switches for settings that apply at once, checkboxes for independent choices, radios for one of a small set, an unavailable option kept visible with its reason; the whole row is the control |
 | Sliders and progress | Slideshow settings and an upload | The value written next to each slider; a spinner while the wait is unknown, then determinate progress with Cancel; the finished state |
 | Pickers | A table booking | A segmented control for two modes, menus for longer lists, the native date picker, and a sentence that reads the booking back |
+| Charts | A health and money dashboard | `BarChart` for steps per day (week and month, labels thinned with `tick_margin`), an `AreaChart` of a portfolio pinned to its range with a loading state, a donut `PieChart` of spending with a tappable legend, a two-series `RadarChart` of language skills, and an empty chart; a tap reads a point's value, a second tap puts it away |
 | Overlays | A shared document | The smallest surface for each decision: a sheet for share targets, a dialog for a one-field rename, a toast for a result you can’t see (making it available offline), an alert for a deletion that can’t be undone |
 
 ## Design notes

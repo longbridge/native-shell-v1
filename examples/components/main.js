@@ -13,6 +13,7 @@ import SelectionPage from "./pages/selection.js";
 import ProgressPage from "./pages/progress.js";
 import PickersPage from "./pages/pickers.js";
 import OverlaysPage from "./pages/overlays.js";
+import ChartsPage from "./pages/charts.js";
 import { largeTitle, row, section, statusBar } from "./ui.js";
 
 const SECTIONS = [
@@ -28,6 +29,10 @@ const SECTIONS = [
       { id: "progress", icon: "sliders", title: "Sliders and progress", detail: "Slideshow settings and an upload", page: ProgressPage },
       { id: "pickers", icon: "calendar", title: "Pickers", detail: "A table booking", page: PickersPage },
     ],
+  },
+  {
+    title: "Data",
+    pages: [{ id: "charts", icon: "chart", title: "Charts", detail: "A health and money dashboard", page: ChartsPage }],
   },
   {
     title: "Feedback",

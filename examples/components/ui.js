@@ -33,6 +33,7 @@ const ICONS = {
   volume: "M11 5 6 9H2v6h4l5 4ZM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14",
   upload: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12",
   check: "M20 6 9 17l-5-5",
+  chart: "M3 3v18h18M8 17v-5M13 17V7M18 17v-8",
 };
 
 /** @param {keyof typeof ICONS} name @param {Color} color */
