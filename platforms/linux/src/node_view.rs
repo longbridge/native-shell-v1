@@ -749,10 +749,10 @@ impl NodeView {
         }
 
         if let Some(color) = style.border_color {
-            let [t, r, b, l] = style.border_widths;
-            if t > 0.0 || r > 0.0 || b > 0.0 || l > 0.0 {
+            let widths = snap_borders(style.border_widths, self.device_scale());
+            if widths.iter().any(|w| *w > 0.0) {
                 let c = rgba(color);
-                snapshot.append_border(&rounded, &[t, r, b, l], &[c, c, c, c]);
+                snapshot.append_border(&rounded, &widths, &[c, c, c, c]);
             }
         }
 
@@ -811,7 +811,23 @@ pub fn snap_frame(f: Frame, scale: f32) -> (f32, f32, f32, f32) {
     let (w, h) = (finite(f.width).max(0.0), finite(f.height).max(0.0));
     let snap = |v: f32| (v * scale).round() / scale;
     let (l, t) = (snap(x), snap(y));
-    (l, t, (snap(x + w) - l).max(0.0), (snap(y + h) - t).max(0.0))
+    // A hairline (0.5 pt at 1x) that rounds to nothing keeps one device pixel.
+    let side = |start: f32, end: f32, size: f32| {
+        let snapped = (end - start).max(0.0);
+        if size > 0.0 && snapped == 0.0 {
+            1.0 / scale
+        } else {
+            snapped
+        }
+    };
+    (l, t, side(l, snap(x + w), w), side(t, snap(y + h), h))
+}
+
+/// Border widths on the device pixel grid, a hairline being at least one
+/// device pixel (as iOS draws `1 / scale` borders): sharp edges, never faded
+/// or dropped.
+pub fn snap_borders(widths: [f32; 4], scale: f32) -> [f32; 4] {
+    widths.map(|w| if w > 0.0 { ((w * scale).round() / scale).max(1.0 / scale) } else { 0.0 })
 }
 
 /// The whole-pixel allocation for an exact size: rounded up, so content and
@@ -964,6 +980,14 @@ mod tests {
             1.0,
         );
         assert_eq!((x, w), (0.0, 0.0));
+        // Hairlines never round away: 0.5 pt is one device pixel at 1x wherever it sits.
+        for y in [10.0, 10.25, 10.6, 10.75] {
+            assert_eq!(snap_frame(Frame { x: 0.0, y, width: 100.0, height: 0.5 }, 1.0).3, 1.0, "at {y}");
+        }
+        assert_eq!(snap_frame(Frame { x: 0.0, y: 10.6, width: 100.0, height: 0.5 }, 2.0).3, 0.5);
+        assert_eq!(snap_frame(Frame { x: 0.0, y: 0.0, width: 0.0, height: 0.0 }, 1.0).3, 0.0);
+        assert_eq!(snap_borders([0.5, 0.0, 1.2, 2.0], 1.0), [1.0, 0.0, 1.0, 2.0]);
+        assert_eq!(snap_borders([0.5, 0.25, 0.0, 0.0], 2.0), [0.5, 0.5, 0.0, 0.0]);
         assert_eq!(alloc_px(10.0), 10);
         assert_eq!(alloc_px(10.5), 11);
         assert_eq!(alloc_px(0.0), 0);
