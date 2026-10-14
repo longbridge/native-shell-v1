@@ -17,7 +17,7 @@ gpui-shell and GPUI. See `README.md`, `docs/architecture.md`,
 | `crates/tree` | Keyed diff, flattening, taffy layout, measurement, lists |
 | `crates/services` | Storage, fs, fetch, WebSocket, crypto, signed bundles |
 | `crates/engine` | The `native-shell` runtime: QuickJS, JS prelude, scheduler, events |
-| `crates/ffi`, `crates/cli` | C ABI + JNI; the `nshell` command |
+| `crates/ffi`, `crates/cli` | C ABI + JNI; the `native-shell` command |
 | `platforms/ios`, `platforms/android`, `platforms/macos` | UIKit, Android View and AppKit renderers, example apps |
 | `platforms/linux` | GTK 4 renderer (own Cargo workspace), example app |
 | `examples/` | Example programs |
