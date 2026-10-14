@@ -15,6 +15,7 @@ fn main() -> ExitCode {
         ("scrolling reports scroll events", scroll_events),
         ("scroll_to scrolls to the clamped target", scroll_to),
         ("paging settles on pages, flings turn one page", paging_settles_on_pages),
+        ("the components carousel follows swipes and its buttons", components_carousel),
         ("pull to refresh shows the spinner until the script ends it", pull_to_refresh),
         ("lists render the visible range plus prefetch", list_range),
         ("scroll_to_item positions the row", scroll_to_item),
@@ -165,6 +166,32 @@ fn paging_settles_on_pages() {
     // A narrower viewport keeps the same page in view.
     f.resize(320, HEIGHT);
     assert!(rest(640.0), "page 2 at the new width, at {}", hadj.value());
+}
+
+/// Gpui-component's Carousel on Paging: the slide a swipe rests on is the
+/// one its Next and Previous buttons move from.
+fn components_carousel() {
+    let f = Fixture::open_dir("../../examples/components");
+    f.tap("open-photos");
+    f.wait_for("slides");
+    let window = scrolled(&f, "slides");
+    let hadj = window.hadjustment();
+    let width = hadj.page_size();
+    assert!(width > 0.0 && hadj.upper() > 2.0 * width, "several slides of {width}");
+    let rest = |x: f64| {
+        pump_until(Duration::from_secs(1), || {
+            f.settle();
+            hadj.value() == x
+        })
+    };
+
+    swipe(&paging_controller(&window), width * 0.6, 0.0);
+    assert!(rest(width), "the swipe rests on the second slide, at {}", hadj.value());
+    f.tap("next");
+    assert!(rest(2.0 * width), "Next goes on from the slide swiped to, at {}", hadj.value());
+    f.tap("previous");
+    f.tap("previous");
+    assert!(rest(0.0), "Previous twice is back at the first slide, at {}", hadj.value());
 }
 
 fn pull_to_refresh() {
