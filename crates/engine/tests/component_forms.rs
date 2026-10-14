@@ -529,7 +529,8 @@ fn the_components_example_checks_out_flowers_through_the_forms_page() {
     h.tap("continue");
 
     h.tap("continue");
-    assert!(h.texts().iter().any(|t| t.contains("Place order")), "the order is being placed");
+    assert!(h.texts().iter().any(|t| t.contains("Place Order · $50.49")), "{}", h.dump());
+    assert!(h.prop("continue", Prop::A11yState).is_some_and(|s| s == PropValue::Json(r#"{"disabled":true}"#.into())), "placing");
     h.advance(1300.0);
     assert!(h.find("confirmation").is_some(), "{}", h.dump());
     assert!(h.texts().iter().any(|t| t.contains("today at 17:45")), "{}", h.dump());
