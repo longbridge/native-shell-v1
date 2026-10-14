@@ -80,13 +80,17 @@ pub struct ToastCenter {
     layer: ToastLayer,
     visible: RefCell<Vec<Rc<Toast>>>,
     queued: RefCell<Vec<Rc<Toast>>>,
+    /// `DismissToast {id}` received in the batch being applied. The engine
+    /// replaces a toast by sending that before a `ShowToast` with the same id;
+    /// held until the batch ends, the pair becomes an in-place swap.
+    retracting: RefCell<Vec<String>>,
 }
 
 impl ToastCenter {
     pub fn new(stage: &Stage) -> ToastCenter {
         let layer = ToastLayer::default();
         layer.insert_before(stage, None::<&gtk::Widget>);
-        ToastCenter { layer, visible: RefCell::default(), queued: RefCell::default() }
+        ToastCenter { layer, visible: RefCell::default(), queued: RefCell::default(), retracting: RefCell::default() }
     }
 
     /// Connects the layer to the presenter that owns this center.
@@ -96,6 +100,7 @@ impl ToastCenter {
 
     pub fn show(&self, presenter: &Rc<Presenter>, payload: &serde_json::Value) {
         let toast = Rc::new(build(presenter, payload));
+        self.retracting.borrow_mut().retain(|id| *id != toast.id);
         // A toast with the id of one still showing or queued replaces it in
         // its place, as gpui-shell's notifications do.
         if let Some(slot) = self.queued.borrow_mut().iter_mut().find(|t| t.id == toast.id) {
@@ -111,6 +116,26 @@ impl ToastCenter {
             self.present(presenter, toast);
         } else {
             self.queued.borrow_mut().push(toast);
+        }
+    }
+
+    /// `DismissToast` from the core: one id waits for the batch's end (see
+    /// `retracting`), all toasts go at once.
+    pub fn dismiss_command(&self, id: Option<&str>) {
+        match id {
+            Some(id) => self.retracting.borrow_mut().push(id.to_owned()),
+            None => {
+                self.retracting.borrow_mut().clear();
+                self.dismiss(None);
+            }
+        }
+    }
+
+    /// The batch is applied: retract what was not replaced.
+    pub fn batch_applied(&self) {
+        let ids = std::mem::take(&mut *self.retracting.borrow_mut());
+        for id in ids {
+            self.dismiss(Some(&id));
         }
     }
 

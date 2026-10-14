@@ -217,6 +217,7 @@ impl Presenter {
 
     /// The batch is complete: bring the navigation stack and the modals in line.
     fn batch_applied(self: &Rc<Self>) {
+        self.toasts.batch_applied();
         if self.pages_changed.replace(false) {
             let animated = self.pages_animated.replace(false);
             pages::sync(self, animated);
@@ -271,7 +272,7 @@ impl Presenter {
         let text = |key: &str| payload.get(key).and_then(|v| v.as_str()).map(str::to_owned);
         match command {
             Command::ShowToast => self.toasts.show(self, &payload),
-            Command::DismissToast => self.toasts.dismiss(text("id").as_deref()),
+            Command::DismissToast => self.toasts.dismiss_command(text("id").as_deref()),
             // OpenUrl, SetClipboard, Haptic.
             _ => {
                 crate::root_commands::run(cx.view.upcast_ref(), command, &payload);
