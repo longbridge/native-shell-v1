@@ -37,6 +37,7 @@ fn main() -> ExitCode {
             "boxes paint radii gradients and borders",
             boxes_paint_radii_gradients_and_borders,
         ),
+        ("hairlines keep one device pixel", hairlines_keep_one_device_pixel),
         (
             "transforms rotate around the center",
             transforms_rotate_around_the_center,
@@ -411,6 +412,38 @@ export default class App extends View {
     assert_eq!(f.pixel(70, 244), 0xff000000);
     assert_eq!(f.pixel(70, 236), 0xffffffff);
     f.screenshot("target/agents/linux-visual/boxes.png");
+}
+
+fn hairlines_keep_one_device_pixel() {
+    // Rows of fractional heights put the 0.5 pt separators at every sub-pixel
+    // offset; each must still be a full, solid device pixel at 1x.
+    let f = Fixture::new(
+        r##"
+import { View, div, v_flex } from "native-shell";
+export default class App extends View {
+  render() {
+    const rows = [];
+    for (let i = 0; i < 6; i++) {
+      rows.push(div().h(20.3).w(100));
+      rows.push(div().test_id(`sep-${i}`).h(0.5).w(100).bg("#000000"));
+    }
+    return v_flex().size_full().bg("#ffffff")
+      .children(rows)
+      .child(div().test_id("framed").mt(10.4).w(100).h(30).border_b(0.5).border_t(0.5).border_color("#000000"));
+  }
+}"##,
+    );
+    for i in 0..6 {
+        let b = f.bounds(&f.expect(&format!("sep-{i}")));
+        assert_eq!(b.height(), 1.0, "separator {i}: {b:?}");
+        assert_eq!(b.y().fract(), 0.0, "on the pixel grid: {b:?}");
+        assert_eq!(f.pixel(50, b.y() as i32), 0xff000000, "separator {i} is solid");
+    }
+    let framed = f.bounds(&f.expect("framed"));
+    let (top, bottom) = (framed.y() as i32, (framed.y() + framed.height()) as i32 - 1);
+    assert_eq!(f.pixel(50, top), 0xff000000, "top hairline border");
+    assert_eq!(f.pixel(50, bottom), 0xff000000, "bottom hairline border");
+    assert_eq!(f.pixel(50, top + 1), 0xffffffff);
 }
 
 fn transforms_rotate_around_the_center() {

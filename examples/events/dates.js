@@ -38,11 +38,6 @@ export function longDate(date) {
   return `${WEEKDAYS[date.getDay()]}, ${MONTHS[date.getMonth()]} ${date.getDate()}`;
 }
 
-/** `October 2026`. */
-export function monthTitle(date) {
-  return `${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
-}
-
 /** A day as a list section reads it: `Today`, `Tomorrow`, `Sat, Oct 17`. */
 export function relativeDay(offset) {
   if (offset === 0) return "Today";

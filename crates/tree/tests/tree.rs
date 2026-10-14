@@ -2272,3 +2272,22 @@ fn date_pickers_measure_every_month_of_the_value_year() {
         .any(|(_, p)| p == "{\"mode\":\"datetime\",\"value\":\"2026-02-28T22:58\"}"));
     assert_eq!(width(&rep), 8.0 * 16.0 + 24.0);
 }
+
+#[test]
+fn hairlines_keep_one_device_pixel_at_every_offset() {
+    let mut h = H::new();
+    h.tree.set_environment(&Environment { width: 390.0, height: 844.0, scale: 1.0, ..Default::default() });
+    let mut rows = Vec::new();
+    for i in 0..6 {
+        rows.push(view("h=20.3 w=100", vec![]));
+        rows.push(keyed(view("h=0.5 w=100 bg=#000000", vec![]), &format!("sep-{i}")));
+    }
+    h.commit(&root(view("size_full", rows)));
+    let seps = h.of_type(ViewType::View).into_iter().filter(|n| h.frame(*n).height < 2.0).collect::<Vec<_>>();
+    assert_eq!(seps.len(), 6, "{}", h.tree.dump());
+    for n in seps {
+        let f = h.frame(n);
+        assert_eq!(f.height, 1.0, "{f:?}");
+        assert_eq!(f.y.fract(), 0.0, "{f:?}");
+    }
+}

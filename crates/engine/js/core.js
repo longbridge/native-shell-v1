@@ -748,8 +748,11 @@ function pushToast(options = {}, what = "window.push_toast(options)") {
   const payload = { id, title: String(options.title ?? ""), level, duration };
   if (options.description != null) payload.description = String(options.description);
   if (action) payload.action = { label: action.label };
-  N.command("toast", null, JSON.stringify(payload));
+  // gpui-shell replaces a notification by id: the one still showing (or
+  // queued by the renderer) is retracted first and its action let go.
+  if (toastShowing(id)) N.command("toast_dismiss", null, JSON.stringify({ id }));
   dropToast(id);
+  N.command("toast", null, JSON.stringify(payload));
   const entry = { until: duration === 0 ? Infinity : N.now() + duration, action: null };
   if (action) {
     entry.action = { owner: scope.owner ?? root, on_click: action.on_click, timer: null };

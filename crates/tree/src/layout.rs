@@ -6,7 +6,8 @@
 //! taffy's own cache keeps that cheap when one leaf changed.
 //!
 //! Frames are rounded on the device pixel grid by their absolute edges (as
-//! taffy does for whole points), so adjacent views never open a hairline gap.
+//! taffy does for whole points), so adjacent views never open a hairline gap;
+//! a non-empty side never rounds below one device pixel, so hairlines stay.
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -169,11 +170,20 @@ impl Tree {
                 (px + l.location.x, py + l.location.y)
             };
             let (left, top) = (round(x), round(y));
+            // A hairline (0.5 pt at 1x) whose edges round together keeps one
+            // device pixel, as iOS draws 1 / scale lines, instead of vanishing.
+            let side = |size: f32, rounded: f32| {
+                if size > 0.0 && rounded <= 0.0 {
+                    1.0 / scale
+                } else {
+                    rounded
+                }
+            };
             let mut abs = Frame {
                 x: left,
                 y: top,
-                width: round(x + l.size.width) - left,
-                height: round(y + l.size.height) - top,
+                width: side(l.size.width, round(x + l.size.width) - left),
+                height: side(l.size.height, round(y + l.size.height) - top),
             };
             if n.kind == Kind::Text {
                 // Exactly the width it was measured at (see `text_width`); rounding its edges
