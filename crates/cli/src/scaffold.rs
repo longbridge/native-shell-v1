@@ -1,4 +1,4 @@
-//! `nshell new <dir>`: a minimal program that passes `check`, with the
+//! `native-shell new <dir>`: a minimal program that passes `check`, with the
 //! editor and coding-agent setup next to it.
 
 use std::path::Path;
@@ -66,7 +66,7 @@ There is no DOM, no HTML, no CSS and no npm at run time.
   `host_components`). Unknown fields are errors.
 - `main.js`: the entry module. It `export default`s a `View` subclass.
 - `native-shell.d.ts`: the complete API as TypeScript declarations. Read it
-  for every name; regenerate it with `nshell types .`.
+  for every name; regenerate it with `native-shell types .`.
 
 ## Programming model
 
@@ -89,10 +89,10 @@ There is no DOM, no HTML, no CSS and no npm at run time.
 
 ## Workflow
 
-- `nshell check .` loads and renders once headlessly; it must exit 0.
-  `nshell check . --print-tree` shows the native view tree.
-- `nshell dev .` serves the program to a device over the LAN with hot reload.
-- `nshell bundle . --key <secret> --key-id <id> -o app.nspkg` signs a release.
+- `native-shell check .` loads and renders once headlessly; it must exit 0.
+  `native-shell check . --print-tree` shows the native view tree.
+- `native-shell dev .` serves the program to a device over the LAN with hot reload.
+- `native-shell bundle . --key <secret> --key-id <id> -o app.nspkg` signs a release.
 "#;
 
 pub fn new_program(dir: &Path, registry: &HostRegistry) -> Result<()> {

@@ -133,9 +133,9 @@ from one of two sources:
   directory without `native-shell.json` is refused with a clear message), or
   `DevClient::watch(dir, runtime)`. The directory is polled every 250 ms and a
   change is published once the files have been quiet for 200 ms, as
-  `nshell dev` does, so saving several files reloads once. No server or second
+  `native-shell dev` does, so saving several files reloads once. No server or second
   terminal is needed.
-* `nshell dev <dir>`, which serves a program over HTTP (for another machine)
+* `native-shell dev <dir>`, which serves a program over HTTP (for another machine)
   and prints the command to run it on Linux:
   `cargo linux-run --dev http://HOST:PORT`, the launcher's `--dev` flag or its
   "Connect to Dev Server" row, or `DevClient::connect(url, runtime)`.

@@ -1,4 +1,4 @@
-//! `nshell`: create, check, type, sign and serve native-shell programs.
+//! `native-shell`: create, check, type, sign and serve native-shell programs.
 
 mod check;
 mod dev;
@@ -14,7 +14,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "nshell", version, about = "Create, check, sign and serve native-shell programs")]
+#[command(name = "native-shell", version, about = "Create, check, sign and serve native-shell programs")]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -88,7 +88,7 @@ fn run(cli: Cli) -> Result<ExitCode> {
         Command::New { dir, registry } => {
             let registry = program::read_registry(registry.as_deref())?;
             scaffold::new_program(&dir, &registry)?;
-            println!("Created {}. Next: nshell check {}", dir.display(), dir.display());
+            println!("Created {}. Next: native-shell check {}", dir.display(), dir.display());
         }
         Command::Check { dir, print_tree, registry } => {
             let registry = program::read_registry(registry.as_deref())?;
