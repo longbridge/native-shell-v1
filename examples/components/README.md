@@ -18,6 +18,7 @@ nshell check examples/components
 | Pickers | A table booking | A segmented control for two modes, menus for longer lists, the native date picker, and a footer sentence that reads the booking back |
 | Charts | A health and money dashboard | `BarChart` for steps per day (week and month, labels thinned with `tick_margin`), an `AreaChart` of a portfolio pinned to its range with a loading state, a donut `PieChart` of spending with a tappable legend, a two-series `RadarChart` of language skills, and an empty chart; a tap reads a point's value, a second tap puts it away |
 | Overlays | A shared document | The smallest surface for each decision: a sheet for share targets, an alert-style dialog for a one-field rename, a toast for a result you can’t see (making it available offline), an alert for a deletion that can’t be undone |
+| Status | A shop’s order screen | `gpui-component`’s feedback set in context: a status `Tag` and a banner `Alert` per delivery state (success, a dismissible warning, a declined payment with its fix), `Label` rows with muted quantities split by inset `Separator` hairlines, a `Notification` button confirmed by a toast, `Badge` counts on a tab bar (capped at 99+) and presence dots on avatars, an inbox emptied into an `Empty` state with Undo, `Skeleton` rows and `ShimmerText` while recommendations load, `Kbd` shortcuts for a hardware keyboard |
 
 ## Design notes
 
