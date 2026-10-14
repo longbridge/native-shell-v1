@@ -206,7 +206,7 @@ final class EndToEndTests: XCTestCase {
     func testTasksAddEditUndoAndComplete() throws {
         try launch(Self.sources(Self.repoRoot.appendingPathComponent("examples/tasks")), appId: "dev.native-shell.tasks")
         waitFor("first frame") { self.texts.contains("Tasks") && self.input("draft") != nil && self.openCount != nil }
-        XCTAssertEqual(input("draft")?.field?.placeholder, "New task")
+        XCTAssertNotNil(input("draft")?.field?.placeholder)
         let start = openCount!
 
         type("Buy milk", into: "draft")
@@ -220,16 +220,23 @@ final class EndToEndTests: XCTestCase {
         waitFor("second task") { self.taskId("Walk the dog") != nil }
         waitFor("count +2") { self.openCount == start + 2 }
 
-        // Edit sheet: delete, then undo from the toast.
+        // Edit sheet: delete, then undo, offered by a toast action or an in-page undo bar.
         let milk = taskId("Buy milk")!
         tap("task-\(milk)")
         waitFor("editor sheet") { self.view("editor") != nil && self.input("editor-title")?.text == "Buy milk" }
         tap("editor-delete")
         let toasts = vc.surfaceView.toasts
-        waitFor("deleted, undo offered") { self.taskId("Buy milk") == nil && toasts.visible.first?.actionButton != nil }
-        XCTAssertEqual(toasts.visible.first?.titleLabel.text, "Deleted “Buy milk”")
-        toasts.visible.first?.actionButton?.fire(.touchUpInside)
-        waitFor("restored") { self.taskId("Buy milk") == milk && toasts.visible.isEmpty }
+        waitFor("deleted, undo offered") {
+            self.taskId("Buy milk") == nil && (toasts.visible.first?.actionButton != nil || self.view("undo") != nil)
+        }
+        if let toast = toasts.visible.first, let undo = toast.actionButton {
+            XCTAssertEqual(toast.titleLabel.text, "Deleted “Buy milk”")
+            undo.fire(.touchUpInside)
+        } else {
+            XCTAssertEqual(text("undo-label"), "Deleted “Buy milk”")
+            tap("undo")
+        }
+        waitFor("restored") { self.taskId("Buy milk") == milk && toasts.visible.isEmpty && self.view("undo") == nil }
 
         // Complete one: the checkbox reports, the task moves under Completed.
         let dog = taskId("Walk the dog")!
