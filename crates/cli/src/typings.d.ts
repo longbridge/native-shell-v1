@@ -457,6 +457,21 @@ declare module "native-shell" {
     readonly lg: TextStyleToken; readonly xl: TextStyleToken;
     readonly mono: string;
     readonly mono_md: TextStyleToken;
+    /**
+     * Mobile: the iOS text styles as roles, in points at font scale 1
+     * (renderers scale text with the user's font scale, as Dynamic Type does).
+     */
+    readonly large_title: TextStyleToken;
+    readonly title1: TextStyleToken;
+    readonly title2: TextStyleToken;
+    readonly title3: TextStyleToken;
+    readonly headline: TextStyleToken;
+    readonly body: TextStyleToken;
+    readonly callout: TextStyleToken;
+    readonly subheadline: TextStyleToken;
+    readonly footnote: TextStyleToken;
+    readonly caption1: TextStyleToken;
+    readonly caption2: TextStyleToken;
   }
   export interface SemanticThemeTokens {
     readonly colors: ColorTokens;

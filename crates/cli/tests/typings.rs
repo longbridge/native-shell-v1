@@ -52,7 +52,7 @@ export default class Api extends View {
       .on_key_down((/** @type {KeyEvent} */ e) => console.log(e.keystroke))
       .child(div().cursor_pointer().tooltip("Details").hover((s) => s.bg(cx.theme().colors.selection))
         .on_hover((hovered) => console.log(hovered)).on_click((e) => console.log(e.modifiers.shift, e.click_count))
-        .text_color(cx.theme().colors.success).child("Hover me"))
+        .text_color(cx.theme().colors.success).text_size(cx.theme().typography.body.size).child("Hover me"))
       .child(Toggle.new("bold").pressed(this.on).on_change((on, cx) => { this.on = on; cx.notify(); }).child("B"))
       .child(Popover.new("menu").trigger(div().child("Open")).content(div().child("Hi")).open(this.open)
         .on_open_change((open, cx) => { this.open = open; cx.notify(); }))
