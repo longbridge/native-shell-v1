@@ -747,6 +747,19 @@ impl Instance {
                 let key = surface.unwrap_or_else(|| "root".into());
                 self.call(Phase::Event, "back", |_, f| f.call::<_, ()>((key,)))
             }
+            // The size a sheet is presented at: lay its content out at it.
+            (EventType::Resize, _) => {
+                let dim = |k: &str| parsed.get(k).and_then(|v| v.as_f64()).map(|v| v as f32);
+                if let (Some(w), Some(h)) = (dim("width"), dim("height")) {
+                    if self.tree.set_surface_size(node, w, h) {
+                        self.force_commit = true;
+                        self.shared.borrow_mut().frame_requested = true;
+                    }
+                } else {
+                    self.metrics.events_dropped += 1;
+                }
+                return;
+            }
             (EventType::ToastAction, _) => {
                 let id = parsed.get("id").and_then(|i| i.as_str()).unwrap_or_default().to_string();
                 let r = self.call(Phase::Event, "toast_action", |_, f| f.call::<_, bool>((id.clone(),)));

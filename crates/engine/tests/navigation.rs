@@ -319,7 +319,11 @@ fn a_toast_with_a_showing_id_replaces_it() {
     let cmds: Vec<_> = h.commands().iter().map(|(n, c, p)| (*n, *c, p.clone())).collect();
     assert_eq!(cmds.len(), 3, "{cmds:?}");
     assert_eq!((cmds[0].0, cmds[0].1), (ROOT_NODE, Command::ShowToast));
-    assert_eq!(cmds[1], (ROOT_NODE, Command::DismissToast, r#"{"id":"upload"}"#.to_string()), "the showing one is retracted first");
+    assert_eq!(
+        cmds[1],
+        (ROOT_NODE, Command::DismissToast, r#"{"id":"upload"}"#.to_string()),
+        "the showing one is retracted first"
+    );
     assert_eq!((cmds[2].0, cmds[2].1), (ROOT_NODE, Command::ShowToast));
     assert!(cmds[2].2.contains("Uploading 2"));
 
@@ -560,10 +564,7 @@ fn the_settings_example_needs_no_window_refresh_after_its_account_page() {
             files.push((name, text.replace("window.refresh();", "")));
         }
     }
-    assert!(
-        files.iter().any(|(n, t)| n == "main.js" && t.contains("save: (")),
-        "the scenario still exists"
-    );
+    assert!(files.iter().any(|(n, t)| n == "main.js" && t.contains("save: (")), "the scenario still exists");
     let refs: Vec<(&str, &str)> = files.iter().map(|(n, t)| (n.as_str(), t.as_str())).collect();
     let data = std::env::temp_dir().join(format!("nsh-refresh-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&data);
@@ -618,3 +619,29 @@ export default class App extends View {
     assert!(h.error_logs().is_empty(), "{:?}", h.error_logs());
 }
 
+#[test]
+fn a_sheet_fills_the_size_the_renderer_presents_it_at() {
+    let main = r#"
+import { View, div, v_flex, Button } from "native-shell";
+export default class S extends View {
+  render(cx) {
+    return Button.new("open").test_id("open").label("Share").on_click((_e, cx) => {
+      cx.open_sheet(() => v_flex().size_full().test_id("sheet-root").bg("grouped_background")
+        .child(div().h_10().child("Share to…"))
+        .child(div().flex_1().test_id("sheet-body")), { detents: ["medium", "large"] });
+    });
+  }
+}
+"#;
+    let mut h = Harness::new(&[("main.js", main)]);
+    h.tap("open");
+    // Before the renderer reports a size, the sheet is as tall as its content.
+    assert_eq!(h.frame("sheet-root").height, 40.0);
+    h.resize_sheet(390.0, 420.0);
+    assert_eq!((h.frame("sheet-root").width, h.frame("sheet-root").height), (390.0, 420.0));
+    assert_eq!(h.frame("sheet-body").height, 380.0, "flex_1 takes the rest of the detent");
+    // Dragged to the large detent.
+    h.resize_sheet(390.0, 780.0);
+    assert_eq!(h.frame("sheet-root").height, 780.0);
+    assert!(h.error_logs().is_empty(), "{:?}", h.error_logs());
+}

@@ -946,6 +946,12 @@ impl Harness {
         self.dispatch(ROOT_NODE, EventType::ToastAction, &serde_json::json!({ "id": id }).to_string());
     }
 
+    /// The renderer presents the sheet on top at `width` × `height` (a detent).
+    pub fn resize_sheet(&mut self, width: f32, height: f32) {
+        let node = self.top_surface();
+        self.dispatch(node, EventType::Resize, &serde_json::json!({ "width": width, "height": height }).to_string());
+    }
+
     /// The user picks an action of the alert on top.
     pub fn alert_action(&mut self, index: u32) {
         let node = self.top_surface();
