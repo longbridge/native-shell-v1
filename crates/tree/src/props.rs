@@ -142,7 +142,12 @@ pub(crate) fn derive(
         _ => {}
     }
 
+    let stretch = matches!(desc.kind, ElementKind::Shape { stretch: true });
     for (p, value) in &desc.props {
+        // A stretched shape's path and view box come out of layout (see `stretch.rs`).
+        if stretch && matches!(p, Prop::PathData | Prop::ViewBox) {
+            continue;
+        }
         // Sent once after Create, never diffed: a host view cannot change what it is.
         if *p == Prop::HostComponent {
             continue;

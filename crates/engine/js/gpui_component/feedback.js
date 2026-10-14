@@ -23,6 +23,14 @@ function component(make) {
 
 const SIZES = ["xsmall", "small", "medium", "large"];
 
+/**
+ * `px` points at the default text size, as a rem length: it grows with the
+ * user's text size, so glyphs, capsules and padding keep pace with the text.
+ */
+function rem(px) {
+  return `${px / 16}rem`;
+}
+
 /** The theme's iOS corner radius `name` (sm 6, md 10, lg 12, xl 16) as a preset op. */
 function radius(name) {
   return ["rounded", theme().radius[name]];
@@ -31,6 +39,14 @@ function radius(name) {
 function checkSize(what, size) {
   if (!SIZES.includes(size)) throw new TypeError(`${what}.size expects one of ${SIZES.join(", ")}, got ${JSON.stringify(size)}`);
   return size;
+}
+
+/**
+ * `size(...)`: a semantic size names one of `SIZES`; anything else is the
+ * style method (`.size(40)`, `.size("2rem")`), as on gpui-component's Button.
+ */
+function isLength(value) {
+  return typeof value === "number" || (typeof value === "string" && /^(-?[\d.]+(px|rem|%)|auto)$/.test(value));
 }
 
 // Colors ------------------------------------------------------------------------
@@ -87,7 +103,7 @@ const GLYPHS = {
 };
 
 function glyph(name, color, size) {
-  return shape(GLYPHS[name], { view_box: [0, 0, 24, 24] }).stroke(color, 2).w(size).h(size).flex_none();
+  return shape(GLYPHS[name], { view_box: [0, 0, 24, 24] }).stroke(color, 2).w(rem(size)).h(rem(size)).flex_none();
 }
 
 /** A tappable xmark with a 44 pt target, for `on_close`. */
@@ -155,12 +171,15 @@ class AlertElement extends Element {
   }
 
   visible(visible) {
+    // Bare, it is GPUI's `visible()` style (visibility: visible).
+    if (arguments.length === 0) return super.visible();
     if (typeof visible !== "boolean") throw new TypeError("Alert.visible(visible) expects a boolean");
     this._visible = visible;
     return this._sync();
   }
 
   size(size) {
+    if (isLength(size)) return super.size(size);
     this._size = checkSize("Alert", size);
     return this._sync();
   }
@@ -182,7 +201,7 @@ class AlertElement extends Element {
   _sync() {
     const { token, icon } = this._variant;
     const [px, py, gap, textSize, iconSize] = ALERT_METRICS[this._size];
-    const ops = [["flex"], ["flex_row"], ["w_full"], ["px", px], ["py", py], ["gap", gap], [textSize], ["text_color", "foreground"]];
+    const ops = [["flex"], ["flex_row"], ["w_full"], ["px", rem(px)], ["py", rem(py)], ["gap", rem(gap)], [textSize], ["text_color", "foreground"]];
     if (token) ops.push(["bg", tint(token, 0.14)]);
     else ops.push(["bg", "surface"], ["border_1"], ["border_color", "border"]);
     ops.push(this._banner ? ["items_center"] : ["items_start"]);
@@ -270,6 +289,7 @@ class BadgeElement extends Element {
   }
 
   size(size) {
+    if (isLength(size)) return super.size(size);
     this._size = checkSize("Badge", size);
     return this._sync();
   }
@@ -278,18 +298,19 @@ class BadgeElement extends Element {
     const [height, textSize, dotSize] = BADGE_METRICS[this._size];
     if (this._p) delete this._p.a11y_value;
     if (this._dot) {
-      this._after = [div().absolute().top(-dotSize / 4).right(-dotSize / 4).size(dotSize).rounded_full().bg(this._color)];
+      const at = rem(-dotSize / 4);
+      this._after = [div().absolute().top(at).right(at).size(rem(dotSize)).rounded_full().bg(this._color)];
     } else if (this._count > 0) {
       const label = this._count > this._max ? `${this._max}+` : String(this._count);
       this._P().a11y_value = label;
       this._after = [
         h_flex()
           .absolute()
-          .top(-height / 3)
-          .right(-height / 3)
-          .h(height)
-          .min_w(height)
-          .px(height / 4)
+          .top(rem(-height / 3))
+          .right(rem(-height / 3))
+          .h(rem(height))
+          .min_w(rem(height))
+          .px(rem(height / 4))
           .justify_center()
           .rounded_full()
           .bg(this._color)
@@ -353,6 +374,7 @@ class TagElement extends Element {
   }
 
   size(size) {
+    if (isLength(size)) return super.size(size);
     this._size = checkSize("Tag", size);
     return this._sync();
   }
@@ -379,7 +401,7 @@ class TagElement extends Element {
       fill = tint(token, 0.15);
       fg = ink(token);
     }
-    const ops = [["flex"], ["flex_row"], ["items_center"], ["flex_none"], ["gap_1"], ["px", px], ["py", py], [textSize], ["font_medium"]];
+    const ops = [["flex"], ["flex_row"], ["items_center"], ["flex_none"], ["gap_1"], ["px", rem(px)], ["py", rem(py)], [textSize], ["font_medium"]];
     ops.push(this._full ? ["rounded_full"] : radius("sm"), ["text_color", fg]);
     if (this._outline) ops.push(["border_1"], ["border_color", this._variant === "secondary" ? "border" : fg]);
     else ops.push(["bg", fill]);
@@ -498,7 +520,7 @@ class EmptyHeaderElement extends EmptyPart {
 const MEDIA = [["flex"], ["items_center"], ["justify_center"], ["flex_none"], ["mb_2"], ["text_color", "muted_foreground"]];
 const MEDIA_VARIANTS = {
   default: () => MEDIA,
-  icon: () => [...MEDIA, ["size_16"], radius("xl"), ["bg", "muted"]],
+  icon: () => [...MEDIA, ["size_16"], radius("xl"), ["bg", "secondary"]],
 };
 
 class EmptyMediaElement extends EmptyPart {
@@ -749,7 +771,8 @@ class SeparatorElement extends Element {
 
   _sync() {
     const v = this._vertical;
-    const ops = v ? [["flex"], ["flex_col"], ["items_center"], ["self_stretch"]] : [["flex"], ["flex_row"], ["items_center"], ["w_full"]];
+    // Stretched across the parent rather than `w_full`, so an inset (`.ml_4()`) shortens the line.
+    const ops = [["flex"], v ? ["flex_col"] : ["flex_row"], ["items_center"], ["self_stretch"]];
     ops.push(["flex_none"]);
     if (this._label === null) {
       this._P().a11y_hidden = true;

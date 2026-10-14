@@ -272,7 +272,8 @@ fn skeletons_are_still_placeholders_hidden_from_assistive_technology() {
     return v_flex().w_64().gap_2()
       .child(Skeleton.new().test_id("line"))
       .child(Skeleton.new().secondary().w_24().test_id("short"))
-      .child(Skeleton.new().size_10().rounded_full().test_id("avatar"));
+      .child(Skeleton.new().size_10().rounded_full().test_id("avatar"))
+      .child(Tag.new().size(24).test_id("sized"));
   }
 }"#,
     );
@@ -282,6 +283,7 @@ fn skeletons_are_still_placeholders_hidden_from_assistive_technology() {
     assert_eq!(h.frame("short").width, 96.0, "script sizes win");
     assert_eq!(h.prop("short", Prop::Opacity), Some(PropValue::F32(0.5)));
     assert_eq!(h.frame("avatar").width, 40.0);
+    assert_eq!(h.frame("sized").width, 24.0, "a length is the style method, not a semantic size");
     assert_eq!(h.prop("line", Prop::A11yHidden), Some(PropValue::Bool(true)));
     assert_eq!(h.prop("line", Prop::Animation), None, "nothing moves");
 }
@@ -304,7 +306,7 @@ fn empty_places_header_parts_in_order_then_content_then_children() {
     assert_eq!(h.text_of("empty"), "✉ No Messages Messages you receive appear here. New Message Footnote");
     assert_eq!(h.prop("title", Prop::A11yRole), Some(PropValue::I32(3)), "the title is a heading");
     assert_eq!(h.prop("media", Prop::A11yHidden), Some(PropValue::Bool(true)));
-    assert_eq!(bg(&h, "media"), color(Appearance::Light, "muted"), "the icon variant frames the media");
+    assert_eq!(bg(&h, "media"), color(Appearance::Light, "secondary"), "the icon variant frames the media");
     let (empty, title) = (h.frame("empty"), h.frame("title"));
     assert!((title.x + title.width / 2.0 - empty.width / 2.0).abs() < 1.0, "centered");
 
@@ -475,4 +477,75 @@ fn notification_rejects_bad_arguments_like_gpui_shell() {
     );
     assert_eq!(render_error(r#"Notification.new("n", "Go", () => {}).autohide(1)"#), "autohide(value) expects boolean");
     assert_eq!(render_error(r#"Notification.new("", "Go", () => {})"#), "Notification id must not be empty");
+}
+
+/// The toasts shown since the last `clear_commands`, as JSON.
+fn toasts(h: &Harness) -> Vec<serde_json::Value> {
+    h.commands()
+        .iter()
+        .filter(|(n, c, _)| *n == ROOT_NODE && *c == Command::ShowToast)
+        .map(|(_, _, p)| serde_json::from_str(p).unwrap())
+        .collect()
+}
+
+#[test]
+fn components_status_page_walks_an_order_through_its_states() {
+    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/components");
+    let mut h = Harness::from_dir(&dir).unwrap().start();
+    assert!(h.load_error().is_none(), "{:?}", h.load_error());
+    h.tap("open-status");
+    assert_eq!(h.surfaces().len(), 2);
+
+    // Recommendations load behind still placeholders, then appear; Refresh repeats it.
+    assert!(h.find("picks-loading").is_some() && h.find("pick-ink").is_none());
+    assert!(h.texts().contains(&"Finding picks for you…".to_string()));
+    h.advance(1300.0);
+    assert!(h.find("pick-ink").is_some() && h.find("picks-loading").is_none());
+    h.tap("refresh-picks");
+    assert!(h.find("picks-loading").is_some());
+    h.advance(1300.0);
+    assert!(h.find("pick-ink").is_some());
+
+    // Delayed: a warning tag and a dismissible banner.
+    assert_eq!(h.text_of("order-tag"), "Delayed");
+    assert_eq!(h.prop("order-alert", Prop::A11yLabel), Some(PropValue::Str(
+        "Running Late. A storm held your parcel in Memphis. New estimate: Saturday, October 18.".into()
+    )));
+    let dismiss = labeled(&h, "Dismiss");
+    assert_eq!(dismiss.len(), 1);
+    h.tap_node(dismiss[0]);
+    assert_eq!(h.prop("order-alert", Prop::Hidden), Some(PropValue::Bool(true)));
+
+    // Payment issue: an error banner, a fix, and a dot on the Account tab.
+    assert!(h.find("account-badge").is_none());
+    h.select("delivery-state", 2);
+    assert_eq!(h.text_of("order-tag"), "On Hold");
+    assert!(h.text_of("order-alert").starts_with("Payment Declined"));
+    assert!(h.find("account-badge").is_some());
+    h.clear_commands();
+    h.tap("update-payment");
+    assert_eq!(h.text_of("order-tag"), "Shipped");
+    assert_eq!(toasts(&h)[0]["title"], "Payment updated");
+    assert_eq!(h.text_of("order-total"), "$105.00");
+
+    // The notification button confirms with a toast.
+    h.clear_commands();
+    h.tap("notify-delivery");
+    assert_eq!(toasts(&h)[0]["title"], "Delivery alerts on");
+
+    // Badges count unread messages; archiving empties the inbox, with undo.
+    assert_eq!(h.text_of("inbox-badge"), "2");
+    assert_eq!(h.text_of("updates-badge"), "99+");
+    h.clear_commands();
+    h.tap("archive-all");
+    assert!(h.find("inbox-empty").is_some());
+    assert_eq!(h.text_of("inbox-badge"), "");
+    let undo = toasts(&h)[0].clone();
+    assert_eq!(undo["action"]["label"], "Undo");
+    h.toast_action(undo["id"].as_str().unwrap());
+    assert!(h.find("inbox-empty").is_none());
+    assert_eq!(h.text_of("inbox-badge"), "2");
+    h.tap("mark-read");
+    assert_eq!(h.text_of("inbox-badge"), "");
+    assert!(h.error_logs().is_empty(), "{:?}", h.error_logs());
 }

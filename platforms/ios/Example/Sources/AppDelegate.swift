@@ -42,13 +42,14 @@ struct Example {
     static let sections: [(title: String, examples: [Example])] = [
         ("Apps", [
             Example(name: "tasks", title: "Tasks", summary: "Lists, editing and undo", symbol: "checklist", tint: .systemBlue),
+            Example(name: "notes", title: "Notes", summary: "Folders, checklists and search", symbol: "note.text", tint: .systemYellow),
             Example(name: "chat", title: "Chat", summary: "A thread and its composer", symbol: "bubble.left.and.bubble.right.fill", tint: .systemGreen),
             Example(name: "watchlist", title: "Watchlist", summary: "Host modules and a native cell", symbol: "chart.line.uptrend.xyaxis", tint: .systemIndigo),
             Example(name: "settings", title: "Settings", summary: "Grouped preferences and pages", symbol: "gearshape.fill", tint: .systemGray),
         ]),
         ("Reference", [
             Example(name: "components", title: "Components", summary: "Every control, in context", symbol: "square.grid.2x2.fill", tint: .systemOrange),
-            Example(name: "gpui-todolist", title: "gpui-shell to-do list", summary: "A desktop program, unchanged", symbol: "desktopcomputer", tint: .systemTeal),
+            Example(name: "gpui-todolist", title: "gpui-shell To-Do List", summary: "A desktop program, unchanged", symbol: "desktopcomputer", tint: .systemTeal),
         ]),
     ]
 }
