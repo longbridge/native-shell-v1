@@ -1206,6 +1206,167 @@ declare module "gpui-component" {
   export interface TitleBar extends Element {}
 
   // --- feedback (crates/engine/js/gpui_component/feedback.js) ---
+  type FeedbackSize = "xsmall" | "small" | "medium" | "large";
+  type FeedbackClick = (event: import("native-shell").ClickEvent, cx: import("native-shell").Context) => void;
+  /** A gpui-shell constructor: `X.new(...)` or `new X(...)`. */
+  type Constructor<A extends unknown[], E> = { new (...args: A): E; new: (...args: A) => E };
+
+  export interface AlertElement extends Element {
+    /** Sets the alert title. */
+    title(title: string): this;
+    /** Uses the full-width banner presentation. */
+    banner(): this;
+    /** Controls whether the alert is rendered. */
+    visible(visible: boolean): this;
+    /** Sets the alert's semantic size. */
+    size(size: FeedbackSize): this;
+    /** gpui-component's `Alert::icon`: an element in place of the variant's glyph. */
+    icon(icon: Element): this;
+    /** gpui-component's `Alert::on_close`: a dismiss button that calls the handler. */
+    on_close(handler: FeedbackClick): this;
+  }
+  /** A message banner with semantic default, info, success, warning, and error constructors. */
+  export const Alert: Constructor<[id: string, message: string], AlertElement>;
+  export const InfoAlert: Constructor<[id: string, message: string], AlertElement>;
+  export const SuccessAlert: Constructor<[id: string, message: string], AlertElement>;
+  export const WarningAlert: Constructor<[id: string, message: string], AlertElement>;
+  export const ErrorAlert: Constructor<[id: string, message: string], AlertElement>;
+
+  export interface BadgeElement extends Element {
+    /** Displays a dot instead of a numeric count. */
+    dot(): this;
+    /** Sets the displayed count; zero hides a numeric badge. */
+    count(count: number): this;
+    /** Sets the largest count displayed before the plus suffix. */
+    max(max: number): this;
+    /** Sets the badge background from a theme token or a color literal. */
+    color(color: import("native-shell").Color): this;
+    /** Sets the semantic component size. */
+    size(size: FeedbackSize): this;
+  }
+  /** A count or dot badge positioned over its ordinary children. */
+  export const Badge: Constructor<[], BadgeElement>;
+
+  export interface TagElement extends Element {
+    /** Sets the semantic tag variant. */
+    variant(variant: "primary" | "secondary" | "danger" | "success" | "warning" | "info"): this;
+    /** Uses the outline presentation. */
+    outline(): this;
+    /** Uses pill-shaped corners. */
+    rounded_full(): this;
+    /** Sets the semantic component size. */
+    size(size: FeedbackSize): this;
+    /** Mobile: a trailing dismiss button, for a removable tag. */
+    on_close(handler: FeedbackClick): this;
+  }
+  /** A compact semantic status tag that renders ordinary children. */
+  export const Tag: Constructor<[], TagElement>;
+
+  export interface SkeletonElement extends Element {
+    /** Uses the secondary skeleton color. */
+    secondary(): this;
+  }
+  /** A still loading placeholder, hidden from assistive technology. */
+  export const Skeleton: Constructor<[], SkeletonElement>;
+
+  export interface EmptyElement extends Element {
+    /** The header part, placed first. */
+    header(header: EmptyHeaderElement): this;
+    /** The content part, placed after the header. */
+    content(content: EmptyContentElement): this;
+  }
+  export interface EmptyHeaderElement extends Element {
+    /** Sets an EmptyMedia, replacing the previous media. */
+    media(media: EmptyMediaElement): this;
+    /** Sets an EmptyTitle, replacing the previous title. */
+    title(title: EmptyTitleElement): this;
+    /** Sets an EmptyDescription, replacing the previous description. */
+    description(description: EmptyDescriptionElement): this;
+  }
+  export interface EmptyMediaElement extends Element {
+    /** Sets the unframed default treatment or a muted icon frame. */
+    variant(variant: "default" | "icon"): this;
+  }
+  export interface EmptyTitleElement extends Element {}
+  export interface EmptyDescriptionElement extends Element {}
+  export interface EmptyContentElement extends Element {}
+  /** A stateless empty state. Ordinary children follow the header and content slots. */
+  export const Empty: Constructor<[], EmptyElement>;
+  /** An independently styled header. Accepts only named media, title, and description slots, in that order. */
+  export const EmptyHeader: Constructor<[], EmptyHeaderElement>;
+  /** A centered media part accepting arbitrary children such as an icon, avatar, or image. */
+  export const EmptyMedia: Constructor<[], EmptyMediaElement>;
+  /** An independently styled title with arbitrary children. */
+  export const EmptyTitle: Constructor<[], EmptyTitleElement>;
+  /** An independently styled, wrapping description with arbitrary children. */
+  export const EmptyDescription: Constructor<[], EmptyDescriptionElement>;
+  /** An independently styled content column for application-owned controls and actions. */
+  export const EmptyContent: Constructor<[], EmptyContentElement>;
+
+  export interface LabelElement extends Element {
+    /** Adds muted secondary text. */
+    secondary(secondary: string): this;
+    /** Controls whether the main text is masked. */
+    masked(masked: boolean): this;
+    /** Highlights matching text fragments. */
+    highlights(highlights: string): this;
+  }
+  /** A text label with optional secondary, masking, and highlight presentation. */
+  export const Label: Constructor<[text: string], LabelElement>;
+
+  export interface KbdElement extends Element {
+    /** Controls whether the keystroke uses keycap presentation. */
+    appearance(appearance: boolean): this;
+    /** Uses the outlined keycap presentation. */
+    outline(): this;
+  }
+  /** A platform-formatted keyboard shortcut keycap. */
+  export const Kbd: Constructor<[keystroke: string], KbdElement>;
+
+  export interface SeparatorElement extends Element {
+    /** Displays text centered over the separator line. */
+    label(label: string): this;
+    /** Sets the separator line color. */
+    color(color: import("native-shell").Color): this;
+    /** Uses a dashed separator line. */
+    dashed(): this;
+  }
+  /** A horizontal or vertical, solid or dashed separator. */
+  export const Separator: Constructor<[], SeparatorElement>;
+  export const VerticalSeparator: Constructor<[], SeparatorElement>;
+  export const DashedSeparator: Constructor<[], SeparatorElement>;
+  export const VerticalDashedSeparator: Constructor<[], SeparatorElement>;
+
+  export interface ShimmerTextElement extends Element {
+    /** Sets an explicit stable animation identity. */
+    id(id: string): this;
+    /** Sets one shimmer sweep duration in milliseconds. Mobile: kept; the text holds still. */
+    duration_ms(duration_ms: number): this;
+    /** Sets the relative highlight half-width. */
+    spread(spread: number): this;
+    /** Reverses the shimmer direction. */
+    reverse(reverse: boolean): this;
+    /** Runs one sweep instead of looping. */
+    once(once: boolean): this;
+  }
+  /** Loading text in the secondary label color, announced as busy. */
+  export const ShimmerText: Constructor<[text: string], ShimmerTextElement>;
+
+  export interface NotificationElement extends Element {
+    title(text: string): this;
+    message(text: string): this;
+    type(type: "info" | "success" | "warning" | "error"): this;
+    /** Mobile: the toast's *View* action. */
+    on_click(callback: (cx: import("native-shell").Context) => void): this;
+    /** Runs when the toast expires or its action is tapped. */
+    on_close(callback: (cx: import("native-shell").Context) => void): this;
+    autohide(value: boolean): this;
+  }
+  /** A button that shows a notification (a toast on a phone); on_effect_error receives failures. */
+  export const Notification: Constructor<
+    [id: string, label: string, on_effect_error: (message: string, cx: import("native-shell").Context) => void],
+    NotificationElement
+  >;
 
   // --- forms (crates/engine/js/gpui_component/forms.js) ---
 
@@ -1214,6 +1375,118 @@ declare module "gpui-component" {
   // --- charts (crates/engine/js/gpui_component/charts.js) ---
 
   // --- chat (crates/engine/js/gpui_component/chat.js) ---
+  type ChatHandler = (event: import("native-shell").ClickEvent, cx: import("native-shell").Context) => void;
+  export type MessageAlignment = "start" | "end";
+  export type BubbleVariant = "filled" | "secondary" | "muted" | "tinted" | "outline" | "ghost" | "destructive";
+  export type MarkerVariant = "plain" | "separator" | "border";
+  export type MarkerAlignment = "start" | "center" | "end";
+  export type MarkerLoadingStyle = "spinner" | "shimmer";
+  export type AttachmentStatus = "pending" | "uploading" | "processing" | "failed" | "complete";
+  export type AttachmentAxis = "horizontal" | "vertical";
+  export type AttachmentSize = "xsmall" | "small" | "medium" | "large";
+
+  /** A message row. Ordinary children are composed into its content slot. */
+  export class Message {
+    constructor();
+    /** Sets the sender-edge alignment. */
+    alignment(value: MessageAlignment): this;
+    /** Mobile: the sender's picture, level with the last bubble. */
+    avatar(el: Element): this;
+    /** Mobile: metadata above the content (sender, time). */
+    header(content: Element | string): this;
+    /** Mobile: a line under the row (delivery state, a failure and its retry). */
+    footer(content: Element | string): this;
+  }
+  export interface Message extends Element {}
+
+  /** A message bubble whose ordinary children form its visible content. */
+  export class Bubble {
+    constructor();
+    /** Sets the message-edge alignment; inside a `Message`, the message's applies when unset. */
+    alignment(value: MessageAlignment): this;
+    /** Sets the semantic bubble treatment. */
+    variant(value: BubbleVariant): this;
+    /** Mobile: the last bubble of a burst, its corner toward the sender tightened. */
+    tail(value?: boolean): this;
+  }
+  export interface Bubble extends Element {}
+
+  /** A compact conversation status marker with composable children. */
+  export class Marker {
+    constructor(id: string);
+    /** Sets the marker treatment. */
+    variant(value: MarkerVariant): this;
+    /** Mobile: where the content sits in the row (a separator keeps the line on the far side). */
+    alignment(value: MarkerAlignment): this;
+    /** Sets whether the marker displays a loading treatment. */
+    loading(value?: boolean): this;
+    /** Sets the loading treatment. */
+    loading_style(value: MarkerLoadingStyle): this;
+  }
+  export interface Marker extends Element {}
+
+  /** A file or image attachment. Ordinary children are composed into its metadata content slot. */
+  export class Attachment {
+    constructor(id: string);
+    /** Sets the attachment lifecycle status. */
+    status(value: AttachmentStatus): this;
+    /** Sets the layout axis: a chip, or a vertical tile with a square preview. */
+    axis(value: AttachmentAxis): this;
+    /** Sets the semantic attachment size; a number or length is the `size` style, as on any element. */
+    size(value: AttachmentSize | import("native-shell").Length): this;
+    /** Mobile: the preview, an icon or an `image(src)` that fills the media area. */
+    media(el: Element): this;
+    /** Mobile: the file name. */
+    title(text: string): this;
+    /** Mobile: kind and size; red once failed, the percentage appended while uploading. */
+    description(text: string): this;
+    /** Mobile: upload progress, 0 to 100, drawn while uploading. */
+    progress(percent: number): this;
+    /** Mobile: a Remove control on the attachment. */
+    on_remove(handler: ChatHandler): this;
+    /** Mobile: a Retry control once failed. */
+    on_retry(handler: ChatHandler): this;
+  }
+  export interface Attachment extends Element {}
+
+  /** Retained scroll state for a `MessageScroller`: the row count and whether the reader follows the end. */
+  export interface MessageScrollerState {
+    item_count(): number;
+    is_scrolled_up(): boolean;
+    is_following_tail(): boolean;
+    /** Replaces the row count and returns to the latest row. */
+    reset(item_count: number): void;
+    /** Replaces rows `[start, end)` with `count` rows; false when the range is outside the list. */
+    splice(start: number, end: number, count: number): boolean;
+    append(count: number): boolean;
+    /** Older rows above; the reader's position is kept. */
+    prepend(count: number): boolean;
+    remeasure(): void;
+    remeasure_items(start: number, end: number): boolean;
+    scroll_to_item(index: number): boolean;
+    /** Back to the latest row, following it again. */
+    scroll_to_end(): void;
+  }
+  /** Retained virtual-list and tail-following state for a message transcript; create it in `init`. */
+  export function MessageScrollerState(item_count: number): MessageScrollerState;
+
+  /**
+   * A virtualized message transcript: opens at its end, keeps the newest row in
+   * view, and offers a jump-to-latest button once scrolled away. A row's
+   * `.key()` keeps its identity when history is prepended; `.test_id()` names the list.
+   */
+  export class MessageScroller {
+    constructor(id: string, state: MessageScrollerState, render_item: (index: number) => Element | null);
+    /** Accepted: native lists draw their own scroll indicator. */
+    scrollbar(value: boolean): this;
+    /** Enables the jump-to-latest button (on by default). */
+    jump_button(value: boolean): this;
+    /** Sets the jump-to-latest button label (its accessibility label). */
+    jump_button_label(label: string): this;
+    /** Mobile: the row height assumed before a row is measured. */
+    estimated_row_height(px: number): this;
+  }
+  export interface MessageScroller extends Element {}
 }
 
 declare module "fs/promises" {
