@@ -136,9 +136,13 @@ sheets), it stays the native platform control on each OS.
 Several people and agents work on `main` at the same time, on different
 machines (platform work happens where the platform runs).
 
-- Commit small and often, straight to `main`; stage only the paths you
-  changed (`git add <paths>`, never `git add -A`).
-- `git pull --rebase` before every push; never force-push or rewrite pushed
+- Commit small and often, straight to `main`, naming your paths explicitly:
+  `git add <paths> && git commit -m "…" -- <paths>` (never `git add -A`; the
+  `--` keeps files others have staged out of your commit).
+- Agents may share one working tree, so never stash, reset, checkout or
+  rebase it. Sync with `git fetch origin && git merge --no-edit origin/main`
+  (it refuses rather than touching uncommitted files), then `git push`.
+  Never force-push or rewrite pushed
   history. Resolve conflicts in files you don't own by asking their owner.
 - Each platform lives in its own `platforms/<name>` directory and owns it.
   Shared contracts (`crates/core`, the C ABI, `docs/protocol-json.md`) change
