@@ -7,7 +7,6 @@ this file (and `git log origin/main`) before starting anything shared.
 
 | Area | What | Who | Since |
 | --- | --- | --- | --- |
-| `crates/engine/js` (new module `gpui-component` exports) | Feedback components: `Alert` (+ Info/Success/Warning/Error), `Badge`, `Tag`, `Skeleton`, `Empty` (+ parts), `Kbd`, `Label`, `Separator` (+ dashed/vertical), `ShimmerText`, `Notification` | Linux team (agent `comp-feedback`) | 2026-10-14 |
 | `crates/engine/js` | Form components: `Form` / `HForm` / `VForm` / `Field`, `InputGroup` (+ parts), `Rating`, `Stepper` (+ Item), `TimeField`, `Clipboard`, `ColorPicker` | Linux team (agent `comp-forms`) | 2026-10-14 |
 | `crates/engine/js` | Data and navigation components: `DescriptionList`, `Tree`, `List`, `TabBar`, `Breadcrumb`, `Settings` (+ Page / Group / Item), `GroupBox`, `Calendar`, `Carousel` (+ parts), `Menu` / `DropdownButton`, `Toolbar`, `Icon` | Linux team (agent `comp-data`) | 2026-10-14 |
 | `crates/engine/js` | Charts: `BarChart`, `LineChart`, `AreaChart`, `PieChart`, `RadarChart` | Linux team (agent `comp-charts`) | 2026-10-14 |

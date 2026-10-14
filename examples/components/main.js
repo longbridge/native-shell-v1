@@ -14,10 +14,12 @@ import SelectionPage from "./pages/selection.js";
 import ProgressPage from "./pages/progress.js";
 import PickersPage from "./pages/pickers.js";
 import OverlaysPage from "./pages/overlays.js";
+import StatusPage from "./pages/status.js";
+import ChartsPage from "./pages/charts.js";
 import { row, scrollScreen, section, tile } from "./ui.js";
 /** @import { Color } from "native-shell" */
 
-/** @typedef {{ id: string, icon: "pointer" | "text" | "toggle" | "sliders" | "calendar" | "layers", tint: "primary" | "success" | "warning" | "info" | "destructive", title: string, detail: string, page: import("native-shell").ViewClass }} Entry */
+/** @typedef {{ id: string, icon: "pointer" | "text" | "toggle" | "sliders" | "calendar" | "layers" | "status" | "chart", tint: "primary" | "success" | "warning" | "info" | "destructive", title: string, detail: string, page: import("native-shell").ViewClass }} Entry */
 
 /** @type {{ header: string, pages: Entry[] }[]} */
 const SECTIONS = [
@@ -42,9 +44,14 @@ const SECTIONS = [
     ],
   },
   {
+    header: "Data",
+    pages: [{ id: "charts", icon: "chart", tint: "info", title: "Charts", detail: "A health and money dashboard", page: ChartsPage }],
+  },
+  {
     header: "Feedback",
     pages: [
       { id: "overlays", icon: "layers", tint: "primary", title: "Overlays", detail: "Sheet, dialog, toast and alert", page: OverlaysPage },
+      { id: "status", icon: "status", tint: "warning", title: "Status", detail: "Order banners, badges and empty states", page: StatusPage },
     ],
   },
 ];
