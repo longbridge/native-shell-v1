@@ -783,12 +783,20 @@ impl Converter<'_> {
             Block::List { ordered, start, items } => {
                 let column = self.engine_style(&[("flex", None), ("flex_col", None), ("gap", Some(Arg::Num(4.0)))])?;
                 let row = self.engine_style(&[("flex", None), ("flex_row", None), ("gap", Some(Arg::Num(8.0)))])?;
-                let mut d = Desc::new(ElementKind::View, column.clone());
+                // The item's text takes what the marker leaves and wraps there, rather than overflowing the view.
+                let body_style = self.engine_style(&[
+                    ("flex", None),
+                    ("flex_col", None),
+                    ("gap", Some(Arg::Num(4.0))),
+                    ("flex_1", None),
+                    ("min_w", Some(Arg::Num(0.0))),
+                ])?;
+                let mut d = Desc::new(ElementKind::View, column);
                 for (i, item) in items.iter().enumerate() {
                     let marker = if *ordered { format!("{}.", start + i as u64) } else { "•".to_string() };
                     let mut r = Desc::new(ElementKind::View, row.clone());
                     r.children.push(Desc::new(ElementKind::Text(vec![run(marker)]), self.base.clone()));
-                    let mut body = Desc::new(ElementKind::View, column.clone());
+                    let mut body = Desc::new(ElementKind::View, body_style.clone());
                     for b in item {
                         body.children.push(self.block(b, leaf)?);
                     }

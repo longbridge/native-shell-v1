@@ -4,8 +4,9 @@
 // (the back button and the system back gesture alike). Fields validate when
 // the user commits, and the message sits under the field it is about.
 
-import { View, div, v_flex, Button, Input, InputState } from "native-shell";
-import { avatar, navBar } from "./ui.js";
+import { View, h_flex, v_flex, Input, InputState } from "native-shell";
+import { avatar, label, navBar, row, section, textButton, textStyle } from "./ui.js";
+/** @import { Context } from "native-shell" */
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -73,9 +74,9 @@ export default class AccountPage extends View {
       title: "Discard changes?",
       message: "Your edits to the account haven’t been saved.",
       actions: [
-        { label: "Keep editing", style: "cancel" },
+        { label: "Keep Editing", style: "cancel" },
         {
-          label: "Discard changes",
+          label: "Discard Changes",
           style: "destructive",
           on_press: (cx) => {
             cx.set_can_go_back(true);
@@ -93,7 +94,7 @@ export default class AccountPage extends View {
       actions: [
         { label: "Cancel", style: "cancel" },
         {
-          label: "Sign out",
+          label: "Sign Out",
           style: "destructive",
           on_press: (cx) => {
             this.props.signOut(cx);
@@ -112,27 +113,20 @@ export default class AccountPage extends View {
 
   render(cx) {
     const t = cx.theme();
+    const win = cx.window();
     const canSave = this.complete && (this.dirty || this.signingIn);
     return v_flex()
       .size_full()
-      .bg(t.background)
-      .line_height(1.375)
+      .bg(t.grouped_background)
       .child(
         navBar(cx, {
-          title: this.signingIn ? "Sign in" : "Account",
+          title: this.signingIn ? "Sign In" : "Account",
           back: { label: "Settings", on_click: (_e, cx) => this.leave(cx) },
-          trailing: Button.new("save")
-            .test_id("save")
-            .disabled(!canSave)
-            .px_3()
-            .py_2()
-            .rounded_md()
-            .hit_slop(4)
-            .text_base()
-            .font_semibold()
-            .text_color(canSave ? t.primary : t.muted_foreground)
-            .when(canSave, (el) => el.active((s) => s.opacity(0.5)).on_click((_e, cx) => this.commit(cx)))
-            .child(this.signingIn ? "Sign in" : "Save"),
+          trailing: textButton(cx, "save", this.signingIn ? "Sign In" : "Save", {
+            emphasized: true,
+            disabled: !canSave,
+            on_click: (_e, cx) => this.commit(cx),
+          }),
         }),
       )
       .child(
@@ -141,71 +135,58 @@ export default class AccountPage extends View {
           .overflow_y_scroll()
           .px_4()
           .pt_6()
-          .pb(Math.max(cx.window().keyboard_height, cx.window().safe_area.bottom) + 24)
-          .gap_6()
+          .pb(Math.max(win.keyboard_height, win.safe_area.bottom) + 24)
+          .gap_8()
           .child(
             v_flex()
               .items_center()
               .gap_3()
-              .child(avatar(cx, this.name.value().trim() || "?", 72))
+              .child(avatar(cx, this.name.value().trim() || "?", 80))
               .when(this.signingIn, (el) =>
                 el.child(
-                  div()
-                    .text_sm()
-                    .text_center()
-                    .text_color(t.muted_foreground)
-                    .child("Sign in to keep your settings in sync on every device you use."),
+                  label(
+                    cx,
+                    "subheadline",
+                    t.muted_foreground,
+                    "Sign in to keep your settings in sync on every device you use.",
+                  ).text_center(),
                 ),
               ),
           )
           .child(
-            v_flex()
-              .gap_4()
-              .child(this.field(cx, "name", "Name", this.name, null))
-              .child(this.field(cx, "email", "Email", this.email, this.error)),
+            section(cx, {
+              footer: this.error,
+              footerColor: t.destructive,
+              footerId: "email-error",
+              rows: [this.field(cx, "name", "Name", this.name, false), this.field(cx, "email", "Email", this.email, this.error !== null)],
+            }),
           )
           .when(!this.signingIn, (el) =>
             el.child(
-              Button.new("sign-out")
-                .test_id("sign-out")
-                .flex()
-                .items_center()
-                .justify_center()
-                .min_h_12()
-                .py_3()
-                .rounded_xl()
-                .border_1()
-                .border_color(t.border)
-                .bg(t.surface)
-                .text_base()
-                .text_color(t.destructive)
-                .active((s) => s.bg(t.muted))
-                .on_click((_e, cx) => this.signOut(cx))
-                .child("Sign out…"),
+              section(cx, {
+                rows: [row(cx, { id: "sign-out", label: "Sign Out…", destructive: true, on_click: (_e, cx) => this.signOut(cx) })],
+              }),
             ),
           ),
       );
   }
 
-  field(cx, id, label, state, error) {
+  /**
+   * A form row: the label in a fixed column, the field filling the rest, as
+   * iOS forms align their values.
+   * @param {Context} cx @param {string} id @param {string} text @param {InputState} state @param {boolean} invalid
+   */
+  field(cx, id, text, state, invalid) {
     const t = cx.theme();
-    return v_flex()
-      .gap_1p5()
-      .child(div().text_sm().font_medium().text_color(t.foreground).child(label))
+    return h_flex()
+      .gap_3()
+      .px_4()
+      .min_h_11()
       .child(
-        Input.new(state)
-          .test_id(id)
-          .accessibility_label(label)
-          .min_h_11()
-          .px_3()
-          .py_2()
-          .rounded_lg()
-          .border_1()
-          .border_color(error ? t.destructive : t.input)
-          .bg(t.background)
-          .text_base()
-          .text_color(t.foreground),
+        label(cx, "body", invalid ? t.destructive : t.foreground, text)
+          .w_20()
+          .flex_none(),
       )
-      .when(Boolean(error), (el) => el.child(div().test_id(`${id}-error`).role("alert").text_sm().text_color(t.destructive).child(error)));
+      .child(textStyle(Input.new(state), cx, "body").test_id(id).accessibility_label(text).flex_1().min_h_11().text_color(t.foreground));
   }
 }
