@@ -1,7 +1,7 @@
 //! gpui-shell's script surface, as gpui-shell programs use it.
 
 use native_shell::core::host::{HostMethod, HostModuleDescriptor, HostRegistry, MethodKind};
-use native_shell::core::protocol::{Command, EventType, Prop, PropValue, ViewType, ROOT_NODE};
+use native_shell::core::protocol::{Command, CursorStyle, EventType, Prop, PropValue, ViewType, ROOT_NODE};
 use native_shell::testing::Harness;
 
 fn app(main: &str) -> Harness {
@@ -287,6 +287,10 @@ export default class P extends View {
 }
 "#);
     assert_eq!(h.prop("card", Prop::Tooltip), Some(PropValue::Str("Archive".into())));
+    assert_eq!(h.prop("card", Prop::Cursor), Some(PropValue::I32(CursorStyle::PointingHand as i32)));
+    assert_eq!(h.prop("card", Prop::HoverOpacity), Some(PropValue::F32(0.9)));
+    let muted = h.theme_tokens()[0]["muted"].as_u64().expect("muted token") as u32;
+    assert_eq!(h.prop("card", Prop::HoverBackground), Some(PropValue::Color(muted)));
     let card = h.find("card").unwrap();
     assert_ne!(h.native().nodes[&card].mask & native_shell::core::protocol::event_mask::HOVER, 0);
     h.dispatch(card, EventType::Hover, r#"{"entered":true,"x":3,"y":4}"#);

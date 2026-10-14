@@ -36,7 +36,8 @@ only; `"gpui-shell"` exists and exports nothing, as in gpui-shell;
 | `Checkbox`, `Switch`, `Radio`, `Progress` (+ Track / Indicator) | drawn (headless, as in gpui-base) when the element gets any child, style method or `.headless()`; a bare element is the native control |
 | `Slider(state)` and its parts | always the native slider; the part components are accepted and ignored |
 | `Tabs` | headless row of `Tab`s; `.items([...])` makes it a native segmented control |
-| `on_click` event | `{click_count, modifiers (all false on touch), x, y}` |
+| `on_click` event | `{click_count, modifiers, x, y}`; modifiers come from pointer platforms and are all false on touch |
+| `on_hover`, `.hover(s => …)`, `cursor_*`, `.tooltip(text)` | applied on platforms with a pointer (macOS, Linux, iPad trackpad, Android mouse); hover styles are opacity and background; `tooltip` takes a string, as in gpui-shell; the platform's own tooltip shows it (none on iOS) |
 | `NumberInput` | a native numeric field between two step buttons |
 | `OtpState` / `OtpInput` | one native field with the one-time-code content type, number pad and max length |
 | `Avatar` | image if set, else fallback (no load-failure fallback) |
@@ -50,7 +51,7 @@ only; `"gpui-shell"` exists and exports nothing, as in gpui-shell;
 | `open_sheet_at` | placement ignored: always a bottom sheet |
 | `mouse_position`, `is_fullscreen`, `is_maximized`, `is_window_active` | constants (`{0, 0}`, `true`) |
 | `cx.stop_propagation`, `cx.propagate` | no-ops: touch events do not bubble |
-| `on_hover`, `on_mouse_*`, `on_scroll_wheel`, `tooltip`, `tab_index`, `key_context`… | accepted and ignored so desktop render code runs |
+| `on_mouse_*`, `on_scroll_wheel`, `tab_index`… | accepted and ignored so desktop render code runs |
 
 ## Not available on mobile
 
