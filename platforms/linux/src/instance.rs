@@ -267,7 +267,7 @@ fn core_version() -> &'static str {
     v.split_once('+').map_or(v, |(version, _)| version)
 }
 
-fn collect_sources(root: &Path, dir: &Path, out: &mut BTreeMap<String, String>) -> Result<(), String> {
+pub(crate) fn collect_sources(root: &Path, dir: &Path, out: &mut BTreeMap<String, String>) -> Result<(), String> {
     let entries = std::fs::read_dir(dir).map_err(|e| format!("cannot list {}: {e}", dir.display()))?;
     for entry in entries.flatten() {
         let path = entry.path();

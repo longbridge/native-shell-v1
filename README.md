@@ -42,6 +42,7 @@ cargo run -- check examples/tasks     # `cargo run` is the nshell CLI
 cargo run -- dev examples/tasks       # serve a program with hot reload
 cargo linux                           # Linux example app (GTK 4)
 cargo linux-run examples/tasks        # open one program on Linux
+cargo linux-run examples/tasks --watch  # …and reload it in place on every save
 cargo linux-run --dev http://IP:PORT  # Linux client of `nshell dev`
 cargo linux-test                      # Linux renderer tests (headless)
 ```
