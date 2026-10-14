@@ -679,6 +679,12 @@ declare module "native-shell" {
       view_box?: [number, number, number, number] | string;
       /** Mobile: how overlapping subpaths fill (default `"nonzero"`). */
       fill_rule?: "nonzero" | "evenodd";
+      /**
+       * Mobile: `"contain"` (default) fits the view box uniformly, as an icon;
+       * `"fill"` stretches it to the laid-out frame on each axis, with strokes
+       * kept in points (a chart's line across a plot of any width).
+       */
+      fit?: "contain" | "fill";
     },
   ): ShapeElement;
   /**
@@ -1222,10 +1228,10 @@ declare module "gpui-component" {
     title(title: string): this;
     /** Uses the full-width banner presentation. */
     banner(): this;
-    /** Controls whether the alert is rendered. */
-    visible(visible: boolean): this;
-    /** Sets the alert's semantic size. */
-    size(size: FeedbackSize): this;
+    /** Controls whether the alert is rendered. Without an argument, the style method. */
+    visible(visible?: boolean): this;
+    /** Sets the alert's semantic size.A length is the style method (width and height). */
+    size(size: FeedbackSize | import("native-shell").Length): this;
     /** gpui-component's `Alert::icon`: an element in place of the variant's glyph. */
     icon(icon: Element): this;
     /** gpui-component's `Alert::on_close`: a dismiss button that calls the handler. */
@@ -1247,8 +1253,8 @@ declare module "gpui-component" {
     max(max: number): this;
     /** Sets the badge background from a theme token or a color literal. */
     color(color: import("native-shell").Color): this;
-    /** Sets the semantic component size. */
-    size(size: FeedbackSize): this;
+    /** Sets the semantic component size.A length is the style method (width and height). */
+    size(size: FeedbackSize | import("native-shell").Length): this;
   }
   /** A count or dot badge positioned over its ordinary children. */
   export const Badge: Constructor<[], BadgeElement>;
@@ -1260,8 +1266,8 @@ declare module "gpui-component" {
     outline(): this;
     /** Uses pill-shaped corners. */
     rounded_full(): this;
-    /** Sets the semantic component size. */
-    size(size: FeedbackSize): this;
+    /** Sets the semantic component size.A length is the style method (width and height). */
+    size(size: FeedbackSize | import("native-shell").Length): this;
     /** Mobile: a trailing dismiss button, for a removable tag. */
     on_close(handler: FeedbackClick): this;
   }
@@ -1364,6 +1370,8 @@ declare module "gpui-component" {
     type(type: "info" | "success" | "warning" | "error"): this;
     /** Mobile: the toast's *View* action. */
     on_click(callback: (cx: import("native-shell").Context) => void): this;
+    /** Not the button's tap: that shows the notification. Declared so the element stays an `Element`. */
+    on_click(handler: FeedbackClick): this;
     /** Runs when the toast expires or its action is tapped. */
     on_close(callback: (cx: import("native-shell").Context) => void): this;
     autohide(value: boolean): this;
@@ -1375,6 +1383,7 @@ declare module "gpui-component" {
   >;
 
   // --- forms (crates/engine/js/gpui_component/forms.js) ---
+  /** A component size; any other value is the `size` style (width and height). */
   type FormSize = "xsmall" | "small" | "medium" | "large";
   type FormContext = import("native-shell").Context;
   type FormConstructor<A extends unknown[], E> = { new (...args: A): E; new: (...args: A) => E };
@@ -1385,7 +1394,7 @@ declare module "gpui-component" {
     /** Sets the horizontal form label width in pixels. */
     label_width(width: number): this;
     /** Sets the form density. */
-    size(size: FormSize): this;
+    size(size: FormSize | import("native-shell").Length): this;
   }
   /**
    * A vertical or horizontal form accepting Field children. Mobile: a vertical
@@ -1404,11 +1413,11 @@ declare module "gpui-component" {
     /** Mobile: why the value was refused, shown (as an alert) in place of the description. */
     error(message: string | null): this;
     /** Marks the field as required. */
-    required(required: boolean): this;
+    required(required?: boolean): this;
     /** Controls field visibility. */
-    visible(visible: boolean): this;
+    visible(visible?: boolean): this;
     /** Keeps unlabeled horizontal fields aligned with labeled fields. */
-    label_indent(label_indent: boolean): this;
+    label_indent(label_indent?: boolean): this;
     /** Aligns the label and control within the field. */
     align(align: "start" | "center" | "end"): this;
     /** Sets the field's grid-column span. */
@@ -1423,17 +1432,17 @@ declare module "gpui-component" {
     /** Appends an InputGroupAddon at its logical side. */
     addon(addon: InputGroupAddonElement): this;
     /** Disables the field and the addons' direct InputGroupButton children. */
-    disabled(disabled: boolean): this;
+    disabled(disabled?: boolean): this;
     /** Prevents text edits while leaving addon actions available. */
-    readonly(readonly: boolean): this;
+    readonly(readonly?: boolean): this;
     /** Displays the caller's validation result without rejecting input. */
-    invalid(invalid: boolean): this;
+    invalid(invalid?: boolean): this;
     /** Accepted; the platform draws its own focus. */
-    focus_ring(focus_ring: boolean): this;
+    focus_ring(focus_ring?: boolean): this;
     /** Names the group independently of its text control. */
     aria_label(label: string): this;
     /** Sets the group's semantic control size. */
-    size(size: FormSize): this;
+    size(size: FormSize | import("native-shell").Length): this;
   }
   /** A themed frame around one text control and any number of addons. */
   export const InputGroup: FormConstructor<[id: string], InputGroupElement>;
@@ -1451,9 +1460,9 @@ declare module "gpui-component" {
 
   interface InputGroupControlElement extends Element {
     /** Controls whether this component accepts interaction. */
-    disabled(disabled: boolean): this;
+    disabled(disabled?: boolean): this;
     /** Prevents edits while preserving selection and copying. */
-    readonly(readonly: boolean): this;
+    readonly(readonly?: boolean): this;
     /** Names the text control for accessibility. */
     aria_label(label: string): this;
     /** Sets the developer-assigned accessibility identifier. */
@@ -1467,7 +1476,7 @@ declare module "gpui-component" {
   }
   export interface InputGroupInputElement extends InputGroupControlElement {
     /** Controls password masking. */
-    masked(masked: boolean): this;
+    masked(masked?: boolean): this;
     /** Sets the native content type; names follow InputContentType in snake_case. */
     content_type(content_type: InputContentType): this;
   }
@@ -1491,7 +1500,7 @@ declare module "gpui-component" {
 
   export interface InputGroupButtonElement extends Element {
     /** Controls whether this component accepts interaction. */
-    disabled(disabled: boolean): this;
+    disabled(disabled?: boolean): this;
     /** Sets the visible label. */
     label(label: string): this;
     /** Sets the icon path in the application's asset bundle. */
@@ -1499,11 +1508,11 @@ declare module "gpui-component" {
     /** Names an icon-only action. */
     aria_label(label: string): this;
     /** Displays progress and prevents duplicate activation. */
-    loading(loading: boolean): this;
+    loading(loading?: boolean): this;
     /** Uses the outlined button treatment. */
     outline(): this;
     /** Sets the button size; xsmall and small are the compact input-group sizes. */
-    size(size: FormSize): this;
+    size(size: FormSize | import("native-shell").Length): this;
     /** Selects a semantic button variant. */
     variant(variant: "default" | "primary" | "secondary" | "danger" | "warning" | "success" | "info" | "ghost" | "link" | "text"): this;
   }
@@ -1514,7 +1523,7 @@ declare module "gpui-component" {
 
   export interface RatingElement extends Element {
     /** Controls whether this component accepts interaction; a disabled rating is a read-only display. */
-    disabled(disabled: boolean): this;
+    disabled(disabled?: boolean): this;
     /** Sets the current number of active stars. Mobile: halves (4.5) for a read-only average. */
     value(value: number): this;
     /** Sets the maximum number of stars. */
@@ -1524,14 +1533,14 @@ declare module "gpui-component" {
     /** Sets the active star color. */
     color(color: import("native-shell").Color): this;
     /** Sets the rating's semantic size. */
-    size(size: FormSize): this;
+    size(size: FormSize | import("native-shell").Length): this;
   }
   /** An interactive star rating with configurable value and maximum. */
   export const Rating: FormConstructor<[id: string], RatingElement>;
 
   export interface StepperItemElement extends Element {
     /** Disables this step independently of its parent. */
-    disabled(disabled: boolean): this;
+    disabled(disabled?: boolean): this;
     /** Mobile (gpui-component's Rust API): an asset icon in place of the step number. */
     icon(path: string): this;
   }
@@ -1542,13 +1551,13 @@ declare module "gpui-component" {
     /** Controls the current zero-based step. */
     selected_index(index: number): this;
     /** Switches between vertical and horizontal layout. */
-    vertical(vertical: boolean): this;
+    vertical(vertical?: boolean): this;
     /** Centers each step's text in horizontal layouts. */
-    text_center(text_center: boolean): this;
+    text_center(text_center?: boolean): this;
     /** Disables every step. */
-    disabled(disabled: boolean): this;
+    disabled(disabled?: boolean): this;
     /** Sets the stepper's semantic size. */
-    size(size: FormSize): this;
+    size(size: FormSize | import("native-shell").Length): this;
     /** Reports the newly selected zero-based index. */
     on_change(handler: (index: number, cx: FormContext) => void): this;
     /** gpui-component's Rust spelling: adds steps. */
@@ -1580,9 +1589,9 @@ declare module "gpui-component" {
   }
   export interface TimeFieldElement extends Element {
     /** Controls whether this component accepts interaction. */
-    disabled(disabled: boolean): this;
+    disabled(disabled?: boolean): this;
     /** Mobile (gpui-component's Rust API): shows the script's validation result. */
-    invalid(invalid: boolean): this;
+    invalid(invalid?: boolean): this;
   }
   /** The platform's time picker bound to a TimeFieldState. */
   export const TimeField: FormConstructor<[state: TimeFieldState], TimeFieldElement>;
@@ -1622,8 +1631,8 @@ declare module "gpui-component" {
     featured_colors(colors: string[]): this;
     /** Mobile (gpui-component's Rust API): an asset icon, drawn in the chosen color, in place of the swatch. */
     icon(path: string): this;
-    disabled(disabled: boolean): this;
-    size(size: FormSize): this;
+    disabled(disabled?: boolean): this;
+    size(size: FormSize | import("native-shell").Length): this;
     /** Accepted; the picker is a sheet on a phone. */
     anchor(anchor: string): this;
   }
@@ -1884,6 +1893,102 @@ declare module "gpui-component" {
   export const Icon: DataConstructor<[path: string], IconElement>;
 
   // --- charts (crates/engine/js/gpui_component/charts.js) ---
+  /** gpui-shell's chart row; custom accessors (`x`, `y`, `band`, `value`, `label`) take any row. */
+  export interface ChartRow {
+    label: string;
+    value: number;
+  }
+  /** gpui-shell's row snapshot callback; mobile also takes the rows themselves. */
+  type ChartRows<R> = ((cx: import("native-shell").Context) => readonly R[]) | readonly R[];
+  type ChartConstructor<E> = { new (rows: ChartRows<any>): E; new: (rows: ChartRows<any>) => E };
+
+  interface ChartElement<R = any> extends Element {
+    /** Grid lines at the value ticks (default `true`). */
+    grid(): this;
+    grid(grid: boolean): this;
+    /** gpui-component: the stroke color of the last series (a theme token or a color). */
+    stroke(color: import("native-shell").Color): this;
+    /** gpui-component: the fill color of the last series. */
+    fill(color: import("native-shell").Color): this;
+    /** Mobile: how a value is written in the callout, legends and for screen readers. */
+    value_format(format: (value: number) => string): this;
+  }
+  interface CartesianChartElement<R = any> extends ChartElement<R> {
+    /** Labels every `n`-th category (default 1). */
+    tick_margin(n: number): this;
+  }
+  export interface BarChartElement<R = any> extends CartesianChartElement<R> {
+    /** Category labels under the bars (default `true`). */
+    label_axis(show: boolean): this;
+    /** Value labels on the trailing edge (default `false`). */
+    value_axis(show: boolean): this;
+    /** gpui-component: the category of a row (default `row.label`). */
+    band(band: (row: R, index: number) => string): this;
+    /** gpui-component: the value of a row (default `row.value`). */
+    value(value: (row: R, index: number) => number): this;
+    /** gpui-component: the text over each bar (default: the value), or `false` for none. */
+    label(label: ((row: R, index: number) => string) | false): this;
+    /** One color for every bar, or gpui-component's color per row. */
+    fill(color: import("native-shell").Color | ((row: R, index: number) => import("native-shell").Color)): this;
+    value_tick_count(count: number): this;
+    value_tick_format(format: (value: number) => string): this;
+  }
+  interface SeriesChartElement<R = any> extends CartesianChartElement<R> {
+    /** Category labels under the plot (default `true`). */
+    x_axis(show: boolean): this;
+    /** gpui-component: value labels on the trailing edge (default `false`). */
+    y_axis(show: boolean): this;
+    /** Catmull-Rom curves through the points (the default). */
+    natural(): this;
+    linear(): this;
+    step_after(): this;
+    /** gpui-component: the category of a row (default `row.label`). */
+    x(x: (row: R, index: number) => string): this;
+    /** gpui-component: a series' value; the first call replaces `row.value`, later calls add series. */
+    y(y: (row: R, index: number) => number): this;
+    y_tick_count(count: number): this;
+    y_tick_format(format: (value: number) => string): this;
+    /** gpui-component: pins the value axis instead of fitting the data from zero. */
+    y_domain(min: number, max: number): this;
+  }
+  export interface LineChartElement<R = any> extends SeriesChartElement<R> {
+    /** A dot at every point. */
+    dot(): this;
+  }
+  /** Series stack, each area starting where the one before it ends. */
+  export interface AreaChartElement<R = any> extends SeriesChartElement<R> {}
+  export interface PieChartElement<R = any> extends ChartElement<R> {
+    /** A donut: the hole's radius, in the units of `outer_radius` (default 100). */
+    inner_radius(radius: number): this;
+    outer_radius(radius: number): this;
+    /** The gap between slices, in radians. */
+    pad_angle(angle: number): this;
+    /** A legend of slices and their shares beside the ring; a tap on a row selects its slice. */
+    labels(show: boolean): this;
+    value(value: (row: R, index: number) => number): this;
+    label(label: (row: R, index: number) => string): this;
+    color(color: (row: R, index: number) => import("native-shell").Color): this;
+  }
+  export interface RadarChartElement<R = any> extends ChartElement<R> {
+    /** Rings between the center and the outer value (default 4). */
+    grid_levels(levels: number): this;
+    dot(): this;
+    /** A series' value; the first call replaces `row.value`, later calls add series. */
+    value(value: (row: R, index: number) => number): this;
+    label(label: (row: R, index: number) => string): this;
+    /** Mobile: the value at the outer ring (default: the largest value, rounded up). */
+    max_value(value: number): this;
+  }
+  /**
+   * Charts drawn from one row snapshot per render. A tap on a point (or a pie
+   * legend row) selects it and shows its value; a chart with a `test_id` names
+   * its points `<test_id>-point-<index>`.
+   */
+  export const BarChart: ChartConstructor<BarChartElement>;
+  export const LineChart: ChartConstructor<LineChartElement>;
+  export const AreaChart: ChartConstructor<AreaChartElement>;
+  export const PieChart: ChartConstructor<PieChartElement>;
+  export const RadarChart: ChartConstructor<RadarChartElement>;
 
   // --- chat (crates/engine/js/gpui_component/chat.js) ---
   type ChatHandler = (event: import("native-shell").ClickEvent, cx: import("native-shell").Context) => void;
