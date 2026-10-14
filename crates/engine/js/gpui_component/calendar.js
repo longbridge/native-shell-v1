@@ -191,10 +191,11 @@ export function CalendarState() {
 }
 CalendarState.new = CalendarState;
 
-const CELL_KEY = chainKey([["relative"], ["flex"], ["items_center"], ["justify_center"], ["w", `${100 / 7}%`], ["min_h", "2.75rem"]]);
+const CELL_KEY = chainKey([["relative"], ["flex"], ["flex_col"], ["items_center"], ["justify_center"], ["gap_0p5"], ["w", `${100 / 7}%`], ["min_h", "2.75rem"]]);
 // The disc keeps to its column at large text sizes: 40 pt, or the column's width if that is less.
 const DISC_KEY = chainKey([["relative"], ["flex"], ["items_center"], ["justify_center"], ["w_full"], ["max_w", "2.5rem"], ["aspect_ratio", 1], ["rounded_full"]]);
-const DOT_KEY = chainKey([["absolute"], ["bottom", "12%"], ["left", "50%"], ["ml", -3], ["size", 6], ["rounded_full"]]);
+// Under the disc rather than in it, so a number at the largest text sizes never covers it.
+const DOT_KEY = chainKey([["flex_none"], ["size", 6], ["rounded_full"]]);
 const NAV_KEY = chainKey([["flex"], ["items_center"], ["justify_center"], ["size", "2.75rem"], ["rounded_full"], ["@active", [["bg", "muted"]]]]);
 
 /**
@@ -343,10 +344,11 @@ export class Calendar extends Element {
               .when(disc || today, (el) => el.font_semibold())
               .when(disabled, (el) => el.opacity(0.5))
               .child(String(day)),
-          )
-          .when(marker !== null, (el) =>
-            el.child(div()._preset(DOT_KEY).bg(disc ? "primary_foreground" : marker === "tinted" ? "primary" : "muted_foreground")),
           ),
+      )
+      // Every day keeps the dot's row once markers are in use, so the weeks stay aligned.
+      .when(s._marker !== null, (el) =>
+        el.child(div()._preset(DOT_KEY).when(marker !== null, (d) => d.bg(marker === "tinted" ? "primary" : "muted_foreground"))),
       );
     if (disabled) return cell.disabled(true);
     return cell.on_click((_e, cx) => {

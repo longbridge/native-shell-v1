@@ -497,9 +497,8 @@ fn calendar_marks_days_and_names_its_parts() {
     ));
     assert_eq!(h.prop("cal-2020-10-16", Prop::A11yLabel), Some(PropValue::Str("Friday, October 16, 2020, has events".into())));
     let dot = |h: &Harness, id: &str| {
-        let disc = h.native().children(h.find(id).unwrap())[0];
-        let kids = h.native().children(disc).to_vec();
-        kids.iter().find_map(|k| match h.native().prop(*k, Prop::BackgroundColor) {
+        let kids = h.native().children(h.find(id).unwrap()).to_vec();
+        kids.iter().skip(1).find_map(|k| match h.native().prop(*k, Prop::BackgroundColor) {
             Some(PropValue::Color(c)) => Some(*c),
             _ => None,
         })
@@ -511,7 +510,7 @@ fn calendar_marks_days_and_names_its_parts() {
     // Day and month-button ids make taps scriptable.
     h.tap("cal-2020-10-16");
     assert_eq!(log(&h), r#""2020-10-16""#);
-    assert_eq!(dot(&h, "cal-2020-10-16"), theme.color("primary_foreground"), "white on the selected disc");
+    assert_eq!(dot(&h, "cal-2020-10-16"), theme.color("primary"), "the dot stays under the selected disc");
     h.tap("cal-next");
     assert!(h.find("cal-2020-11-02").is_some());
     h.tap("cal-prev");
@@ -520,7 +519,10 @@ fn calendar_marks_days_and_names_its_parts() {
 
 #[test]
 fn calendar_columns_fit_at_twice_the_text_size() {
-    let src = program(&calendar("this.state.set_month(2020, 10);", "new Calendar(this.state)"));
+    let src = program(&calendar(
+        r#"this.state.set_month(2020, 10); this.state.set_marker_matcher((d) => d === "2020-10-16" ? "tinted" : null);"#,
+        "new Calendar(this.state)",
+    ));
     let env = Environment { font_scale: 2.0, ..Environment::default() };
     let h = started(Harness::build(&[("main.js", &src)]).environment(env).start());
     assert_eq!(&h.texts()[2..4], ["S", "M"], "narrow weekday symbols");
@@ -530,6 +532,11 @@ fn calendar_columns_fit_at_twice_the_text_size() {
     assert!(cell.x + cell.width <= 390.5, "{cell:?}");
     let disc = h.native().nodes[&h.native().children(sat)[0]].frame.unwrap();
     assert!(disc.x >= 0.0 && disc.x + disc.width <= cell.width + 0.5, "{disc:?} in {cell:?}");
+    // A marked day's dot sits below its number, not over it.
+    let marked = h.find("cal-2020-10-16").unwrap();
+    let kids = h.native().children(marked).to_vec();
+    let (disc, dot) = (h.native().nodes[&kids[0]].frame.unwrap(), h.native().nodes[&kids[1]].frame.unwrap());
+    assert!(dot.y >= disc.y + disc.height, "{dot:?} under {disc:?}");
 }
 
 #[test]
