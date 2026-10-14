@@ -96,6 +96,17 @@ impl ToastCenter {
 
     pub fn show(&self, presenter: &Rc<Presenter>, payload: &serde_json::Value) {
         let toast = Rc::new(build(presenter, payload));
+        // A toast with the id of one still showing or queued replaces it in
+        // its place, as gpui-shell's notifications do.
+        if let Some(slot) = self.queued.borrow_mut().iter_mut().find(|t| t.id == toast.id) {
+            *slot = toast;
+            return;
+        }
+        let showing = self.visible.borrow().iter().position(|t| t.id == toast.id);
+        if let Some(index) = showing {
+            self.replace(presenter, index, toast);
+            return;
+        }
         if self.visible.borrow().len() < MAX_VISIBLE {
             self.present(presenter, toast);
         } else {
@@ -127,24 +138,43 @@ impl ToastCenter {
     }
 
     fn present(&self, presenter: &Rc<Presenter>, toast: Rc<Toast>) {
-        if let Some(button) = &toast.action {
-            let weak = Rc::downgrade(presenter);
-            let t = Rc::downgrade(&toast);
-            button.connect_clicked(move |_| {
-                let (Some(p), Some(t)) = (weak.upgrade(), t.upgrade()) else { return };
-                p.toasts.retract(&t);
-                p.emit(ROOT_NODE, EventType::ToastAction, serde_json::json!({ "id": t.id }).to_string());
-            });
-        }
+        self.arm(presenter, &toast);
         toast.card.set_opacity(0.0);
         toast.card.insert_before(&self.layer, None::<&gtk::Widget>);
         self.visible.borrow_mut().push(toast.clone());
         self.relayout();
         let card = toast.card.clone();
         spring(&toast.card, 0.0, 1.0, 0.25, move |v| card.set_opacity(v)).play();
+    }
+
+    /// Puts `toast` where the visible toast at `index` is, without leaving and entering.
+    fn replace(&self, presenter: &Rc<Presenter>, index: usize, toast: Rc<Toast>) {
+        let old = std::mem::replace(&mut self.visible.borrow_mut()[index], toast.clone());
+        self.arm(presenter, &toast);
+        let (old_imp, imp) = (old.card.imp(), toast.card.imp());
+        imp.y.set(old_imp.y.get());
+        imp.placed.set(old_imp.placed.get());
+        toast.card.set_opacity(old.card.opacity());
+        toast.card.insert_after(&self.layer, Some(&old.card));
+        old.card.unparent();
+        // Its height may differ: the stack slides to fit.
+        self.relayout();
+    }
+
+    /// The action button and the timeout; both let go once the toast is replaced.
+    fn arm(&self, presenter: &Rc<Presenter>, toast: &Rc<Toast>) {
+        if let Some(button) = &toast.action {
+            let weak = Rc::downgrade(presenter);
+            let t = Rc::downgrade(toast);
+            button.connect_clicked(move |_| {
+                let (Some(p), Some(t)) = (weak.upgrade(), t.upgrade()) else { return };
+                p.toasts.retract(&t);
+                p.emit(ROOT_NODE, EventType::ToastAction, serde_json::json!({ "id": t.id }).to_string());
+            });
+        }
         if toast.duration > 0 {
             let weak = Rc::downgrade(presenter);
-            let t = Rc::downgrade(&toast);
+            let t = Rc::downgrade(toast);
             glib::timeout_add_local_once(Duration::from_millis(toast.duration as u64), move || {
                 if let (Some(p), Some(t)) = (weak.upgrade(), t.upgrade()) {
                     p.toasts.retract(&t);
@@ -233,6 +263,22 @@ impl ToastCenter {
     #[cfg(test)]
     pub fn icon_color(&self, id: &str) -> Option<u32> {
         self.visible.borrow().iter().find(|t| t.id == id).map(|t| t.icon.imp().color.get())
+    }
+
+    #[cfg(test)]
+    pub fn cards(&self) -> usize {
+        let mut n = 0;
+        let mut child = self.layer.first_child();
+        while let Some(w) = child {
+            n += usize::from(w.is::<ToastCard>() && w.can_target());
+            child = w.next_sibling();
+        }
+        n
+    }
+
+    #[cfg(test)]
+    pub fn title(&self, id: &str) -> Option<String> {
+        self.visible.borrow().iter().find(|t| t.id == id).map(|t| t.title.text().to_string())
     }
 
     #[cfg(test)]
