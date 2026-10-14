@@ -47,6 +47,8 @@ final class NSHListView: NSHComponentView, UICollectionViewDataSource, UICollect
             collectionView.frame = bounds
             layout.invalidateLayout()
             collectionView.layoutIfNeeded()
+            // A shrinking viewport (the keyboard rising) keeps a pinned end in view.
+            keepEndInView()
             reportRange()
         }
     }
@@ -85,6 +87,9 @@ final class NSHListView: NSHComponentView, UICollectionViewDataSource, UICollect
             layout.invalidateLayout()
         case .prefetch:
             prefetch = max(0, value.int ?? 0)
+        case .listAlignment:
+            bottomAligned = value.int == 1
+            pinnedToEnd = bottomAligned
         case .showsIndicators:
             collectionView.showsVerticalScrollIndicator = value.bool ?? true
         default:
@@ -100,6 +105,7 @@ final class NSHListView: NSHComponentView, UICollectionViewDataSource, UICollect
         // Re-host rows in the visible cells; cells that come later pick them up in cellForItemAt.
         layoutIfNeeded()
         collectionView.layoutIfNeeded()
+        keepEndInView()
         for case let cell as RowCell in collectionView.visibleCells {
             guard let ip = collectionView.indexPath(for: cell) else { continue }
             cell.host(rowsByIndex[ip.item])
@@ -122,12 +128,40 @@ final class NSHListView: NSHComponentView, UICollectionViewDataSource, UICollect
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        // Only the user moves the pin; the list's own scrolling to the end does not.
+        if scrollView.isTracking || scrollView.isDragging || scrollView.isDecelerating { userScrolled() }
         reportRange()
         // Scroll events from a list carry the same payload as a scroll view's.
         if listens(EventMask.scroll) {
             let o = scrollView.contentOffset, c = scrollView.contentSize, b = scrollView.bounds.size
             send(.scroll, ["x": Double(o.x), "y": Double(o.y), "content_width": Double(c.width), "content_height": Double(c.height),
                            "viewport_width": Double(b.width), "viewport_height": Double(b.height)])
+        }
+    }
+
+    // MARK: Bottom alignment
+
+    /// GPUI's `ListAlignment::Bottom` (a chat thread): opens at the end and
+    /// follows it while the user is there.
+    private(set) var bottomAligned = false
+    /// The user is at the end (within a few points), so new rows and a shorter
+    /// viewport keep the end in view.
+    private(set) var pinnedToEnd = false
+
+    private var maxOffset: CGFloat {
+        max(0, layout.total - collectionView.bounds.height)
+    }
+
+    func userScrolled() {
+        guard bottomAligned else { return }
+        pinnedToEnd = collectionView.contentOffset.y >= maxOffset - 8
+    }
+
+    private func keepEndInView() {
+        guard bottomAligned, pinnedToEnd, itemCount > 0, collectionView.bounds.height > 0 else { return }
+        let y = maxOffset
+        if abs(collectionView.contentOffset.y - y) > 0.5 {
+            collectionView.setContentOffset(CGPoint(x: 0, y: y), animated: false)
         }
     }
 
@@ -192,6 +226,8 @@ final class NSHListView: NSHComponentView, UICollectionViewDataSource, UICollect
         super.prepareForReuse()
         rowsByIndex.removeAll()
         reportedRange = nil
+        bottomAligned = false
+        pinnedToEnd = false
         collectionView.setContentOffset(.zero, animated: false)
     }
 }

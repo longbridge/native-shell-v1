@@ -138,4 +138,45 @@ final class ListTests: XCTestCase {
         // Range events are throttled to one per 16 ms; the latest always goes out.
         XCTAssertTrue(wait { self.h.events(.rangeChange).last?.payload.int("end") == 20 })
     }
+
+    func testBottomAlignedListOpensAtTheEndAndFollowsIt() {
+        h.apply { b in
+            b.create(1, .list, parent: 0, frame: CGRect(x: 0, y: 0, width: 390, height: 440), props: [
+                (.listAlignment, .i32(1)), (.itemCount, .i32(100)), (.rowOffsets, .f32Array(offsets(100))), (.prefetch, .i32(2)),
+            ])
+        }
+        let list = h.view(1, as: NSHListView.self)
+        let cv = list.collectionView!
+        XCTAssertEqual(cv.contentOffset.y, 100 * 44 - 440, "opens at its end")
+        let first = h.events(.rangeChange).first?.payload
+        XCTAssertEqual(first?.int("end"), 100, "first range covers the last rows")
+        XCTAssertGreaterThan(first?.int("first") ?? 0, 80)
+
+        // New rows while pinned: the end stays in view.
+        h.apply { b in b.prop(1, .itemCount, .i32(103)); b.prop(1, .rowOffsets, .f32Array(offsets(103))) }
+        XCTAssertEqual(cv.contentOffset.y, 103 * 44 - 440)
+        // The viewport shrinks (keyboard): still at the end.
+        h.apply { $0.frame(1, CGRect(x: 0, y: 0, width: 390, height: 300)) }
+        list.layoutIfNeeded()
+        XCTAssertEqual(cv.contentOffset.y, 103 * 44 - 300)
+
+        // The user scrolls away: the position is kept as rows arrive.
+        cv.setContentOffset(CGPoint(x: 0, y: 1000), animated: false)
+        list.userScrolled()
+        XCTAssertFalse(list.pinnedToEnd)
+        h.apply { b in b.prop(1, .itemCount, .i32(110)); b.prop(1, .rowOffsets, .f32Array(offsets(110))) }
+        XCTAssertEqual(cv.contentOffset.y, 1000)
+        // Back at the end: pinned again.
+        cv.setContentOffset(CGPoint(x: 0, y: 110 * 44 - 300 - 4), animated: false)
+        list.userScrolled()
+        XCTAssertTrue(list.pinnedToEnd)
+
+        // Top-aligned lists (default) open at the top.
+        h.apply { b in
+            b.create(2, .list, parent: 0, frame: CGRect(x: 0, y: 0, width: 390, height: 440), props: [
+                (.itemCount, .i32(100)), (.rowOffsets, .f32Array(offsets(100))),
+            ])
+        }
+        XCTAssertEqual(h.view(2, as: NSHListView.self).collectionView.contentOffset.y, 0)
+    }
 }
