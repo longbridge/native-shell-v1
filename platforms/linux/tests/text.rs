@@ -135,12 +135,35 @@ export default class App extends View {
 
     // Selection and Copy are the label's own (drag, double click, Ctrl+C, context menu).
     assert!(label.is_focusable(), "keyboard selection needs focus");
+    // The theme's selection wash shows behind selected text.
+    let (plain, _) = tinted_pixels(label.upcast_ref());
+    label.select_region(0, -1);
+    let (selected, wash) = tinted_pixels(label.upcast_ref());
+    assert!(selected > plain + 1000, "selection drew {selected} tinted pixels vs {plain}");
+    // The light theme's token, #007aff33 (± premultiplication rounding), not GTK's own selection color.
+    let expected = [0u8, 122, 255, 51];
+    assert!(wash.iter().zip(expected).all(|(a, b)| a.abs_diff(b) <= 3), "selection wash {wash:?}");
     label.select_region(0, 7);
     assert_eq!(label.selection_bounds(), Some((0, 7)));
     label.emit_by_name::<()>("copy-clipboard", &[]);
     let clipboard = label.clipboard();
     let copied = gtk::glib::MainContext::default().block_on(clipboard.read_text_future());
     assert_eq!(copied.ok().flatten().as_deref(), Some("Refunds"));
+}
+
+/// Pixels of a rendering clearly bluer than gray (the selection wash; text
+/// is neutral), and the most common of them.
+fn tinted_pixels(widget: &gtk::Widget) -> (usize, [u8; 4]) {
+    let texture = render(widget);
+    let mut downloader = gtk::gdk::TextureDownloader::new(&texture);
+    downloader.set_format(gtk::gdk::MemoryFormat::R8g8b8a8);
+    let (bytes, _) = downloader.download_bytes();
+    let mut counts = std::collections::HashMap::<[u8; 4], usize>::new();
+    for p in bytes.chunks(4).filter(|p| p[3] > 20 && i32::from(p[2]) - i32::from(p[0]) > 20) {
+        *counts.entry([p[0], p[1], p[2], p[3]]).or_default() += 1;
+    }
+    let common = counts.iter().max_by_key(|(_, n)| **n).map_or([0; 4], |(c, _)| *c);
+    (counts.values().sum(), common)
 }
 
 fn text_follows_the_desktop_text_size() {
