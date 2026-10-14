@@ -422,3 +422,79 @@ fn components_example_charts_page() {
     assert!(has_text(&h, "No data"));
     assert!(labelled(&h, "Speaking, 49 of 100, 66 of 100"));
 }
+
+/// How many times a path or view box went to the renderer since the last clear.
+fn path_sends(h: &Harness) -> usize {
+    h.mutations()
+        .iter()
+        .filter(|m| matches!(m, native_shell::core::protocol::Mutation::SetProp { prop: Prop::PathData | Prop::ViewBox, .. }))
+        .count()
+}
+
+#[test]
+fn stretched_paths_are_sent_again_only_when_their_size_or_data_changes() {
+    let main = r#"
+import { View, v_flex } from "native-shell";
+import { LineChart } from "gpui-component";
+export default class C extends View {
+  init() { this.rows = [{ label: "a", value: 1 }, { label: "b", value: 3 }]; this.color = "chart_1"; }
+  render() {
+    return v_flex().size_full().child(
+      new LineChart(() => this.rows).test_id("line").stroke(this.color).x_axis(false).h(100),
+    );
+  }
+}
+"#;
+    let mut h = Harness::new(&[("main.js", main)]);
+    // A selection re-renders the view: the path is unchanged and is not sent.
+    h.clear_mutations();
+    h.tap("line-point-1");
+    assert!(has_text(&h, "3"));
+    assert_eq!(path_sends(&h), 0);
+    // A new size sends it once, in that size's points.
+    h.clear_mutations();
+    h.set_environment(Environment { width: 300.0, ..Environment::default() });
+    assert_eq!(path_sends(&h), 2, "path and view box");
+    h.clear_mutations();
+    h.set_environment(Environment { width: 300.0, ..Environment::default() });
+    assert_eq!(path_sends(&h), 0);
+}
+
+#[test]
+fn fill_mode_refuses_what_it_cannot_stretch() {
+    for (path, message) in [
+        ("M0 0A2 1 30 0 1 4 0", "a rotated arc (`A` with rotation 30) cannot stretch with fit"),
+        ("M0 0X4 0", "unknown path command `X`"),
+        ("M0 0L4 #", "cannot read the path near"),
+    ] {
+        let main = format!(
+            r#"
+import {{ View, shape }} from "native-shell";
+export default class C extends View {{
+  render() {{ return shape("{path}", {{ view_box: [0, 0, 4, 4], fit: "fill" }}); }}
+}}
+"#
+        );
+        let h = Harness::new(&[("main.js", &main)]);
+        let all = format!("{:?} {:?} {:?}", h.load_error(), h.error_logs(), h.texts());
+        assert!(all.contains(message), "{path}: {all}");
+    }
+    // Unrotated arcs and relative commands stretch exactly.
+    let main = r#"
+import { View, v_flex, shape } from "native-shell";
+export default class C extends View {
+  render() { return v_flex().child(shape("M0 2a2 2 0 0 1 4 0h-4z", { view_box: [0, 0, 4, 4], fit: "fill" }).test_id("s").w(8).h(4)); }
+}
+"#;
+    let h = Harness::new(&[("main.js", main)]);
+    assert_eq!(h.prop("s", Prop::PathData), Some(PropValue::Str("M0 2a4 2 0 0 1 8 0h-8z".into())));
+}
+
+#[test]
+fn an_accessibility_label_replaces_the_summary_and_keeps_the_points() {
+    let h = chart(DAYS, r#"new BarChart(() => this.rows).test_id("c").accessibility_label("Focus minutes, this week")"#);
+    assert!(labelled(&h, "Focus minutes, this week"));
+    assert!(!labelled(&h, "Bar chart, 3 values: Mon 42, Tue 68, Wed 31"));
+    assert!(labelled(&h, "Tue, 68"));
+    assert_eq!(h.prop("c", Prop::A11yLabel), None, "the root stays a container");
+}

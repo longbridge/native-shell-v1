@@ -60,7 +60,10 @@ pub(crate) fn stretch_path(path: &str, view_box: [f32; 4], width: f32, height: f
                 vec![x(a), y(b), x(c2), y(d)]
             }
             b'A' => {
-                let [rx, ry, rot, large, sweep, ex, ey] = tokens.nums()?;
+                // Flags are single digits and may run into the next number (`a1 1 0 012 2`).
+                let [rx, ry, rot] = tokens.nums()?;
+                let (large, sweep) = (tokens.flag()?, tokens.flag()?);
+                let [ex, ey] = tokens.nums()?;
                 vec![rx * sx as f64, ry * sy as f64, rot, large, sweep, x(ex), y(ey)]
             }
             _ => return None,
@@ -152,6 +155,20 @@ impl Tokens<'_> {
         Some(out)
     }
 
+    fn flag(&mut self) -> Option<f64> {
+        if let Some(n) = self.held.take() {
+            return (n == 0.0 || n == 1.0).then_some(n);
+        }
+        self.skip();
+        let c = *self.s.get(self.i)?;
+        self.i += 1;
+        match c {
+            b'0' => Some(0.0),
+            b'1' => Some(1.0),
+            _ => None,
+        }
+    }
+
     fn skip(&mut self) {
         while self.s.get(self.i).is_some_and(|c| matches!(c, b' ' | b',' | b'\t' | b'\n' | b'\r')) {
             self.i += 1;
@@ -224,6 +241,9 @@ mod tests {
         let p = stretch_path("M0 0A1 1 0 0 1 2 0", [0.0, 0.0, 2.0, 2.0], 4.0, 2.0).unwrap();
         assert_eq!(p, "M0 0A2 1 0 0 1 4 0");
         assert_eq!(stretch_path("M1e1 0", [0.0, 0.0, 10.0, 1.0], 1.0, 1.0).unwrap(), "M1 0");
+        // Compact arc flags, and a relative arc repeated without its letter.
+        let p = stretch_path("M0 0a1 1 0 012 0 1 1 0 0 0 2 0", [0.0, 0.0, 1.0, 1.0], 2.0, 3.0).unwrap();
+        assert_eq!(p, "M0 0a2 3 0 0 1 4 0 2 3 0 0 0 4 0");
     }
 
     #[test]
