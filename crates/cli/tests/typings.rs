@@ -24,7 +24,7 @@ const API_PROGRAM: &str = r#"// @ts-check
 import { View, div, v_flex, h_flex, shape, Toggle, Popover, Accordion, AccordionItem, AccordionHeader, AccordionTrigger,
   AccordionPanel, pagination_items, PathBuilder, Background, v_virtual_list, VirtualListScrollHandle, OtpState,
   OtpInput, NumberInput, InputState, Table, TableRow, TableCell, TextView, Select, SliderState, Slider, Checkbox,
-  Progress } from "gpui-base";
+  Progress, Button } from "gpui-base";
 /** @import { AsyncContext, Context, KeyEvent } from "gpui-kit" */
 
 export default class Api extends View {
@@ -53,6 +53,10 @@ export default class Api extends View {
       .child(div().cursor_pointer().tooltip("Details").hover((s) => s.bg(cx.theme().colors.selection))
         .on_hover((hovered) => console.log(hovered)).on_click((e) => console.log(e.modifiers.shift, e.click_count))
         .text_color(cx.theme().colors.success).text_size(cx.theme().typography.body.size).child("Hover me"))
+      .child(h_flex().child(Button.new("save").primary().size("large").child("Save"))
+        .child(Button.new("delete").variant("destructive").size("small").child("Delete"))
+        .child(Button.new("more").link().size(44).child("More")))
+      .child(div().bg(cx.theme().colors.grouped_background))
       .child(Toggle.new("bold").pressed(this.on).on_change((on, cx) => { this.on = on; cx.notify(); }).child("B"))
       .child(Popover.new("menu").trigger(div().child("Open")).content(div().child("Hi")).open(this.open)
         .on_open_change((open, cx) => { this.open = open; cx.notify(); }))
