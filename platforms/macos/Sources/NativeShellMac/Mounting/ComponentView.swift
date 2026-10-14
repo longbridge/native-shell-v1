@@ -460,8 +460,11 @@ open class NSHComponentView: NSView {
         return true
     }
 
+    /// Clickable views without a declared role are buttons.
     override open func accessibilityRole() -> NSAccessibility.Role? {
-        super.accessibilityRole() ?? (accessibilityTarget === self && listens(EventMask.click) ? .button : nil)
+        let r = super.accessibilityRole()
+        if r == nil || r == .unknown, accessibilityTarget === self, listens(EventMask.click) { return .button }
+        return r
     }
 
     // MARK: Pointer

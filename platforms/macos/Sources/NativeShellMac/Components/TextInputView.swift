@@ -24,6 +24,9 @@ final class NSHTextInputView: NSHComponentView, NSTextFieldDelegate, NSTextViewD
     private var returnKey = 0
     private var insets = NSEdgeInsets()
     private var props: [Prop: PropValue] = [:]
+    /// What the field showed when last reported or written: edits are reported once,
+    /// whichever AppKit notification announces them first.
+    private var lastSeen: (text: String, composing: Bool) = ("", false)
     override var handlesMouse: Bool { false }
     override var accessibilityTarget: NSView { field ?? textView ?? self }
 
@@ -33,7 +36,16 @@ final class NSHTextInputView: NSHComponentView, NSTextFieldDelegate, NSTextViewD
         placeholderLabel.drawsBackground = false
         placeholderLabel.isBordered = false
         placeholderLabel.maximumNumberOfLines = 0
+        // Marked (IME) text changes the editor's storage without a text-did-change
+        // notification; storage edits catch them, after the editor has settled.
+        NotificationCenter.default.addObserver(self, selector: #selector(storageEdited(_:)), name: NSTextStorage.didProcessEditingNotification, object: nil)
         build()
+    }
+
+    @objc private func storageEdited(_ n: Notification) {
+        // Measurement edits its own storages on the JS thread: only the main thread's matter.
+        guard Thread.isMainThread, let storage = n.object as? NSTextStorage, storage === editor?.textStorage, isEditing || textView != nil else { return }
+        DispatchQueue.main.async { [weak self] in self?.edited() }
     }
 
     /// The editor holding the text: the field editor while a field is edited, else the text view.
@@ -112,8 +124,9 @@ final class NSHTextInputView: NSHComponentView, NSTextFieldDelegate, NSTextViewD
         let inner = CGRect(x: insets.left, y: insets.top, width: max(0, bounds.width - insets.left - insets.right),
                            height: max(0, bounds.height - insets.top - insets.bottom))
         if let f = field {
-            // AppKit draws a field's text at its top: center the line in the inset area, as UIKit does.
-            let h = min(inner.height, max(f.intrinsicContentSize.height, Fonts.lineHeight(font)))
+            // AppKit draws a field's text at its top: center the line in the inset area, as UIKit
+            // does. The line keeps its full height even when the insets leave less room.
+            let h = max(f.intrinsicContentSize.height, ceil(Fonts.lineHeight(font)))
             f.frame = CGRect(x: inner.minX, y: (inner.midY - h / 2).rounded(), width: inner.width, height: h)
         }
         if let sv = scroll, let tv = textView {
@@ -264,6 +277,7 @@ final class NSHTextInputView: NSHComponentView, NSTextFieldDelegate, NSTextViewD
         }
         // The field keeps its own value too (the editor's text is copied back when editing ends).
         field?.stringValue = t
+        lastSeen = (t, isComposing)
         updatePlaceholder()
     }
 
@@ -271,12 +285,14 @@ final class NSHTextInputView: NSHComponentView, NSTextFieldDelegate, NSTextViewD
     func edited() {
         guard !writing else { return }
         let composing = isComposing
+        guard text != lastSeen.text || composing != lastSeen.composing else { return }
         if !composing, filter.maxLength > 0 || filter.allowed != nil {
             // An IME commit bypasses shouldChangeText: enforce the limits now.
             let clamped = filter.clamp(text)
             if clamped != text { write(clamped) }
         }
         let count = state.didEdit()
+        lastSeen = (text, composing)
         updatePlaceholder()
         if listens(EventMask.change) {
             send(.change, ["text": text, "selection": selection, "composing": composing, "count": Int(count)])
@@ -363,6 +379,7 @@ final class NSHTextInputView: NSHComponentView, NSTextFieldDelegate, NSTextViewD
         textView?.string = ""
         writing = false
         wasComposing = false
+        lastSeen = ("", false)
     }
 
     /// The focus ring follows the program-drawn field: this view's bounds and corners.

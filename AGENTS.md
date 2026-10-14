@@ -5,9 +5,9 @@ rules here; `CLAUDE.md` imports this file for Claude Code.
 
 ## Project overview
 
-native-shell runs JavaScript programs inside iOS and Android apps and renders
-them with native views (UIKit, Android `View`). It is the mobile sibling of
-gpui-shell: the script API, the style vocabulary and their behavior follow
+native-shell runs JavaScript programs inside iOS, Android, macOS and Linux apps
+and renders them with native views (UIKit, Android `View`, AppKit, GTK 4). It is
+the native-view sibling of gpui-shell: the script API, the style vocabulary and their behavior follow
 gpui-shell and GPUI. See `README.md`, `docs/architecture.md`,
 `docs/protocol-json.md` and `docs/gpui-shell-compat.md`.
 
@@ -18,7 +18,7 @@ gpui-shell and GPUI. See `README.md`, `docs/architecture.md`,
 | `crates/services` | Storage, fs, fetch, WebSocket, crypto, signed bundles |
 | `crates/engine` | The `native-shell` runtime: QuickJS, JS prelude, scheduler, events |
 | `crates/ffi`, `crates/cli` | C ABI + JNI; the `nshell` command |
-| `platforms/ios`, `platforms/android` | UIKit and Android View renderers, example apps |
+| `platforms/ios`, `platforms/android`, `platforms/macos` | UIKit, Android View and AppKit renderers, example apps |
 | `platforms/linux` | GTK 4 renderer (own Cargo workspace), example app |
 | `examples/` | Example programs |
 | `tools/style-gen` | Regenerates `crates/core/src/style_table.rs` from GPUI |
@@ -157,4 +157,5 @@ scripts/build-ios.sh && scripts/build-android.sh          # native libraries
 cd platforms/ios && xcodebuild test -scheme NativeShell -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 cd platforms/android && ./gradlew :native-shell:testDebugUnitTest :native-shell:connectedDebugAndroidTest
 cd platforms/linux && cargo test && cargo clippy --all-targets -- -D warnings   # headless (Broadway)
+scripts/build-macos.sh && cd platforms/macos && swift test
 ```

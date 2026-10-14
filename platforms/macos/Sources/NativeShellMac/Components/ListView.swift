@@ -104,6 +104,8 @@ final class NSHListView: NSHComponentView {
 
     /// Sizes the document and puts every rendered row at its offset.
     private func placeRows() {
+        // Batches end before AppKit's layout pass: size the scroll view now so the range is right.
+        if scrollView.frame != bounds { scrollView.frame = bounds }
         let width = scrollView.contentSize.width
         document.setFrameSize(CGSize(width: width, height: offsets.total))
         for case let row as NSHListRowView in children where row.rowIndex >= 0 {

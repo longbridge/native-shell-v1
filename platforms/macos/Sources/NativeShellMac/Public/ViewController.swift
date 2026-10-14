@@ -269,7 +269,7 @@ final class PageContainer: NSView {
     override func mouseDown(with event: NSEvent) {}
 }
 
-/// A sheet node (with its detents) or a custom dialog, as a window sheet.
+/// A sheet node or a custom dialog, as a window sheet.
 final class ModalSheet: NSObject {
     let surface: NSHComponentView
     let window: SheetWindow
@@ -306,22 +306,13 @@ final class ModalSheet: NSObject {
         parent?.beginSheet(window)
     }
 
-    /// The sheet's size: the surface's width; its height from the detents (the
-    /// largest one wins), else the content's, within the parent window.
+    /// The sheet's size: the surface's, within the parent window. Window sheets
+    /// fit their content on macOS, so detents (resting heights for a sheet
+    /// dragged on a touch screen) do not apply.
     func resize() {
         if let p = parent?.contentView?.bounds.size { parentSize = p }
         let f = surface.nodeFrame
-        var height = f.height
-        if let sheet = surface as? NSHSheetView, !sheet.detents.isEmpty {
-            height = sheet.detents.map { d -> CGFloat in
-                switch d {
-                case .large: return parentSize.height - 40
-                case .medium: return parentSize.height / 2
-                case let .height(h): return h
-                }
-            }.max() ?? height
-        }
-        if parentSize.height > 0 { height = min(height, parentSize.height - 40) }
+        let height = parentSize.height > 0 ? min(f.height, parentSize.height - 40) : f.height
         let width = parentSize.width > 0 ? min(f.width, parentSize.width) : f.width
         window.setContentSize(NSSize(width: max(1, width), height: max(1, height)))
         surface.applyFrame(CGRect(x: 0, y: 0, width: width, height: f.height))

@@ -144,6 +144,9 @@ final class NSHSliderView: NSHControlView {
 
     private var step: Double = 0
     private var lastSent: TimeInterval = 0
+    /// The core's value, re-applied when the range changes: props arrive in any
+    /// order, and NSSlider clamps a value outside its current range.
+    private var value: Double = 0
 
     override func commonInit() {
         super.commonInit()
@@ -159,9 +162,15 @@ final class NSHSliderView: NSHControlView {
 
     override func applyProp(_ prop: Prop, _ value: PropValue) -> Bool {
         switch prop {
-        case .value: control.doubleValue = value.number ?? 0
-        case .min: control.minValue = value.number ?? 0
-        case .max: control.maxValue = value.number ?? 1
+        case .value:
+            self.value = value.number ?? 0
+            control.doubleValue = self.value
+        case .min:
+            control.minValue = value.number ?? 0
+            control.doubleValue = self.value
+        case .max:
+            control.maxValue = value.number ?? 1
+            control.doubleValue = self.value
         case .step: step = value.number ?? 0
         case .enabled: control.isEnabled = value.bool ?? true
         default: return super.applyProp(prop, value)
@@ -179,6 +188,7 @@ final class NSHSliderView: NSHControlView {
     @objc func changed() {
         let dragging = NSApp?.currentEvent.map { $0.type == .leftMouseDragged || $0.type == .leftMouseDown } ?? false
         if !dragging { control.doubleValue = stepped }
+        value = stepped
         guard listens(EventMask.change) else { return }
         let now = ProcessInfo.processInfo.systemUptime
         if !dragging {
@@ -195,6 +205,7 @@ final class NSHSliderView: NSHControlView {
         control.minValue = 0
         control.maxValue = 1
         control.doubleValue = 0
+        value = 0
         step = 0
     }
 }
@@ -328,10 +339,11 @@ final class NSHDatePickerView: NSHControlView {
         control.action = #selector(changed)
     }
 
-    // Leading-aligned at its natural size, like a value in a form row.
+    // Trailing-aligned at its natural size, as a value in a form row.
     override func layoutControl() {
         let s = control.fittingSize
-        control.frame = CGRect(x: 0, y: ((bounds.height - s.height) / 2).rounded(), width: min(bounds.width, s.width), height: s.height)
+        let w = min(bounds.width, s.width)
+        control.frame = CGRect(x: bounds.width - w, y: ((bounds.height - s.height) / 2).rounded(), width: w, height: s.height)
     }
 
     override func applyProp(_ prop: Prop, _ value: PropValue) -> Bool {

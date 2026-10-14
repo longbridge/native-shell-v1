@@ -1,7 +1,7 @@
 # native-shell
 
-Run small JavaScript programs inside iOS and Android apps, rendered with
-**native views** (UIKit and Android `View`), with the programming model of
+Run small JavaScript programs inside iOS, Android, macOS and Linux apps, rendered
+with **native views** (UIKit, Android `View`, AppKit, GTK 4), with the programming model of
 gpui-shell:
 
 ```js
@@ -46,6 +46,7 @@ export default class Counter extends View {
 | `platforms/ios/` | Swift Package / CocoaPods: UIKit renderer |
 | `platforms/android/` | Gradle: AAR with the View renderer, Compose wrapper, example app |
 | `platforms/linux/` | Cargo: GTK 4 / libadwaita renderer, example app ([README](platforms/linux/README.md)) |
+| `platforms/macos/` | Swift Package: AppKit renderer, example app |
 | `examples/` | Example programs |
 | `docs/` | Architecture, protocol, plans |
 
@@ -54,6 +55,7 @@ export default class Counter extends View {
 * [Architecture](docs/architecture.md)
 * [Protocol JSON values](docs/protocol-json.md) and `crates/core/src/protocol.rs`
 * [Implementation plan](docs/agents-plan.md) (script API, host integration)
+* [macOS platform](docs/platform-macos.md)
 
 ## License
 

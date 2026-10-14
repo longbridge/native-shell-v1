@@ -1,0 +1,45 @@
+# XcodeGen spec of the macOS example app: `xcodegen generate` in this directory.
+name: NativeShellMacExample
+options:
+  bundleIdPrefix: dev.nativeshell
+  deploymentTarget:
+    macOS: "12.0"
+  createIntermediateGroups: true
+packages:
+  NativeShellMac:
+    path: ..
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "-"
+    ENABLE_HARDENED_RUNTIME: NO
+targets:
+  NativeShellMacExample:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources
+      # The repository's example programs, bundled as a folder.
+      - path: ../../../examples
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - package: NativeShellMac
+        product: NativeShellMac
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: native-shell
+        CFBundleName: native-shell
+        LSApplicationCategoryType: public.app-category.developer-tools
+        NSHumanReadableCopyright: Apache-2.0
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.nativeshell.example.macos
+        PRODUCT_NAME: native-shell
+schemes:
+  NativeShellMacExample:
+    build:
+      targets:
+        NativeShellMacExample: all
