@@ -557,6 +557,12 @@ pub fn screenshot_path(path: &Path) -> PathBuf {
     }
 }
 
+/// Whether every overlay scroll indicator under `root` has faded out (GTK
+/// flashes them when a view scrolls, even by itself).
+pub fn scroll_indicators_hidden(root: &gtk::Widget) -> bool {
+    find_widget(root, &|w| w.is::<gtk::Scrollbar>() && w.is_child_visible() && w.is_mapped() && w.opacity() > 0.0).is_none()
+}
+
 /// Drops every cached drawing under `widget`, so the next frame paints it anew.
 pub fn queue_draw_all(widget: &gtk::Widget) {
     widget.queue_draw();

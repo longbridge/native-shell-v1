@@ -14,7 +14,8 @@ use std::process::ExitCode;
 use std::time::Duration;
 
 use native_shell_gtk::{InstanceOptions, Runtime};
-use support::{pump_for, Fixture};
+use gtk::prelude::*;
+use support::{pump_for, pump_until, Fixture};
 
 fn main() -> ExitCode {
     let wanted: Vec<String> = std::env::args().skip(1).collect();
@@ -34,6 +35,8 @@ fn main() -> ExitCode {
             // Host answers arrive on timers, before the feed's first tick.
             pump_for(Duration::from_millis(800));
             f.settle();
+            // Scroll indicators flashed by an initial scroll (chat opens at its end) fade first.
+            pump_until(Duration::from_secs(5), || support::scroll_indicators_hidden(f.window.upcast_ref()));
             let path = out.join(format!("example-{}-{}.png", example.name, if dark { "dark" } else { "light" }));
             f.screenshot(&path);
             println!("{}", path.display());
