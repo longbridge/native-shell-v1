@@ -436,8 +436,8 @@ export default class App extends View {
       .child(div().test_id("toggle").h(20).on_click((_e, cx) => { this.open = !this.open; cx.notify(); }))
       .child(div().test_id("panel").h(this.open ? 200 : 100).w(100).bg("#000000")
         .opacity(this.open ? 1 : 0.2)
-        .transition("height", '{"duration": 200, "easing": "linear"}')
-        .transition("opacity", '{"duration": 100, "easing": "linear"}'));
+        .transition("height", '{"duration": 2500, "easing": "linear"}')
+        .transition("opacity", '{"duration": 2500, "easing": "linear"}'));
   }
 }"##,
     );
@@ -448,7 +448,9 @@ export default class App extends View {
     // The model is at the target at once; the screen gets there on the frame clock.
     assert_eq!(panel.frame().map(|r| r.height), Some(200.0));
     let mut heights = Vec::new();
-    let done = pump_until(Duration::from_secs(2), || {
+    // Long enough that even a display throttled to one frame a second shows
+    // in-between frames.
+    let done = pump_until(Duration::from_secs(10), || {
         heights.push(panel.presented_frame().map_or(0.0, |r| r.height));
         !panel.is_animating()
     });
@@ -463,7 +465,7 @@ export default class App extends View {
     f.tap("toggle");
     assert_eq!(panel.presented_frame().map(|r| r.height), Some(100.0));
     assert!(panel.is_animating(), "the fade still runs");
-    assert!(pump_until(Duration::from_secs(2), || !panel.is_animating()));
+    assert!(pump_until(Duration::from_secs(10), || !panel.is_animating()));
     assert!((panel.opacity() - 0.2).abs() < 0.01);
     settings.set_gtk_enable_animations(true);
 }
