@@ -195,9 +195,9 @@ class ScreenshotTest {
 
     @Test
     fun chat() = inBothAppearances("chat") {
-        wait("bubble-m8")
+        wait("bubble-m10")
         snap("chat")
-        tapDescription("8:15 works.")
+        tapDescription("Called the ranger station")
         wait("actions")
         snap("chat-actions")
         device.pressBack()
