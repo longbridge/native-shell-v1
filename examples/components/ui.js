@@ -119,16 +119,18 @@ function navBar(cx, { title, back, trailing }) {
 
 /**
  * A pushed page: its bar, then content that scrolls under it and clears the
- * home indicator and the keyboard. `intro` says what the scenario is.
+ * home indicator and the keyboard. `intro` says what the scenario is;
+ * `grouped` puts it on the grouped background, for inset grouped lists.
  * @param {Context} cx
- * @param {{ title: string, intro?: string, children: (Element | null)[], footer?: Element }} opts
+ * @param {{ title: string, intro?: string, children: (Element | null)[], footer?: Element, grouped?: boolean }} opts
  */
-export function page(cx, { title, intro, children, footer }) {
+export function page(cx, { title, intro, children, footer, grouped = false }) {
   const t = cx.theme();
   const win = cx.window();
+  const backdrop = grouped ? t.grouped_background : t.background;
   return v_flex()
     .size_full()
-    .bg(t.background)
+    .bg(backdrop)
     .line_height(1.375)
     .child(navBar(cx, { title, back: { label: "Components", on_click: (_e, cx) => cx.navigator.pop() } }))
     .child(
@@ -154,7 +156,7 @@ export function page(cx, { title, intro, children, footer }) {
           .pb(Math.max(win.keyboard_height, win.safe_area.bottom) + 12)
           .border_t_1()
           .border_color(t.border)
-          .bg(t.background)
+          .bg(backdrop)
           .child(footer),
       ),
     );

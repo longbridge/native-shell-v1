@@ -16,6 +16,7 @@ native-shell check examples/components
 | Selection controls | Checkout preferences | Switches for settings that apply at once, checkboxes for independent choices, radios for one of a small set, an unavailable option kept visible with its reason; the whole row is the control |
 | Sliders and progress | Slideshow settings and an upload | The value written next to each slider; a spinner while the wait is unknown, then determinate progress with Cancel; the finished state |
 | Pickers | A table booking | A segmented control for two modes, menus for longer lists, the native date picker, and a sentence that reads the booking back |
+| Forms | A flower delivery checkout | A stepper that shows the three steps and takes the buyer back; a stacked form of framed fields (required markers, descriptions, a phone prefix, a message counter that turns red past 150), the platform time picker, a ribbon color sheet; an inset grouped payment form whose errors appear under each row, a promo code that is checked (loading) and can be refused; the confirmation with a copyable order number, a rating that answers, and a read-only average |
 | Overlays | A shared document | The smallest surface for each decision: a sheet for share targets, a dialog for a one-field rename, a toast for a result you can’t see (making it available offline), an alert for a deletion that can’t be undone |
 
 ## Design notes

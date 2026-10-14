@@ -12,6 +12,7 @@ import FieldsPage from "./pages/fields.js";
 import SelectionPage from "./pages/selection.js";
 import ProgressPage from "./pages/progress.js";
 import PickersPage from "./pages/pickers.js";
+import FormsPage from "./pages/forms.js";
 import OverlaysPage from "./pages/overlays.js";
 import { largeTitle, row, section, statusBar } from "./ui.js";
 
@@ -27,6 +28,7 @@ const SECTIONS = [
       { id: "selection", icon: "toggle", title: "Selection controls", detail: "Checkout preferences", page: SelectionPage },
       { id: "progress", icon: "sliders", title: "Sliders and progress", detail: "Slideshow settings and an upload", page: ProgressPage },
       { id: "pickers", icon: "calendar", title: "Pickers", detail: "A table booking", page: PickersPage },
+      { id: "forms", icon: "file", title: "Forms", detail: "A flower delivery checkout", page: FormsPage },
     ],
   },
   {

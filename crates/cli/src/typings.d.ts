@@ -1369,6 +1369,7 @@ declare module "gpui-component" {
   >;
 
   // --- forms (crates/engine/js/gpui_component/forms.js) ---
+  /** A component size; any other value is the `size` style (width and height). */
   type FormSize = "xsmall" | "small" | "medium" | "large";
   type FormContext = import("native-shell").Context;
   type FormConstructor<A extends unknown[], E> = { new (...args: A): E; new: (...args: A) => E };
@@ -1379,7 +1380,7 @@ declare module "gpui-component" {
     /** Sets the horizontal form label width in pixels. */
     label_width(width: number): this;
     /** Sets the form density. */
-    size(size: FormSize): this;
+    size(size: FormSize | import("native-shell").Length): this;
   }
   /**
    * A vertical or horizontal form accepting Field children. Mobile: a vertical
@@ -1398,11 +1399,11 @@ declare module "gpui-component" {
     /** Mobile: why the value was refused, shown (as an alert) in place of the description. */
     error(message: string | null): this;
     /** Marks the field as required. */
-    required(required: boolean): this;
+    required(required?: boolean): this;
     /** Controls field visibility. */
-    visible(visible: boolean): this;
+    visible(visible?: boolean): this;
     /** Keeps unlabeled horizontal fields aligned with labeled fields. */
-    label_indent(label_indent: boolean): this;
+    label_indent(label_indent?: boolean): this;
     /** Aligns the label and control within the field. */
     align(align: "start" | "center" | "end"): this;
     /** Sets the field's grid-column span. */
@@ -1417,17 +1418,17 @@ declare module "gpui-component" {
     /** Appends an InputGroupAddon at its logical side. */
     addon(addon: InputGroupAddonElement): this;
     /** Disables the field and the addons' direct InputGroupButton children. */
-    disabled(disabled: boolean): this;
+    disabled(disabled?: boolean): this;
     /** Prevents text edits while leaving addon actions available. */
-    readonly(readonly: boolean): this;
+    readonly(readonly?: boolean): this;
     /** Displays the caller's validation result without rejecting input. */
-    invalid(invalid: boolean): this;
+    invalid(invalid?: boolean): this;
     /** Accepted; the platform draws its own focus. */
-    focus_ring(focus_ring: boolean): this;
+    focus_ring(focus_ring?: boolean): this;
     /** Names the group independently of its text control. */
     aria_label(label: string): this;
     /** Sets the group's semantic control size. */
-    size(size: FormSize): this;
+    size(size: FormSize | import("native-shell").Length): this;
   }
   /** A themed frame around one text control and any number of addons. */
   export const InputGroup: FormConstructor<[id: string], InputGroupElement>;
@@ -1445,9 +1446,9 @@ declare module "gpui-component" {
 
   interface InputGroupControlElement extends Element {
     /** Controls whether this component accepts interaction. */
-    disabled(disabled: boolean): this;
+    disabled(disabled?: boolean): this;
     /** Prevents edits while preserving selection and copying. */
-    readonly(readonly: boolean): this;
+    readonly(readonly?: boolean): this;
     /** Names the text control for accessibility. */
     aria_label(label: string): this;
     /** Sets the developer-assigned accessibility identifier. */
@@ -1461,7 +1462,7 @@ declare module "gpui-component" {
   }
   export interface InputGroupInputElement extends InputGroupControlElement {
     /** Controls password masking. */
-    masked(masked: boolean): this;
+    masked(masked?: boolean): this;
     /** Sets the native content type; names follow InputContentType in snake_case. */
     content_type(content_type: InputContentType): this;
   }
@@ -1485,7 +1486,7 @@ declare module "gpui-component" {
 
   export interface InputGroupButtonElement extends Element {
     /** Controls whether this component accepts interaction. */
-    disabled(disabled: boolean): this;
+    disabled(disabled?: boolean): this;
     /** Sets the visible label. */
     label(label: string): this;
     /** Sets the icon path in the application's asset bundle. */
@@ -1493,11 +1494,11 @@ declare module "gpui-component" {
     /** Names an icon-only action. */
     aria_label(label: string): this;
     /** Displays progress and prevents duplicate activation. */
-    loading(loading: boolean): this;
+    loading(loading?: boolean): this;
     /** Uses the outlined button treatment. */
     outline(): this;
     /** Sets the button size; xsmall and small are the compact input-group sizes. */
-    size(size: FormSize): this;
+    size(size: FormSize | import("native-shell").Length): this;
     /** Selects a semantic button variant. */
     variant(variant: "default" | "primary" | "secondary" | "danger" | "warning" | "success" | "info" | "ghost" | "link" | "text"): this;
   }
@@ -1508,7 +1509,7 @@ declare module "gpui-component" {
 
   export interface RatingElement extends Element {
     /** Controls whether this component accepts interaction; a disabled rating is a read-only display. */
-    disabled(disabled: boolean): this;
+    disabled(disabled?: boolean): this;
     /** Sets the current number of active stars. Mobile: halves (4.5) for a read-only average. */
     value(value: number): this;
     /** Sets the maximum number of stars. */
@@ -1518,14 +1519,14 @@ declare module "gpui-component" {
     /** Sets the active star color. */
     color(color: import("native-shell").Color): this;
     /** Sets the rating's semantic size. */
-    size(size: FormSize): this;
+    size(size: FormSize | import("native-shell").Length): this;
   }
   /** An interactive star rating with configurable value and maximum. */
   export const Rating: FormConstructor<[id: string], RatingElement>;
 
   export interface StepperItemElement extends Element {
     /** Disables this step independently of its parent. */
-    disabled(disabled: boolean): this;
+    disabled(disabled?: boolean): this;
     /** Mobile (gpui-component's Rust API): an asset icon in place of the step number. */
     icon(path: string): this;
   }
@@ -1536,13 +1537,13 @@ declare module "gpui-component" {
     /** Controls the current zero-based step. */
     selected_index(index: number): this;
     /** Switches between vertical and horizontal layout. */
-    vertical(vertical: boolean): this;
+    vertical(vertical?: boolean): this;
     /** Centers each step's text in horizontal layouts. */
-    text_center(text_center: boolean): this;
+    text_center(text_center?: boolean): this;
     /** Disables every step. */
-    disabled(disabled: boolean): this;
+    disabled(disabled?: boolean): this;
     /** Sets the stepper's semantic size. */
-    size(size: FormSize): this;
+    size(size: FormSize | import("native-shell").Length): this;
     /** Reports the newly selected zero-based index. */
     on_change(handler: (index: number, cx: FormContext) => void): this;
     /** gpui-component's Rust spelling: adds steps. */
@@ -1574,9 +1575,9 @@ declare module "gpui-component" {
   }
   export interface TimeFieldElement extends Element {
     /** Controls whether this component accepts interaction. */
-    disabled(disabled: boolean): this;
+    disabled(disabled?: boolean): this;
     /** Mobile (gpui-component's Rust API): shows the script's validation result. */
-    invalid(invalid: boolean): this;
+    invalid(invalid?: boolean): this;
   }
   /** The platform's time picker bound to a TimeFieldState. */
   export const TimeField: FormConstructor<[state: TimeFieldState], TimeFieldElement>;
@@ -1616,8 +1617,8 @@ declare module "gpui-component" {
     featured_colors(colors: string[]): this;
     /** Mobile (gpui-component's Rust API): an asset icon, drawn in the chosen color, in place of the swatch. */
     icon(path: string): this;
-    disabled(disabled: boolean): this;
-    size(size: FormSize): this;
+    disabled(disabled?: boolean): this;
+    size(size: FormSize | import("native-shell").Length): this;
     /** Accepted; the picker is a sheet on a phone. */
     anchor(anchor: string): this;
   }
