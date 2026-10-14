@@ -75,3 +75,7 @@ harness = false
 [[test]]
 name = "dev"
 harness = false
+
+[[test]]
+name = "example_events"
+harness = false
