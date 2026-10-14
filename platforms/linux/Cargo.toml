@@ -73,11 +73,19 @@ name = "examples"
 harness = false
 
 [[test]]
+name = "example_notes"
+harness = false
+
+[[test]]
 name = "dev"
 harness = false
 
 [[test]]
 name = "component_forms"
+harness = false
+
+[[test]]
+name = "components_data"
 harness = false
 
 [[test]]
