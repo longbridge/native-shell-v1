@@ -334,3 +334,24 @@ fn shop_order_history_has_an_empty_state() {
     assert!(h.find("order-LS-10480").is_none());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn shop_back_button_drops_its_title_when_it_would_crowd_the_page_title() {
+    use native_shell::core::host::Environment;
+    let dir = data_dir("back");
+    let mut h = loaded(&dir);
+    h.tap("product-mug");
+    assert_eq!(h.text_of("back"), "Shop");
+    h.tap("back");
+    // A long product name leaves no room for "Shop" beside it.
+    h.tap("product-towels");
+    assert_eq!(h.text_of("back"), "");
+    assert_eq!(label(&h, "back"), "Back to Shop");
+    h.tap("back");
+    // At accessibility text sizes the chevron stands alone.
+    h.set_environment(Environment { width: 390.0, height: 844.0, font_scale: 2.0, ..Environment::default() });
+    h.tap("product-mug");
+    assert_eq!(h.text_of("back"), "");
+    assert_eq!(label(&h, "back"), "Back to Shop");
+    let _ = std::fs::remove_dir_all(&dir);
+}
