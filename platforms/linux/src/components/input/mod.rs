@@ -780,7 +780,7 @@ fn stylesheet(c: &Config, scale: f32, foreground: Option<u32>, muted: Option<u32
     format!(
         ".nsh-input, .nsh-input > text, .nsh-input > undershoot {{ background: none; border: none; box-shadow: none; \
          outline: none; padding: 0; margin: 0; min-height: 0; min-width: 0; }}\n\
-         .nsh-input {{ color: {color}; caret-color: {tint}; {font} }}\n\
+         .nsh-input, .nsh-input > text {{ color: {color}; caret-color: {tint}; {font} }}\n\
          .nsh-input selection, .nsh-input > text > selection {{ background-color: {selection}; color: {color}; }}\n\
          label.nsh-placeholder {{ color: {placeholder}; {font} }}\n",
         color = css_color(color),

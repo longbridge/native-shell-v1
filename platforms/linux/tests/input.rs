@@ -17,7 +17,8 @@ fn main() -> ExitCode {
         ("submit, done and focus", submit_done_and_focus),
         ("multiline editor", multiline_editor),
         ("chat composer sends and clears", chat_composer_sends_and_clears),
-        ("example screenshots", example_screenshots),
+        ("address form: return moves on, validation (light)", || address_form(false)),
+        ("address form (dark)", || address_form(true)),
     ])
 }
 
@@ -184,27 +185,6 @@ fn multiline_editor() {
     assert!(notes.wrap_mode() != gtk::WrapMode::None, "long notes wrap");
 }
 
-/// Broadway never ticks the frame clock here (see tests/support), so a style
-/// change (the dark theme) is not applied until something reads the style,
-/// and the cached render nodes are not redrawn: do both by hand.
-fn restyle(widget: &gtk::Widget) {
-    widget.color();
-    widget.queue_draw();
-    let mut child = widget.first_child();
-    while let Some(w) = child {
-        restyle(&w);
-        child = w.next_sibling();
-    }
-}
-
-fn shoot(f: &Fixture, name: &str) {
-    for (dark, appearance) in [(false, "light"), (true, "dark")] {
-        f.set_dark(dark);
-        restyle(f.surface.upcast_ref());
-        f.screenshot(format!("target/agents/linux-input/{name}-{appearance}.png"));
-    }
-}
-
 fn chat_composer_sends_and_clears() {
     let f = Fixture::open_dir("../../examples/chat");
     let draft = line(&f, "draft");
@@ -222,9 +202,56 @@ fn chat_composer_sends_and_clears() {
     assert_eq!(draft.text(), "!", "typing goes on after the script's write");
 }
 
-fn example_screenshots() {
-    for example in ["chat", "gpui-todolist", "settings", "tasks", "components"] {
-        let f = Fixture::open_dir(format!("../../examples/{example}"));
-        shoot(&f, example);
+/// Screenshots go to `screenshots/<name>-<light|dark>.png`. Each appearance
+/// runs its flow from the start: Broadway never ticks the frame clock here
+/// (see tests/support), so a live theme switch is not restyled reliably.
+fn appearance(dark: bool) -> &'static str {
+    if dark {
+        "dark"
+    } else {
+        "light"
     }
+}
+
+/// The components example's shipping address form, as a user fills it in.
+fn address_form(dark: bool) {
+    set_dark(dark);
+    let shot = |f: &Fixture, name: &str| f.screenshot(format!("screenshots/{name}-{}.png", appearance(dark)));
+    let f = Fixture::open_dir("../../examples/components");
+    // The push transition needs frame clock ticks, which Broadway never gives
+    // here; without animations the page shows at once.
+    if let Some(settings) = gtk::Settings::default() {
+        settings.set_gtk_enable_animations(false);
+    }
+    f.tap("open-fields");
+    f.wait_for("name");
+    shot(&f, "input-address-empty");
+
+    let fields: Vec<gtk::Text> = ["name", "street", "city", "postal", "phone"].iter().map(|id| line(&f, id)).collect();
+    f.click("name");
+    assert!(fields[0].has_focus());
+    for (i, text) in ["Ada Lovelace", "12 Harbour Street", "Springfield", "123"].iter().enumerate() {
+        type_text(&f, &fields[i], text);
+        // Return moves to the next field (the script focuses it).
+        fields[i].emit_by_name::<()>("activate", &[]);
+        f.settle();
+        assert!(fields[i + 1].has_focus(), "Return in field {i} moves on");
+    }
+    // The postal code asks for a number keyboard.
+    assert_eq!(fields[3].text(), "123");
+    assert_eq!(fields[3].input_purpose(), gtk::InputPurpose::Digits);
+    assert_eq!(fields[1].input_hints(), gtk::InputHints::UPPERCASE_WORDS);
+    type_text(&f, &fields[4], "555");
+    let notes = area(&f, "notes");
+    notes.buffer().insert_at_cursor("Leave it with the neighbour at number 14.");
+    f.settle();
+    // Save validates and explains under the field.
+    f.tap("save-address");
+    f.expect("postal-error");
+    f.expect("phone-error");
+    shot(&f, "input-address-errors");
+    // Editing clears the errors; six digits do not fit a five-digit code.
+    type_text(&f, &fields[3], "456");
+    assert_eq!(fields[3].text(), "12345");
+    assert!(f.find("postal-error").is_none());
 }
