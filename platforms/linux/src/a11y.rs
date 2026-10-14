@@ -121,11 +121,7 @@ pub fn refresh(view: &NodeView) {
         // roles are set right after creation, before it is shown.
         view.set_accessible_role(role);
     }
-    // Pointer convention of GNOME and macOS: only links get the hand.
-    let link = a.role == Some(A11yRole::Link);
-    if link != view.cursor().is_some() {
-        view.set_cursor_from_name(link.then_some("pointer"));
-    }
+    view.update_cursor();
     let pushed = a.pushed.take();
     let fresh = A11y::default();
     if pushed.as_deref().unwrap_or(&fresh) == &a {

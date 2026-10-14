@@ -67,6 +67,14 @@ only, so it is safe on the JS thread.
 * Gestures are attached only for what a node listens to, and a node claims
   the touch sequence only when it fires, so a scrolled window above still
   scrolls when a drag starts on a clickable row.
+* Hover: a motion controller, attached only to nodes with the `HOVER` mask
+  bit or hover styles, applies `HoverOpacity` / `HoverBackground` natively
+  (pressed values win) and sends `Hover {entered, x, y}` (the exit carries
+  the last position over the node). Touchscreen crossings do not hover.
+* `Cursor`: GPUI's `CursorStyle` as GDK's CSS cursor names (`pointer`,
+  `text`, `grab`, `col-resize`, `not-allowed`…); without one, links get
+  `pointer` and other nodes inherit their parent's cursor. `Tooltip`: GTK's
+  own tooltip (`gtk_widget_set_tooltip_text`).
 * Hardware keys are observed in the capture phase on the window and sent
   once per down/up as `Key` to the nearest node with the KEY mask above the
   focused widget, else to the root; they are never consumed.

@@ -19,7 +19,7 @@ use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{gdk, glib, graphene, gsk};
 
-use native_shell_core::protocol::{EventType, Frame};
+use native_shell_core::protocol::{A11yRole, CursorStyle, EventType, Frame};
 
 use crate::animator::{self, Anim, AnimationSpec};
 use crate::component::Shared;
@@ -57,12 +57,36 @@ pub struct Gradient {
     pub stops: Vec<(u32, f32)>,
 }
 
-/// Native press feedback (`ActiveOpacity`, `ActiveBackground`).
+/// Native pointer feedback: pressed (`ActiveOpacity`, `ActiveBackground`)
+/// and hovered (`HoverOpacity`, `HoverBackground`); pressed wins.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Press {
     pub active_opacity: Option<f32>,
     pub active_background: Option<u32>,
     pub pressed: bool,
+    pub hover_opacity: Option<f32>,
+    pub hover_background: Option<u32>,
+    pub hovered: bool,
+}
+
+impl Press {
+    /// The factor on the node's opacity in the current state.
+    pub fn opacity(&self) -> f32 {
+        match (self.active_opacity, self.hover_opacity) {
+            (Some(o), _) if self.pressed => o,
+            (_, Some(o)) if self.hovered => o,
+            _ => 1.0,
+        }
+    }
+
+    /// The background in the current state, `resting` when it has none of its own.
+    pub fn background(&self, resting: Option<u32>) -> Option<u32> {
+        match (self.active_background, self.hover_background) {
+            (Some(c), _) if self.pressed => Some(c),
+            (_, Some(c)) if self.hovered => Some(c),
+            _ => resting,
+        }
+    }
 }
 
 /// `0xAARRGGBB` to a GDK color.
@@ -112,6 +136,8 @@ mod imp {
         pub a11y: RefCell<crate::a11y::A11y>,
         /// `Prop::Focusable`: a keyboard focus stop even without click handlers.
         pub focusable: Cell<bool>,
+        /// `Prop::Cursor`, GPUI's `CursorStyle`.
+        pub cursor: Cell<Option<CursorStyle>>,
     }
 
     impl Default for NodeView {
@@ -139,6 +165,7 @@ mod imp {
                 gestures: RefCell::new(Default::default()),
                 a11y: RefCell::new(Default::default()),
                 focusable: Cell::new(false),
+                cursor: Cell::new(None),
             }
         }
     }
@@ -453,12 +480,7 @@ impl NodeView {
 
     fn apply_opacity(&self) {
         let imp = self.imp();
-        let press = imp.press.get();
-        let factor = match press.active_opacity {
-            Some(o) if press.pressed => o as f64,
-            _ => 1.0,
-        };
-        self.set_opacity(imp.shown_opacity.get() * factor);
+        self.set_opacity(imp.shown_opacity.get() * imp.press.get().opacity() as f64);
     }
 
     pub fn press(&self) -> Press {
@@ -478,8 +500,34 @@ impl NodeView {
         self.queue_draw();
         if press.active_opacity != old.active_opacity
             || press.active_background != old.active_background
+            || press.hover_opacity != old.hover_opacity
+            || press.hover_background != old.hover_background
         {
             crate::gestures::sync(self);
+        }
+    }
+
+    pub fn set_hovered(&self, hovered: bool) {
+        self.update_press(|p| p.hovered = hovered);
+    }
+
+    /// `Prop::Cursor`.
+    pub fn set_cursor_style(&self, cursor: Option<CursorStyle>) {
+        self.imp().cursor.set(cursor);
+        self.update_cursor();
+    }
+
+    /// The pointer over the node: its `Cursor`, else the hand for links (the
+    /// GNOME and macOS convention), else the one inherited from its parent.
+    pub fn update_cursor(&self) {
+        let link = self.imp_a11y().borrow().role == Some(A11yRole::Link);
+        let name = match self.imp().cursor.get() {
+            Some(style) => Some(cursor_name(style)),
+            None if link => Some("pointer"),
+            None => None,
+        };
+        if self.cursor().map(|c| c.name()) != Some(name.map(Into::into)) {
+            self.set_cursor_from_name(name);
         }
     }
 
@@ -666,10 +714,7 @@ impl NodeView {
         if let Some(s) = style.shadow {
             snapshot.append_outset_shadow(&rounded, &rgba(s.color), s.x, s.y, s.spread, s.blur);
         }
-        let background = match press.active_background {
-            Some(bg) if press.pressed => Some(bg),
-            _ => style.background,
-        };
+        let background = press.background(style.background);
         let gradient = imp.gradient.borrow();
         if background.is_some() || gradient.is_some() {
             if curved {
@@ -727,6 +772,34 @@ impl NodeView {
             let c = rgba(color.unwrap_or(0xFF00_7AFF));
             snapshot.append_border(&ring, &[width; 4], &[c; 4]);
         }
+    }
+}
+
+/// GPUI's cursor styles as GDK (CSS) cursor names; GDK falls back to the
+/// default arrow for a name the cursor theme lacks.
+pub fn cursor_name(style: CursorStyle) -> &'static str {
+    match style {
+        CursorStyle::Arrow => "default",
+        CursorStyle::IBeam => "text",
+        CursorStyle::Crosshair => "crosshair",
+        CursorStyle::ClosedHand => "grabbing",
+        CursorStyle::OpenHand => "grab",
+        CursorStyle::PointingHand => "pointer",
+        CursorStyle::ResizeLeft => "w-resize",
+        CursorStyle::ResizeRight => "e-resize",
+        CursorStyle::ResizeLeftRight => "ew-resize",
+        CursorStyle::ResizeUp => "n-resize",
+        CursorStyle::ResizeDown => "s-resize",
+        CursorStyle::ResizeUpDown => "ns-resize",
+        CursorStyle::ResizeUpLeftDownRight => "nwse-resize",
+        CursorStyle::ResizeUpRightDownLeft => "nesw-resize",
+        CursorStyle::ResizeColumn => "col-resize",
+        CursorStyle::ResizeRow => "row-resize",
+        CursorStyle::IBeamCursorForVerticalLayout => "vertical-text",
+        CursorStyle::OperationNotAllowed => "not-allowed",
+        CursorStyle::DragLink => "alias",
+        CursorStyle::DragCopy => "copy",
+        CursorStyle::ContextualMenu => "context-menu",
     }
 }
 
@@ -941,5 +1014,28 @@ mod tests {
         assert_eq!(g.angle, 180.0);
         assert_eq!(g.stops, vec![(1, 0.0), (2, 0.8), (3, 0.8)]);
         assert_eq!(parse_gradient(&serde_json::json!({"stops": []})), None);
+    }
+
+    #[test]
+    fn pressed_wins_over_hovered() {
+        let p = Press {
+            active_opacity: Some(0.5),
+            hover_opacity: Some(0.8),
+            hover_background: Some(2),
+            ..Press::default()
+        };
+        assert_eq!((p.opacity(), p.background(Some(1))), (1.0, Some(1)));
+        let hovered = Press { hovered: true, ..p };
+        assert_eq!((hovered.opacity(), hovered.background(Some(1))), (0.8, Some(2)));
+        let pressed = Press { pressed: true, ..hovered };
+        // No pressed background: the hovered one stays.
+        assert_eq!((pressed.opacity(), pressed.background(Some(1))), (0.5, Some(2)));
+    }
+
+    #[test]
+    fn every_cursor_style_has_a_gdk_name() {
+        let names: std::collections::HashSet<_> = CursorStyle::ALL.iter().map(|c| cursor_name(*c)).collect();
+        assert_eq!(names.len(), CursorStyle::ALL.len());
+        assert_eq!(cursor_name(CursorStyle::PointingHand), "pointer");
     }
 }

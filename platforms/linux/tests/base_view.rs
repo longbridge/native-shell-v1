@@ -19,6 +19,7 @@ fn main() -> ExitCode {
         ),
         ("double and long presses", double_and_long_presses),
         ("press feedback is native", press_feedback_is_native),
+        ("hover feedback, cursor and tooltip", hover_feedback_cursor_and_tooltip),
         (
             "pans report phases and offsets",
             pans_report_phases_and_offsets,
@@ -194,6 +195,50 @@ fn press_feedback_is_native() {
     g.emit_by_name::<()>("cancel", &[&None::<gdk::EventSequence>]);
     assert_eq!(row.opacity(), 1.0);
     assert_eq!(log(&f), "in,out,in,out");
+}
+
+fn hover_feedback_cursor_and_tooltip() {
+    let f = Fixture::new(&format!(
+        r##"{LOGGER}
+  render() {{
+    return v_flex().size_full().bg("#ffffff").test_id(`log-${{this.log.join(",")}}`)
+      .child(div().test_id("row").w(100).h(44).bg("#ff0000").cursor_pointer().tooltip("Archive")
+        .hover((s) => s.bg("#0000ff"))
+        .active((s) => s.opacity(0.5))
+        .on_hover((hovered, cx) => this.note(`hover-${{hovered}}`, cx)))
+      .child(div().test_id("plain").w(100).h(20).cursor_col_resize())
+      .child(div().test_id("dim").w(100).h(20).bg("#000000").hover((s) => s.opacity(0.5)));
+  }}
+}}"##
+    ));
+    let row = node_view(&f, "row");
+    let motion = gesture(&row, |_: &gtk::EventControllerMotion| true);
+    motion.emit_by_name::<()>("enter", &[&10.0f64, &12.0f64]);
+    assert_eq!(f.pixel(10, 10), 0xff0000ff, "hovered background, no round trip");
+    // Pressed wins over hovered.
+    let press = primary(&row);
+    press.emit_by_name::<()>("pressed", &[&1i32, &10.0f64, &10.0f64]);
+    assert!((row.opacity() - 0.5).abs() < 0.01);
+    press.emit_by_name::<()>("released", &[&1i32, &10.0f64, &10.0f64]);
+    assert!((row.opacity() - 1.0).abs() < 0.01);
+    motion.emit_by_name::<()>("motion", &[&30.0f64, &20.0f64]);
+    motion.emit_by_name::<()>("leave", &[]);
+    assert_eq!(f.pixel(10, 10), 0xffff0000);
+    assert_eq!(log(&f), "hover-true,hover-false");
+
+    // Hover opacity without a handler: feedback only.
+    let dim = node_view(&f, "dim");
+    gesture(&dim, |_: &gtk::EventControllerMotion| true).emit_by_name::<()>("enter", &[&1.0f64, &1.0f64]);
+    assert!((dim.opacity() - 0.5).abs() < 0.01);
+    assert_eq!(log(&f), "hover-true,hover-false");
+
+    let cursor = |id: &str| f.expect(id).cursor().and_then(|c| c.name()).map(|n| n.to_string());
+    assert_eq!(cursor("row").as_deref(), Some("pointer"));
+    assert_eq!(cursor("plain").as_deref(), Some("col-resize"));
+    assert_eq!(row.tooltip_text().as_deref(), Some("Archive"));
+    // Nodes without hover styles or handlers track no pointer.
+    let plain = node_view(&f, "plain").observe_controllers();
+    assert!((0..plain.n_items()).all(|i| !plain.item(i).is_some_and(|c| c.is::<gtk::EventControllerMotion>())));
 }
 
 fn pans_report_phases_and_offsets() {
