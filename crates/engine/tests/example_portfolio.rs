@@ -101,6 +101,8 @@ fn overview_totals_ranges_sorting_and_live_updates() {
     };
     assert_eq!(h.text_of("holdings").split(' ').next(), Some("WAVE"));
     h.select("sort", 3);
+    // The menu's button names the order in force.
+    assert!(matches!(h.prop("sort", Prop::Menu), Some(PropValue::Json(j)) if j.contains(r#""placeholder":"Sort: Symbol""#)));
     assert_eq!(order(&h).first().map(String::as_str), Some("ACME"), "{:?}", order(&h));
     h.select("sort", 1);
     assert_eq!(h.text_of("holdings").split(' ').next(), Some("QUIL"), "biggest gainer today first");

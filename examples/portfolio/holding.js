@@ -8,8 +8,9 @@
 import { View, div, h_flex, v_flex, Button } from "native-shell";
 import { instrument } from "./market.js";
 import { positions, totals, priceSeries, money, signedMoney, signedPercent, percent, shares, longDate } from "./portfolio.js";
+import { DescriptionList } from "gpui-component";
 import { rangeChart } from "./chart.js";
-import { barButton, changeColor, navBar, row, section } from "./ui.js";
+import { barButton, changeColor, navBar, section } from "./ui.js";
 
 export default class HoldingPage extends View {
   init(props) {
@@ -110,32 +111,30 @@ export default class HoldingPage extends View {
 
   positionSection(cx, p, portfolioValue) {
     const t = cx.theme();
-    const stat = (id, label, value, color = t.foreground) =>
-      h_flex()
-        .test_id(id)
-        .gap_3()
-        .px_4()
-        .py_3()
-        .min_h_11()
-        .child(div().flex_1().text_base().text_color(t.foreground).child(label))
-        .child(div().test_id(`${id}-value`).flex_none().text_base().text_color(color).child(value));
-    return section(cx, {
-      id: "position",
-      title: "Your position",
-      rows: [
-        stat("position-shares", "Shares", shares(p.shares)),
-        stat("position-average-cost", "Average cost", money(p.cost / p.shares)),
-        stat("position-market-value", "Market value", money(p.value)),
-        stat(
-          "position-today-return",
+    // Plain values are secondary text, as the list draws its own; gains and losses keep their colors.
+    const colored = (id, text, color) => div().test_id(id).text_color(color).child(text);
+    return titled(
+      cx,
+      "Your position",
+      DescriptionList.new()
+        .test_id("position")
+        .item("Shares", colored("position-shares-value", shares(p.shares), t.muted_foreground))
+        .item("Average cost", money(p.cost / p.shares))
+        .item("Market value", colored("position-market-value-value", money(p.value), t.muted_foreground))
+        .item(
           "Today’s return",
-          `${signedMoney(p.dayChange)} (${signedPercent(p.dayPercent)})`,
-          changeColor(t, p.dayChange),
-        ),
-        stat("position-total-return", "Total return", `${signedMoney(p.gain)} (${signedPercent(p.gainPercent)})`, changeColor(t, p.gain)),
-        stat("position-weight", "Portfolio weight", percent((p.value / portfolioValue) * 100)),
-      ],
-    });
+          colored(
+            "position-today-return-value",
+            `${signedMoney(p.dayChange)} (${signedPercent(p.dayPercent)})`,
+            changeColor(t, p.dayChange),
+          ),
+        )
+        .item(
+          "Total return",
+          colored("position-total-return-value", `${signedMoney(p.gain)} (${signedPercent(p.gainPercent)})`, changeColor(t, p.gain)),
+        )
+        .item("Portfolio weight", percent((p.value / portfolioValue) * 100)),
+    );
   }
 
   notHeld(cx) {
@@ -155,31 +154,16 @@ export default class HoldingPage extends View {
     const market = this.app.market;
     const [dayLow, dayHigh] = market.dayRange(this.symbol);
     const [yearLow, yearHigh] = market.yearRange(this.symbol);
-    return section(cx, {
-      title: "Statistics",
-      rows: [
-        row(cx, {
-          id: "previous-close",
-          label: "Previous close",
-          value: money(market.previousClose(this.symbol)),
-        }),
-        row(cx, {
-          id: "day-range",
-          label: "Day’s range",
-          value: `${money(dayLow)} – ${money(dayHigh)}`,
-        }),
-        row(cx, {
-          id: "year-range",
-          label: "52-week range",
-          value: `${money(yearLow)} – ${money(yearHigh)}`,
-        }),
-        row(cx, {
-          id: "sector",
-          label: "Sector",
-          value: instrument(this.symbol).sector,
-        }),
-      ],
-    });
+    return titled(
+      cx,
+      "Statistics",
+      DescriptionList.new()
+        .test_id("statistics")
+        .item("Previous close", money(market.previousClose(this.symbol)))
+        .item("Day’s range", `${money(dayLow)} – ${money(dayHigh)}`)
+        .item("52-week range", `${money(yearLow)} – ${money(yearHigh)}`)
+        .item("Sector", instrument(this.symbol).sector),
+    );
   }
 
   transactions(cx, history) {
@@ -234,4 +218,12 @@ export default class HoldingPage extends View {
       }),
     });
   }
+}
+
+/** A grouped section's header over a list that draws its own card. */
+function titled(cx, title, list) {
+  return v_flex()
+    .gap_2()
+    .child(div().role("header").px_4().text_sm().font_medium().text_color(cx.theme().muted_foreground).child(title))
+    .child(list);
 }

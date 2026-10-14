@@ -8,8 +8,8 @@
 // app is in front, which the runtime takes care of: timers pause while the
 // app is in the background. See README.md for the design notes.
 
-import { View, div, h_flex, v_flex, Button, Select, Spinner } from "native-shell";
-import { PieChart, Skeleton, WarningAlert } from "gpui-component";
+import { View, div, h_flex, v_flex, Button, Spinner } from "native-shell";
+import { DropdownMenu, PieChart, Skeleton, WarningAlert } from "gpui-component";
 import { Market, instrument } from "./market.js";
 import {
   loadTransactions,
@@ -501,16 +501,17 @@ export default class Portfolio extends View {
     return section(cx, {
       id: "holdings",
       title: `Holdings · ${held.length}`,
-      trailing: Select.new("sort")
-        .test_id("sort")
-        .accessibility_label("Sort holdings")
-        .items(SORTS)
-        .value(this.sort)
-        .on_change((value, cx) => {
-          this.sort = value;
-          cx.haptic("selection");
-          cx.notify();
-        }),
+      trailing: SORTS.reduce(
+        (menu, sort) =>
+          menu.item(sort.label, (cx) => {
+            this.sort = sort.value;
+            cx.haptic("selection");
+            cx.notify();
+          }),
+        DropdownMenu.new("sort", `Sort: ${SORTS.find((s) => s.value === this.sort).label}`)
+          .test_id("sort")
+          .accessibility_label("Sort holdings"),
+      ),
       rows: sorted.map((p) => this.holdingRow(cx, p)),
     });
   }
