@@ -73,6 +73,10 @@ name = "examples"
 harness = false
 
 [[test]]
+name = "example_notes"
+harness = false
+
+[[test]]
 name = "dev"
 harness = false
 
