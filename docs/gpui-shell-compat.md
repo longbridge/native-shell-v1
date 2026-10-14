@@ -32,7 +32,7 @@ only; `"gpui-shell"` exists and exports nothing, as in gpui-shell;
 | API | Mobile realization |
 | --- | --- |
 | `image`, `svg` | `image` is a native image view (program-relative assets are materialized to files); `svg` is parsed in Rust into a native shape drawn in one color (its `text_color`, else the theme foreground), like gpui |
-| `Button`, `Link`, `Tab` | headless pressables as in gpui-base; mobile adds `.variant()` and `.label()` |
+| `Button`, `Link`, `Tab` | headless pressables as in gpui-base; gpui-component's styled forms (`.primary()`, `.secondary()`, `.outline()`, `.danger()`, `.success()`, `.warning()`, `.ghost()`, `.link()`, `.size("xsmall" \| "small" \| "medium" \| "large")`, `.label()`) draw iOS buttons: 28 / 34 / 44 / 50 pt in rems, filled variants darken when pressed, plain ones fade, small sizes keep a 44 pt touch target; `.variant(name)` is the mobile spelling of the same |
 | `Checkbox`, `Switch`, `Radio`, `Progress` (+ Track / Indicator) | drawn (headless, as in gpui-base) when the element gets a child, `.headless()`, or a style that draws a box (background, border, radius, shadow, padding, text); the native control when bare or only placed by layout styles (margin, size, flex, position) |
 | `Slider(state)` and its parts | always the native slider; the part components are accepted and ignored |
 | `Tabs` | headless row of `Tab`s; `.items([...])` makes it a native segmented control |

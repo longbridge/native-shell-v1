@@ -729,11 +729,30 @@ declare module "native-shell" {
     new: () => E;
   }
 
+  /** gpui-component's button variants; `destructive` (= `danger`) and `tinted` (= `outline`) are accepted too. */
+  export type ButtonVariant =
+    | "primary" | "secondary" | "outline" | "danger" | "success" | "warning" | "ghost" | "link"
+    | "destructive" | "tinted";
+  export type ButtonSize = "xsmall" | "small" | "medium" | "large";
+
   export interface ButtonElement extends Element {
     /** Mobile: the button's text. */
     label(text: string): this;
-    /** Mobile: a native-looking preset. Script styles still win. */
-    variant(v: "primary" | "secondary" | "outline" | "ghost" | "destructive"): this;
+    /** The preset by name (iOS look, drawn from theme tokens). Script styles still win. */
+    variant(v: ButtonVariant): this;
+    primary(): this;
+    secondary(): this;
+    outline(): this;
+    danger(): this;
+    success(): this;
+    warning(): this;
+    ghost(): this;
+    link(): this;
+    /**
+     * gpui-component's `size("xsmall" | "small" | "medium" | "large")`; a number
+     * or length is the `size` style (width and height), as on any element.
+     */
+    size(value: ButtonSize | Length): this;
   }
   /** Activation, focus, disabled and selected state. No styling unless `.variant(...)`. */
   export const Button: ComponentType<ButtonElement>;

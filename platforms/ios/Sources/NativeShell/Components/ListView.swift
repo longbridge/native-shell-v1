@@ -29,6 +29,12 @@ final class NSHListView: NSHComponentView, UICollectionViewDataSource, UICollect
     private var needsReload = false
     private var lastRangeEvent: TimeInterval = 0
     private var rangeTimerPending = false
+    /// The last `ScrollToIndex`, re-aimed when new row offsets arrive: rows the
+    /// core had not measured yet were placed at estimated heights.
+    private var pendingScroll: (index: Int, position: String?, y: CGFloat, corrections: Int)?
+    private var offsetsChanged = false
+    private var scrollAnimating = false
+    private static let maxScrollCorrections = 8
 
     override func commonInit() {
         collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
@@ -85,6 +91,7 @@ final class NSHListView: NSHComponentView, UICollectionViewDataSource, UICollect
         case .rowOffsets:
             layout.offsets = (value.floats ?? []).map { CGFloat($0) }
             layout.invalidateLayout()
+            offsetsChanged = true
         case .prefetch:
             prefetch = max(0, value.int ?? 0)
         case .listAlignment:
@@ -106,6 +113,10 @@ final class NSHListView: NSHComponentView, UICollectionViewDataSource, UICollect
         layoutIfNeeded()
         collectionView.layoutIfNeeded()
         keepEndInView()
+        if offsetsChanged {
+            offsetsChanged = false
+            correctPendingScroll()
+        }
         for case let cell as RowCell in collectionView.visibleCells {
             guard let ip = collectionView.indexPath(for: cell) else { continue }
             cell.host(rowsByIndex[ip.item])
@@ -125,6 +136,14 @@ final class NSHListView: NSHComponentView, UICollectionViewDataSource, UICollect
 
     func collectionView(_ cv: UICollectionView, didEndDisplaying cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
         (cell as? RowCell)?.host(nil)
+    }
+
+    func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        pendingScroll = nil
+    }
+
+    func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
+        scrollAnimating = false
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
@@ -203,18 +222,13 @@ final class NSHListView: NSHComponentView, UICollectionViewDataSource, UICollect
         switch command {
         case .scrollToIndex:
             guard itemCount > 0, let index = payload.int("index") else { return }
-            let i = max(0, min(itemCount - 1, index))
-            let rowTop = layout.top(of: i), rowH = layout.top(of: i + 1) - rowTop
-            let h = collectionView.bounds.height
-            var y: CGFloat
-            switch payload.string("position") {
-            case "center": y = rowTop - (h - rowH) / 2
-            case "bottom": y = rowTop + rowH - h
-            default: y = rowTop
-            }
-            y = max(0, min(y, max(0, layout.total - h)))
-            collectionView.setContentOffset(CGPoint(x: 0, y: y), animated: payload.bool("animated") ?? true)
+            let i = max(0, min(itemCount - 1, index)), position = payload.string("position")
+            let y = scrollOffset(toRow: i, position)
+            pendingScroll = (i, position, y, 0)
+            offsetsChanged = false
+            setScrollOffset(y, animated: payload.bool("animated") ?? true)
         case .scrollTo:
+            pendingScroll = nil
             let y = max(0, min(payload.cgFloat("y") ?? 0, max(0, layout.total - collectionView.bounds.height)))
             collectionView.setContentOffset(CGPoint(x: 0, y: y), animated: payload.bool("animated") ?? true)
         default:
@@ -222,8 +236,41 @@ final class NSHListView: NSHComponentView, UICollectionViewDataSource, UICollect
         }
     }
 
+    /// The content offset that puts row `i` at the top, center or bottom of the viewport.
+    private func scrollOffset(toRow i: Int, _ position: String?) -> CGFloat {
+        let rowTop = layout.top(of: i), rowH = layout.top(of: i + 1) - rowTop
+        let h = collectionView.bounds.height
+        let y: CGFloat
+        switch position {
+        case "center": y = rowTop - (h - rowH) / 2
+        case "bottom": y = rowTop + rowH - h
+        default: y = rowTop
+        }
+        return max(0, min(y, max(0, layout.total - h)))
+    }
+
+    private func setScrollOffset(_ y: CGFloat, animated: Bool) {
+        let animates = animated && abs(collectionView.contentOffset.y - y) > 0.5
+        if animates { scrollAnimating = true }
+        collectionView.setContentOffset(CGPoint(x: 0, y: y), animated: animates)
+    }
+
+    /// Measured rows replaced estimates, so the target row may have moved: aim
+    /// again until it stays put (bounded, since every scroll measures new rows).
+    private func correctPendingScroll() {
+        guard let p = pendingScroll, p.index < itemCount else { return pendingScroll = nil }
+        let y = scrollOffset(toRow: p.index, p.position)
+        guard abs(y - p.y) > 0.5, p.corrections < Self.maxScrollCorrections else { return pendingScroll = nil }
+        pendingScroll = (p.index, p.position, y, p.corrections + 1)
+        // An animated scroll still under way is retargeted rather than cut short.
+        setScrollOffset(y, animated: scrollAnimating)
+    }
+
     override func resetForReuse() {
         super.resetForReuse()
+        pendingScroll = nil
+        offsetsChanged = false
+        scrollAnimating = false
         rowsByIndex.removeAll()
         reportedRange = nil
         bottomAligned = false
