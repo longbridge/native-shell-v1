@@ -1369,6 +1369,260 @@ declare module "gpui-component" {
   >;
 
   // --- forms (crates/engine/js/gpui_component/forms.js) ---
+  type FormSize = "xsmall" | "small" | "medium" | "large";
+  type FormContext = import("native-shell").Context;
+  type FormConstructor<A extends unknown[], E> = { new (...args: A): E; new: (...args: A) => E };
+
+  export interface FormElement extends Element {
+    /** Sets the form grid's column count. */
+    columns(columns: number): this;
+    /** Sets the horizontal form label width in pixels. */
+    label_width(width: number): this;
+    /** Sets the form density. */
+    size(size: FormSize): this;
+  }
+  /**
+   * A vertical or horizontal form accepting Field children. Mobile: a vertical
+   * form stacks labels above controls; a horizontal one is an inset grouped
+   * list whose rows put the label beside the control.
+   */
+  export const Form: FormConstructor<[], FormElement>;
+  export const VForm: FormConstructor<[], FormElement>;
+  export const HForm: FormConstructor<[], FormElement>;
+
+  export interface FieldElement extends Element {
+    /** Sets the field label. */
+    label(label: string): this;
+    /** Sets supporting text below the control. */
+    description(description: string): this;
+    /** Mobile: why the value was refused, shown (as an alert) in place of the description. */
+    error(message: string | null): this;
+    /** Marks the field as required. */
+    required(required: boolean): this;
+    /** Controls field visibility. */
+    visible(visible: boolean): this;
+    /** Keeps unlabeled horizontal fields aligned with labeled fields. */
+    label_indent(label_indent: boolean): this;
+    /** Aligns the label and control within the field. */
+    align(align: "start" | "center" | "end"): this;
+    /** Sets the field's grid-column span. */
+    col_span(span: number): this;
+  }
+  /** A typed form field containing ordinary control children. */
+  export const Field: FormConstructor<[], FieldElement>;
+
+  export interface InputGroupElement extends Element {
+    /** Sets the group's text control (an InputGroupInput or InputGroupTextarea). */
+    input(input: InputGroupInputElement | InputGroupTextareaElement): this;
+    /** Appends an InputGroupAddon at its logical side. */
+    addon(addon: InputGroupAddonElement): this;
+    /** Disables the field and the addons' direct InputGroupButton children. */
+    disabled(disabled: boolean): this;
+    /** Prevents text edits while leaving addon actions available. */
+    readonly(readonly: boolean): this;
+    /** Displays the caller's validation result without rejecting input. */
+    invalid(invalid: boolean): this;
+    /** Accepted; the platform draws its own focus. */
+    focus_ring(focus_ring: boolean): this;
+    /** Names the group independently of its text control. */
+    aria_label(label: string): this;
+    /** Sets the group's semantic control size. */
+    size(size: FormSize): this;
+  }
+  /** A themed frame around one text control and any number of addons. */
+  export const InputGroup: FormConstructor<[id: string], InputGroupElement>;
+
+  type InputContentType =
+    | "name" | "name_prefix" | "given_name" | "middle_name" | "family_name" | "name_suffix" | "nickname"
+    | "job_title" | "organization_name" | "location" | "full_street_address" | "street_address_line1"
+    | "street_address_line2" | "address_city" | "address_state" | "address_city_and_state" | "sublocality"
+    | "country_name" | "postal_code" | "telephone_number" | "email_address" | "url" | "credit_card_number"
+    | "credit_card_name" | "credit_card_given_name" | "credit_card_middle_name" | "credit_card_family_name"
+    | "credit_card_security_code" | "credit_card_expiration" | "credit_card_expiration_month"
+    | "credit_card_expiration_year" | "credit_card_type" | "username" | "password" | "new_password"
+    | "one_time_code" | "shipment_tracking_number" | "flight_number" | "date_time" | "birthdate"
+    | "birthdate_day" | "birthdate_month" | "birthdate_year" | "cellular_eid" | "cellular_imei";
+
+  interface InputGroupControlElement extends Element {
+    /** Controls whether this component accepts interaction. */
+    disabled(disabled: boolean): this;
+    /** Prevents edits while preserving selection and copying. */
+    readonly(readonly: boolean): this;
+    /** Names the text control for accessibility. */
+    aria_label(label: string): this;
+    /** Sets the developer-assigned accessibility identifier. */
+    accessibility_id(id: string): this;
+    /** Controls the retained text; programmatic changes do not emit on_change. */
+    value(value: string): this;
+    /** Sets the empty-value prompt on the retained state. */
+    placeholder(placeholder: string): this;
+    /** Reports edits from the retained input. */
+    on_change(handler: (value: string, cx: FormContext) => void): this;
+  }
+  export interface InputGroupInputElement extends InputGroupControlElement {
+    /** Controls password masking. */
+    masked(masked: boolean): this;
+    /** Sets the native content type; names follow InputContentType in snake_case. */
+    content_type(content_type: InputContentType): this;
+  }
+  export interface InputGroupTextareaElement extends InputGroupControlElement {
+    /** Sets a fixed row count. */
+    rows(rows: number): this;
+    /** Grows the native textarea between the minimum and maximum row counts. */
+    auto_grow(min_rows: number, max_rows: number): this;
+  }
+  /** An unframed single-line input using an InputState. */
+  export const InputGroupInput: FormConstructor<[state: import("native-shell").InputState], InputGroupInputElement>;
+  /** An unframed multiline input using a TextareaState. */
+  export const InputGroupTextarea: FormConstructor<[state: import("native-shell").TextareaState], InputGroupTextareaElement>;
+
+  export interface InputGroupAddonElement extends Element {
+    /** Places the addon relative to the control; default is inline-start. */
+    align(align: "inline-start" | "inline-end" | "block-start" | "block-end"): this;
+  }
+  /** An aligned addon; a tap on its text or empty space focuses the field. */
+  export const InputGroupAddon: FormConstructor<[id: string], InputGroupAddonElement>;
+
+  export interface InputGroupButtonElement extends Element {
+    /** Controls whether this component accepts interaction. */
+    disabled(disabled: boolean): this;
+    /** Sets the visible label. */
+    label(label: string): this;
+    /** Sets the icon path in the application's asset bundle. */
+    icon(path: string): this;
+    /** Names an icon-only action. */
+    aria_label(label: string): this;
+    /** Displays progress and prevents duplicate activation. */
+    loading(loading: boolean): this;
+    /** Uses the outlined button treatment. */
+    outline(): this;
+    /** Sets the button size; xsmall and small are the compact input-group sizes. */
+    size(size: FormSize): this;
+    /** Selects a semantic button variant. */
+    variant(variant: "default" | "primary" | "secondary" | "danger" | "warning" | "success" | "info" | "ghost" | "link" | "text"): this;
+  }
+  /** A compact button inside an input group: tinted text or an icon, 44 pt to tap. */
+  export const InputGroupButton: FormConstructor<[id: string], InputGroupButtonElement>;
+  /** Muted text or rich helper content inside an input group. */
+  export const InputGroupText: FormConstructor<[], Element>;
+
+  export interface RatingElement extends Element {
+    /** Controls whether this component accepts interaction; a disabled rating is a read-only display. */
+    disabled(disabled: boolean): this;
+    /** Sets the current number of active stars. Mobile: halves (4.5) for a read-only average. */
+    value(value: number): this;
+    /** Sets the maximum number of stars. */
+    max(max: number): this;
+    /** Reports the star the reader chose, so the script can drive `value`. */
+    on_change(handler: (value: number, cx: FormContext) => void): this;
+    /** Sets the active star color. */
+    color(color: import("native-shell").Color): this;
+    /** Sets the rating's semantic size. */
+    size(size: FormSize): this;
+  }
+  /** An interactive star rating with configurable value and maximum. */
+  export const Rating: FormConstructor<[id: string], RatingElement>;
+
+  export interface StepperItemElement extends Element {
+    /** Disables this step independently of its parent. */
+    disabled(disabled: boolean): this;
+    /** Mobile (gpui-component's Rust API): an asset icon in place of the step number. */
+    icon(path: string): this;
+  }
+  /** A step part accepted only as a direct Stepper child. */
+  export const StepperItem: FormConstructor<[], StepperItemElement>;
+
+  export interface StepperElement extends Element {
+    /** Controls the current zero-based step. */
+    selected_index(index: number): this;
+    /** Switches between vertical and horizontal layout. */
+    vertical(vertical: boolean): this;
+    /** Centers each step's text in horizontal layouts. */
+    text_center(text_center: boolean): this;
+    /** Disables every step. */
+    disabled(disabled: boolean): this;
+    /** Sets the stepper's semantic size. */
+    size(size: FormSize): this;
+    /** Reports the newly selected zero-based index. */
+    on_change(handler: (index: number, cx: FormContext) => void): this;
+    /** gpui-component's Rust spelling: adds steps. */
+    items(items: StepperItemElement[]): this;
+    item(item: StepperItemElement): this;
+  }
+  /** A typed progress stepper accepting only StepperItem children. */
+  export const Stepper: FormConstructor<[id: string], StepperElement>;
+
+  export interface TimeFieldStateOptions {
+    /** `"HH:MM"` or `"HH:MM:SS"`; the field starts at 00:00 without one. */
+    value?: string;
+    precision?: "minute" | "second";
+    /** Mobile: the platform's picker follows the user's 12/24-hour setting. */
+    hour_cycle?: "h24" | "h12";
+  }
+  /** Retained time-of-day editing state. Create it in `init` or an event handler. */
+  export class TimeFieldState {
+    static new(options?: TimeFieldStateOptions): TimeFieldState;
+    constructor(options?: TimeFieldStateOptions);
+    /** `"HH:MM"` (`"HH:MM:SS"` with second precision). */
+    value(): string;
+    /** Replaces the time without reporting a change. */
+    set_value(time: string): void;
+    hour_cycle(): "h24" | "h12";
+    /** `change` on every edit, with the new time. */
+    on(event: "change", handler: (time: string, cx: FormContext) => void): boolean;
+    release(): boolean;
+  }
+  export interface TimeFieldElement extends Element {
+    /** Controls whether this component accepts interaction. */
+    disabled(disabled: boolean): this;
+    /** Mobile (gpui-component's Rust API): shows the script's validation result. */
+    invalid(invalid: boolean): this;
+  }
+  /** The platform's time picker bound to a TimeFieldState. */
+  export const TimeField: FormConstructor<[state: TimeFieldState], TimeFieldElement>;
+
+  export interface ClipboardElement extends Element {
+    /** Sets the text copied when the button is pressed. */
+    value(value: string): this;
+    /** Mobile (gpui-component's Rust API): computes the text when the button is pressed. */
+    value_fn(fn: (cx: FormContext) => string): this;
+    /** Mobile (gpui-component's Rust API): called once the text is on the clipboard. */
+    on_copied(handler: (value: string, cx: FormContext) => void): this;
+  }
+  /**
+   * A button that copies a configured string to the system clipboard (needs
+   * `capabilities.clipboard.write`), then shows a check unless the platform
+   * confirms copies itself.
+   */
+  export const Clipboard: FormConstructor<[id: string], ClipboardElement>;
+
+  /** Retained color selection: `"#RRGGBB"` or `null`. Create it in `init` or an event handler. */
+  export class ColorPickerState {
+    static new(options?: { value?: string | null }): ColorPickerState;
+    constructor(options?: { value?: string | null });
+    value(): string | null;
+    /** Replaces the color without reporting a change. */
+    set_value(color: string | null): void;
+    /** `change` when the reader picks or types a color. */
+    on(event: "change", handler: (color: string, cx: FormContext) => void): boolean;
+    release(): boolean;
+  }
+  export interface ColorPickerElement extends Element {
+    /** Sets the visible label above the picker. */
+    label(label: string): this;
+    /** Sets the announced name independently of the visible label. */
+    accessibility_label(label: string): this;
+    /** Mobile (gpui-component's Rust API): the colors offered first, as `"#RRGGBB"`. */
+    featured_colors(colors: string[]): this;
+    /** Mobile (gpui-component's Rust API): an asset icon, drawn in the chosen color, in place of the swatch. */
+    icon(path: string): this;
+    disabled(disabled: boolean): this;
+    size(size: FormSize): this;
+    /** Accepted; the picker is a sheet on a phone. */
+    anchor(anchor: string): this;
+  }
+  /** A swatch that opens a sheet of colors, a palette and a hex field. */
+  export const ColorPicker: FormConstructor<[state: ColorPickerState], ColorPickerElement>;
 
   // --- data (crates/engine/js/gpui_component/data.js) ---
 
