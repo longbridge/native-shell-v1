@@ -1,4 +1,4 @@
-//! Renders example programs headlessly into `screenshots/<example>-{light,dark}.png`,
+//! Renders example programs headlessly into `screenshots/example-<name>-{light,dark}.png`,
 //! at phone size, with empty storage and the example app's host modules.
 //!
 //! `cargo run --example screenshot` renders every example; name some to
@@ -32,7 +32,7 @@ fn main() -> ExitCode {
             // Host answers and first ticks arrive on timers.
             pump_for(Duration::from_millis(800));
             f.settle();
-            let path = out.join(format!("{}-{}.png", example.name, if dark { "dark" } else { "light" }));
+            let path = out.join(format!("example-{}-{}.png", example.name, if dark { "dark" } else { "light" }));
             f.screenshot(&path);
             println!("{}", path.display());
             failed |= !path.exists();

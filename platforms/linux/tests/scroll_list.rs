@@ -206,7 +206,9 @@ fn rows(content: &gtk::Widget) -> usize {
 
 /// The chat example opens at its newest message, in both appearances.
 fn chat_opens_at_the_newest_message() {
-    let f = Fixture::open_dir("../../examples/chat");
+    // The example apps' blue accent, so the screenshots match the other platforms'.
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/chat");
+    let f = Fixture::start_with(&example_runtime(), native_shell_gtk::InstanceOptions::default(), |i| i.load_dir(&dir));
     let vadj = scrolled(&f, "messages").vadjustment();
     let at_end = pump_until(Duration::from_secs(2), || {
         f.settle();

@@ -170,6 +170,16 @@ pub fn set_dark(dark: bool) {
     pump();
 }
 
+/// A runtime with the example apps' accent (`primary` #2563eb light, #60a5fa
+/// dark), as the iOS, Android and Linux example apps set it: screenshots of
+/// example screens then compare with the other platforms'.
+pub fn example_runtime() -> Runtime {
+    let tokens = |hex: &str| std::collections::BTreeMap::from([("primary".to_string(), hex.to_string())]);
+    let runtime = Runtime::new();
+    runtime.set_theme(Some(native_shell_gtk::ThemeConfig { light: tokens("#2563eb"), dark: tokens("#60a5fa") })).expect("theme");
+    runtime
+}
+
 // MARK: Fixture
 
 /// A window with a surface rendering one program.

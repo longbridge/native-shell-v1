@@ -6,6 +6,8 @@ mod support;
 
 use std::process::ExitCode;
 
+use native_shell_gtk::InstanceOptions;
+
 use support::*;
 
 fn main() -> ExitCode {
@@ -213,7 +215,9 @@ fn shoot(f: &Fixture, name: &str) {
 
 /// The components example's shipping address form, as a user fills it in.
 fn address_form() {
-    let f = Fixture::open_dir("../../examples/components");
+    // The accent the iOS and Android example apps give the examples.
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/components");
+    let f = Fixture::start_with(&example_runtime(), InstanceOptions::default(), |i| i.load_dir(&dir));
     // Without animations the page shows at once, never mid-transition.
     if let Some(settings) = gtk::Settings::default() {
         settings.set_gtk_enable_animations(false);
