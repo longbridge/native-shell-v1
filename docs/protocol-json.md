@@ -299,6 +299,15 @@ per-thread paints / TextKit stacks). During layout, a constrained probe
 from that result without another call: the text lays out on the same lines.
 Only texts that actually wrap are measured again at their width.
 
+## Bottom-aligned lists
+
+A `List` with `ListAlignment` 1 (GPUI's `ListAlignment::Bottom`, a chat
+thread) opens scrolled to its last row, and while the user is at the end
+(within a few points) the end stays in view when rows are added or the
+viewport shrinks (the keyboard rising); scrolled away from the end, the
+position is kept as for any list. Its first `RangeChange` covers the last
+rows, and the core's initial window before that is the list's tail.
+
 ## Pointer: hover, cursor, tooltip
 
 On platforms with a pointer (macOS, Linux, iPad with a trackpad, Android with

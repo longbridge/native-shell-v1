@@ -217,6 +217,9 @@ closed_enum! {
         RowIndex = 92,
         /// F32 `prefetch` rows the renderer should request beyond the visible range.
         Prefetch = 93,
+        /// I32, GPUI's `ListAlignment`: 0 top (default), 1 bottom — the list opens at its end
+        /// and keeps the end in view while the user is there (rows added, viewport shrinking).
+        ListAlignment = 94,
 
         Title = 100,
         CanGoBack = 101,
