@@ -339,6 +339,12 @@ final class ModalController: UIViewController, UIAdaptivePresentationControllerD
         let size = surface.nodeFrame.size
         if nativeSheet {
             surface.applyFrame(CGRect(origin: .zero, size: CGSize(width: view.bounds.width, height: size.height)))
+            // The content area at the current detent. A fit-content sheet (no detents) takes its height
+            // from the content, so reporting it back would only echo that height.
+            if let sheet = surface as? NSHSheetView, !sheet.detents.isEmpty {
+                let insets = view.safeAreaInsets
+                sheet.reportPresentedSize(CGSize(width: view.bounds.width, height: view.bounds.height - insets.top - insets.bottom))
+            }
         } else if isSheet {
             surface.applyFrame(CGRect(x: 0, y: view.bounds.height - size.height, width: view.bounds.width, height: size.height))
             sheetBackground.frame = CGRect(x: 0, y: view.bounds.height - size.height, width: view.bounds.width, height: size.height + 40)

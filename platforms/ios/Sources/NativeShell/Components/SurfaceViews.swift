@@ -65,6 +65,14 @@ enum SheetDetent: Equatable {
 final class NSHSheetView: NSHSurfaceNodeView {
     /// `["medium", "large"]` and/or `{"height": 320}` entries; empty: fit the content.
     private(set) var detents: [SheetDetent] = []
+    private var reportedSize: CGSize?
+
+    /// `Resize` with the area the sheet presents its content in, once per change.
+    func reportPresentedSize(_ size: CGSize) {
+        guard size.width > 0, size.height > 0, size != reportedSize else { return }
+        reportedSize = size
+        send(.resize, ["width": Double(size.width), "height": Double(size.height)])
+    }
 
     override func applyProp(_ prop: Prop, _ value: PropValue) -> Bool {
         if prop == .detents {

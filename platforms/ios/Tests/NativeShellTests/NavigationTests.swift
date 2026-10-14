@@ -233,6 +233,41 @@ final class NavigationTests: XCTestCase {
         XCTAssertEqual(events.filter { $0.type == .dismiss }.count, 1)
     }
 
+    /// A sheet with detents reports the area it shows content in (Resize) when
+    /// presented and when the detent changes, once per size.
+    func testSheetReportsItsPresentedSize() throws {
+        guard #available(iOS 15.0, *) else { throw XCTSkip("native sheets need iOS 15") }
+        apply { b in
+            b.create(30, .sheet, frame: CGRect(x: 0, y: 0, width: 390, height: 120), props: [(.detents, .json(#"["medium", "large"]"#))])
+            b.insert(30, 0, 1)
+            b.create(32, .sheet, frame: CGRect(x: 0, y: 0, width: 390, height: 150))
+            b.insert(32, 0, 2)
+        }
+        let sheet = vc.surfaceView.manager.component(30)!
+        guard let modal = vc.modalController(for: sheet) as? ModalController else { return XCTFail("no modal") }
+        let resizes = { self.events.filter { $0.type == .resize && $0.node == 30 }.map { [$0.payload.double("width"), $0.payload.double("height")] } }
+        // Presented at the medium detent.
+        modal.view.frame = CGRect(x: 0, y: 0, width: 390, height: 420)
+        modal.view.layoutIfNeeded()
+        XCTAssertEqual(resizes(), [[390, 420]])
+        // The frame the core sends back does not size the sheet.
+        apply { $0.frame(30, CGRect(x: 0, y: 0, width: 390, height: 420)) }
+        modal.view.setNeedsLayout()
+        modal.view.layoutIfNeeded()
+        XCTAssertEqual(resizes(), [[390, 420]], "no new Resize for the same size")
+        // Dragged to the large detent.
+        modal.view.frame = CGRect(x: 0, y: 0, width: 390, height: 790)
+        modal.view.layoutIfNeeded()
+        XCTAssertEqual(resizes(), [[390, 420], [390, 790]])
+
+        // A fit-content sheet (no detents) is sized by its content: no Resize.
+        let fit = vc.surfaceView.manager.component(32)!
+        guard let fitModal = vc.modalController(for: fit) as? ModalController else { return XCTFail("no fit-content modal") }
+        fitModal.view.frame = CGRect(x: 0, y: 0, width: 390, height: 150)
+        fitModal.view.layoutIfNeeded()
+        XCTAssertTrue(events.filter { $0.type == .resize && $0.node == 32 }.isEmpty)
+    }
+
     func testCustomDialogIsCentered() {
         apply { b in
             b.create(40, .dialog, frame: CGRect(x: 0, y: 0, width: 300, height: 200), props: [(.dismissable, .bool(true)), (.backgroundColor, .color(0xFFFF_FFFF))])
