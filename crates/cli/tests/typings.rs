@@ -36,6 +36,18 @@ import { div } from "native-shell";
 export const everyComponentIsAChild = /** @type {Children} */ (/** @type {any} */ (null));
 /** @param {import("gpui-component").TagElement} tag */
 export const tagChild = (tag) => div().child(tag).children([tag]);
+/** Charts override `grid`, `fill`, `stroke`, `label` and `value`; each stays a child, configured or not. */
+export const charts = () => {
+  const { BarChart, LineChart, AreaChart, PieChart, RadarChart } = /** @type {Exports} */ (/** @type {any} */ (null));
+  const rows = [{ label: "Mon", value: 1 }];
+  return div()
+    .child(new BarChart(() => rows).grid(true).fill("chart_1").label(false).value((r) => r.value))
+    .child(BarChart.new(rows).fill((_r, i) => (i ? "chart_2" : "chart_3")).size_full())
+    .child(new LineChart(() => rows).stroke("success").fill("success").y((r) => r.value).dot().grid())
+    .child(new AreaChart(rows).stroke("destructive").x((r) => r.label).accessibility_label("Area"))
+    .child(new PieChart(() => rows).color(() => "chart_4").label((r) => r.label).labels(true))
+    .children([new RadarChart(() => rows).value((r) => r.value).label((r) => r.label).max_value(100)]);
+};
 "#;
 
 /// Uses the declarations beyond what the examples reach.
