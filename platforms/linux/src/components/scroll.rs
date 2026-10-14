@@ -7,6 +7,8 @@
 //! one per main-loop turn. `ScrollTo` animates with a critically damped
 //! spring, which libadwaita skips when the desktop turns animations off.
 //!
+//! `Paging` (pages of the viewport's width) is in `paging.rs`.
+//!
 //! Pull to refresh has no desktop control, so it is mapped to what a desktop
 //! offers: pulling past the top edge with a touchpad or touch screen (GTK's
 //! `edge-overshot`), or F5 / Ctrl+R while focus is inside the scroll view.
@@ -22,6 +24,7 @@ use native_shell_core::protocol::{event_mask, Command, EventType, Frame, Prop, P
 
 use crate::component::{Component, NodeCx, Shared};
 use crate::mount::json;
+use crate::components::paging::Paging;
 use crate::node_view::NodeView;
 
 /// Height of the band that shows the refresh spinner.
@@ -44,6 +47,7 @@ fn ensure_css() {
 
 /// The scrolling part shared by `Scroll` and `List`: the scrolled window,
 /// coalesced scroll events and animated programmatic scrolling.
+#[derive(Clone)]
 pub(crate) struct Scroller {
     pub window: gtk::ScrolledWindow,
     inner: Rc<ScrollerInner>,
@@ -260,7 +264,8 @@ pub struct Scroll {
     /// Holds the children; sized to `ContentSize`.
     content: NodeView,
     refresh: Rc<Refresh>,
-    horizontal: Rc<Cell<bool>>,
+    paging: Rc<Paging>,
+    horizontal: bool,
     indicators: bool,
     content_size: (f64, f64),
     viewport: (f64, f64),
@@ -317,14 +322,14 @@ impl Scroll {
         keys.add_shortcut(gtk::Shortcut::new(trigger, Some(action)));
         container.add_controller(keys);
 
-        let horizontal = Rc::new(Cell::new(false));
-        scroller.window.add_controller(sideways_wheel(&scroller.window, horizontal.clone()));
+        let paging = Paging::new(scroller.clone());
 
         let mut scroll = Scroll {
             scroller,
+            paging,
             content,
             refresh,
-            horizontal,
+            horizontal: false,
             indicators: true,
             content_size: (0.0, 0.0),
             viewport: (0.0, 0.0),
@@ -340,26 +345,6 @@ impl Scroll {
     }
 }
 
-/// A mouse wheel only turns vertically: on a horizontal scroller with nothing
-/// to scroll vertically it scrolls sideways (touchpads scroll sideways anyway).
-fn sideways_wheel(window: &gtk::ScrolledWindow, horizontal: Rc<Cell<bool>>) -> gtk::EventControllerScroll {
-    let wheel = gtk::EventControllerScroll::new(gtk::EventControllerScrollFlags::VERTICAL);
-    wheel.set_propagation_phase(gtk::PropagationPhase::Capture);
-    let window = window.downgrade();
-    wheel.connect_scroll(move |c, _dx, dy| {
-        let Some(window) = window.upgrade() else { return glib::Propagation::Proceed };
-        let v = window.vadjustment();
-        if !horizontal.get() || c.unit() != gdk::ScrollUnit::Wheel || v.upper() > v.page_size() {
-            return glib::Propagation::Proceed;
-        }
-        let h = window.hadjustment();
-        // GTK's own step for one wheel notch.
-        h.set_value(h.value() + dy * h.page_size().powf(2.0 / 3.0));
-        glib::Propagation::Stop
-    });
-    wheel
-}
-
 impl Component for Scroll {
     fn set_prop(&mut self, _cx: &NodeCx, prop: Prop, value: &PropValue) -> bool {
         match prop {
@@ -369,12 +354,14 @@ impl Component for Scroll {
                     _ => (0.0, 0.0),
                 };
                 self.content_size = size;
+                self.paging.content.set(size);
                 self.content.set_size_request(size.0.ceil() as i32, size.1.ceil() as i32);
             }
+            Prop::Paging => self.paging.set_enabled(bool_prop(value, false)),
             Prop::Horizontal => {
-                self.horizontal.set(bool_prop(value, false));
+                self.horizontal = bool_prop(value, false);
                 // Pull to refresh only belongs to a vertical scroller.
-                if self.horizontal.get() && self.refresh.refreshing.get() {
+                if self.horizontal && self.refresh.refreshing.get() {
                     self.refresh.show(false);
                 }
             }
@@ -384,13 +371,13 @@ impl Component for Scroll {
             }
             Prop::RefreshEnabled => {
                 let on = bool_prop(value, false);
-                self.refresh.enabled.set(on && !self.horizontal.get());
+                self.refresh.enabled.set(on && !self.horizontal);
                 if !on {
                     self.refresh.show(false);
                 }
             }
             Prop::Refreshing => {
-                let on = bool_prop(value, false) && !self.horizontal.get();
+                let on = bool_prop(value, false) && !self.horizontal;
                 if on != self.refresh.refreshing.get() {
                     self.refresh.show(on);
                 }
@@ -401,7 +388,10 @@ impl Component for Scroll {
     }
 
     fn set_frame(&mut self, _cx: &NodeCx, frame: Frame) {
+        let old = self.viewport.0;
         self.viewport = (frame.width as f64, frame.height as f64);
+        self.paging.viewport.set(self.viewport);
+        self.paging.viewport_changed(old);
     }
 
     fn set_event_mask(&mut self, _cx: &NodeCx, mask: u32) {
