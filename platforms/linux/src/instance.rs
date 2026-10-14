@@ -271,11 +271,19 @@ fn collect_sources(root: &Path, dir: &Path, out: &mut BTreeMap<String, String>) 
     let entries = std::fs::read_dir(dir).map_err(|e| format!("cannot list {}: {e}", dir.display()))?;
     for entry in entries.flatten() {
         let path = entry.path();
+        if entry.file_name().to_string_lossy().starts_with('.') {
+            continue;
+        }
         if path.is_dir() {
             collect_sources(root, &path, out)?;
-        } else if matches!(path.extension().and_then(|e| e.to_str()), Some("js" | "mjs" | "json")) {
+        } else {
             let Ok(rel) = path.strip_prefix(root) else { continue };
-            let text = std::fs::read_to_string(&path).map_err(|e| format!("cannot read {}: {e}", path.display()))?;
+            let bytes = std::fs::read(&path).map_err(|e| format!("cannot read {}: {e}", path.display()))?;
+            // Every file is a source (`svg(path)` icons, images); binary ones
+            // travel as data URLs, as the CLI sends them.
+            let text = String::from_utf8(bytes).unwrap_or_else(|e| {
+                format!("data:application/octet-stream;base64,{}", gtk::glib::base64_encode(e.as_bytes()))
+            });
             out.insert(rel.to_string_lossy().replace('\\', "/"), text);
         }
     }
