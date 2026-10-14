@@ -1170,6 +1170,16 @@ declare module "gpui-component" {
     constructor();
   }
   export interface TitleBar extends Element {}
+
+  // --- feedback (crates/engine/js/gpui_component/feedback.js) ---
+
+  // --- forms (crates/engine/js/gpui_component/forms.js) ---
+
+  // --- data (crates/engine/js/gpui_component/data.js) ---
+
+  // --- charts (crates/engine/js/gpui_component/charts.js) ---
+
+  // --- chat (crates/engine/js/gpui_component/chat.js) ---
 }
 
 declare module "fs/promises" {
