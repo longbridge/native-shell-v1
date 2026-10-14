@@ -226,7 +226,7 @@ fn notes_select_rename_move_and_shortcuts() {
     h.back();
     assert_eq!(h.text_of("notes-status"), "2 Notes");
     h.back();
-    key(&mut h, ROOT_NODE, "shift-cmd-n");
+    key(&mut h, ROOT_NODE, "cmd-shift-n");
     assert!(h.find("folder-dialog").is_some());
     h.tap("folder-cancel");
     assert_clean(&h);
