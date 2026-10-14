@@ -56,6 +56,7 @@ export default class Counter extends View {
 * [Protocol JSON values](docs/protocol-json.md) and `crates/core/src/protocol.rs`
 * [Implementation plan](docs/agents-plan.md) (script API, host integration)
 * [macOS platform](docs/platform-macos.md)
+* [Linux platform](docs/platform-linux.md)
 
 ## License
 
