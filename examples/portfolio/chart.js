@@ -41,6 +41,11 @@ export function rangeChart(cx, { id, title, rows, range, on_range }) {
   // The page already states today's change above the chart; under it, the
   // day's baseline is the useful number.
   const today = range === "1D";
+  // Prices are read against each other, not against zero: the axis spans the
+  // range's own low and high, with a little room above and below.
+  const values = rows.map((r) => r.value);
+  const [lo, hi] = [Math.min(...values), Math.max(...values)];
+  const pad = Math.max((hi - lo) * 0.12, hi * 0.002);
   return v_flex()
     .gap_3()
     .child(
@@ -64,7 +69,9 @@ export function rangeChart(cx, { id, title, rows, range, on_range }) {
             .linear()
             .grid(false)
             .x_axis(false)
-            .color(color)
+            .y_domain(lo - pad, hi + pad)
+            .stroke(color)
+            .value_format(money)
             .size_full(),
         ),
     )

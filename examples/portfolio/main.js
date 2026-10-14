@@ -451,7 +451,9 @@ export default class Portfolio extends View {
                 PieChart.new(() => rows)
                   .test_id("allocation-chart")
                   .accessibility_label(`Allocation: ${rows.map((r) => `${r.label} ${percent((r.value / sum) * 100)}`).join(", ")}`)
-                  .inner_radius(34)
+                  .inner_radius(58)
+                  .color((_row, i) => colors[i % colors.length])
+                  .value_format(money)
                   .pad_angle(0.02)
                   .size_full(),
               ),
@@ -557,5 +559,5 @@ export default class Portfolio extends View {
 
 /** The allocation's colors, in slice order; the legend uses the same list. */
 export function sliceColors(t) {
-  return [t.primary, t.info, t.success, t.warning, t.muted_foreground];
+  return [t.primary, t.success, t.warning, t.destructive, t.muted_foreground];
 }

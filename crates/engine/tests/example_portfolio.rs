@@ -79,7 +79,9 @@ fn overview_totals_ranges_sorting_and_live_updates() {
     assert!(h.text_of("total-gain").starts_with('+'));
     // The day's chart starts at the previous close, which its caption names.
     assert_eq!(h.text_of("value-caption"), "Previous close $32,671.40");
-    assert!(h.prop("value-chart", Prop::A11yLabel).is_some());
+    // The previous close, then every five minutes up to now; the last point is the total.
+    assert!(h.find("value-chart-point-51").is_some() && h.find("value-chart-point-52").is_none(), "{}", h.dump());
+    assert_eq!(h.prop("value-chart-point-51", Prop::A11yLabel), Some(PropValue::Str("1:40 PM, $32,614.49".into())));
 
     // Each range draws a different span and says how it went.
     let mut captions = vec![h.text_of("value-range-change")];
@@ -88,6 +90,8 @@ fn overview_totals_ranges_sorting_and_live_updates() {
         captions.push(h.text_of("value-range-change"));
     }
     captions.dedup();
+    // A year is drawn from weekly closes.
+    assert!(h.find("value-chart-point-51").is_some() && h.find("value-chart-point-52").is_none());
     assert_eq!(captions.len(), 4, "{captions:?}");
     assert!(h.texts().contains(&"Past year".to_string()));
 
