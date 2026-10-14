@@ -1,0 +1,8 @@
+{
+  "id": "dev.native-shell.portfolio",
+  "name": "Portfolio",
+  "version": "1.0.0",
+  "entry": "main.js",
+  "description": "An investment portfolio with simulated live prices: value and allocation charts, sortable holdings, a holding's page, a validated transaction form and alert settings.",
+  "capabilities": { "storage": true }
+}
