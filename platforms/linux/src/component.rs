@@ -35,12 +35,6 @@ pub struct NodeCx<'a> {
     pub shared: &'a Rc<Shared>,
 }
 
-impl NodeCx<'_> {
-    pub fn emit(&self, event: EventType, payload: String) {
-        (self.shared.events)(self.node, event, payload);
-    }
-}
-
 pub trait Component {
     /// Applies a property; returns `false` when it is not this component's, so
     /// the base view handles it. `PropValue::Null` restores the default.
