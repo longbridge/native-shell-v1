@@ -308,6 +308,34 @@ export default class K extends View {
 }
 
 #[test]
+fn key_bindings_match_whatever_order_their_modifiers_are_written_in() {
+    let mut h = app(r#"
+import { View, div } from "gpui-kit";
+export default class K extends View {
+  init(_p, cx) {
+    this.log = [];
+    cx.bind_keys([{ keystroke: "cmd-shift-n", action: "folder" }, { keystroke: "Shift-Ctrl-N", action: "folder" },
+      { keystroke: "alt-cmd-k", action: "kill" }]);
+  }
+  render() {
+    return div().test_id("root")
+      .on_action("folder", (e, cx) => { this.log.push(e.action); cx.notify(); })
+      .on_action("kill", (e, cx) => { this.log.push(e.action); cx.notify(); })
+      .on_key_down((e, cx) => { this.log.push(e.keystroke); cx.notify(); })
+      .child(div().test_id("log").child(this.log.join(",")));
+  }
+}
+"#);
+    let node = h.find("root").unwrap();
+    h.dispatch(node, EventType::Key, r#"{"key":"n","modifiers":{"cmd":true,"shift":true},"phase":"down"}"#);
+    h.dispatch(node, EventType::Key, r#"{"key":"n","modifiers":{"ctrl":true,"shift":true},"phase":"down"}"#);
+    h.dispatch(node, EventType::Key, r#"{"key":"k","modifiers":{"cmd":true,"alt":true},"phase":"down"}"#);
+    // An event is spelled in gpui's order: cmd before shift.
+    h.dispatch(node, EventType::Key, r#"{"key":"x","modifiers":{"shift":true,"cmd":true},"phase":"down"}"#);
+    assert_eq!(h.text_of("log"), "folder,folder,kill,cmd-shift-x");
+}
+
+#[test]
 fn tables_are_headless_semantic_views() {
     let h = app(r#"
 import { View, div } from "gpui-kit";
