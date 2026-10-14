@@ -1206,6 +1206,167 @@ declare module "gpui-component" {
   export interface TitleBar extends Element {}
 
   // --- feedback (crates/engine/js/gpui_component/feedback.js) ---
+  type FeedbackSize = "xsmall" | "small" | "medium" | "large";
+  type FeedbackClick = (event: import("native-shell").ClickEvent, cx: import("native-shell").Context) => void;
+  /** A gpui-shell constructor: `X.new(...)` or `new X(...)`. */
+  type Constructor<A extends unknown[], E> = { new (...args: A): E; new: (...args: A) => E };
+
+  export interface AlertElement extends Element {
+    /** Sets the alert title. */
+    title(title: string): this;
+    /** Uses the full-width banner presentation. */
+    banner(): this;
+    /** Controls whether the alert is rendered. */
+    visible(visible: boolean): this;
+    /** Sets the alert's semantic size. */
+    size(size: FeedbackSize): this;
+    /** gpui-component's `Alert::icon`: an element in place of the variant's glyph. */
+    icon(icon: Element): this;
+    /** gpui-component's `Alert::on_close`: a dismiss button that calls the handler. */
+    on_close(handler: FeedbackClick): this;
+  }
+  /** A message banner with semantic default, info, success, warning, and error constructors. */
+  export const Alert: Constructor<[id: string, message: string], AlertElement>;
+  export const InfoAlert: Constructor<[id: string, message: string], AlertElement>;
+  export const SuccessAlert: Constructor<[id: string, message: string], AlertElement>;
+  export const WarningAlert: Constructor<[id: string, message: string], AlertElement>;
+  export const ErrorAlert: Constructor<[id: string, message: string], AlertElement>;
+
+  export interface BadgeElement extends Element {
+    /** Displays a dot instead of a numeric count. */
+    dot(): this;
+    /** Sets the displayed count; zero hides a numeric badge. */
+    count(count: number): this;
+    /** Sets the largest count displayed before the plus suffix. */
+    max(max: number): this;
+    /** Sets the badge background from a theme token or a color literal. */
+    color(color: import("native-shell").Color): this;
+    /** Sets the semantic component size. */
+    size(size: FeedbackSize): this;
+  }
+  /** A count or dot badge positioned over its ordinary children. */
+  export const Badge: Constructor<[], BadgeElement>;
+
+  export interface TagElement extends Element {
+    /** Sets the semantic tag variant. */
+    variant(variant: "primary" | "secondary" | "danger" | "success" | "warning" | "info"): this;
+    /** Uses the outline presentation. */
+    outline(): this;
+    /** Uses pill-shaped corners. */
+    rounded_full(): this;
+    /** Sets the semantic component size. */
+    size(size: FeedbackSize): this;
+    /** Mobile: a trailing dismiss button, for a removable tag. */
+    on_close(handler: FeedbackClick): this;
+  }
+  /** A compact semantic status tag that renders ordinary children. */
+  export const Tag: Constructor<[], TagElement>;
+
+  export interface SkeletonElement extends Element {
+    /** Uses the secondary skeleton color. */
+    secondary(): this;
+  }
+  /** A still loading placeholder, hidden from assistive technology. */
+  export const Skeleton: Constructor<[], SkeletonElement>;
+
+  export interface EmptyElement extends Element {
+    /** The header part, placed first. */
+    header(header: EmptyHeaderElement): this;
+    /** The content part, placed after the header. */
+    content(content: EmptyContentElement): this;
+  }
+  export interface EmptyHeaderElement extends Element {
+    /** Sets an EmptyMedia, replacing the previous media. */
+    media(media: EmptyMediaElement): this;
+    /** Sets an EmptyTitle, replacing the previous title. */
+    title(title: EmptyTitleElement): this;
+    /** Sets an EmptyDescription, replacing the previous description. */
+    description(description: EmptyDescriptionElement): this;
+  }
+  export interface EmptyMediaElement extends Element {
+    /** Sets the unframed default treatment or a muted icon frame. */
+    variant(variant: "default" | "icon"): this;
+  }
+  export interface EmptyTitleElement extends Element {}
+  export interface EmptyDescriptionElement extends Element {}
+  export interface EmptyContentElement extends Element {}
+  /** A stateless empty state. Ordinary children follow the header and content slots. */
+  export const Empty: Constructor<[], EmptyElement>;
+  /** An independently styled header. Accepts only named media, title, and description slots, in that order. */
+  export const EmptyHeader: Constructor<[], EmptyHeaderElement>;
+  /** A centered media part accepting arbitrary children such as an icon, avatar, or image. */
+  export const EmptyMedia: Constructor<[], EmptyMediaElement>;
+  /** An independently styled title with arbitrary children. */
+  export const EmptyTitle: Constructor<[], EmptyTitleElement>;
+  /** An independently styled, wrapping description with arbitrary children. */
+  export const EmptyDescription: Constructor<[], EmptyDescriptionElement>;
+  /** An independently styled content column for application-owned controls and actions. */
+  export const EmptyContent: Constructor<[], EmptyContentElement>;
+
+  export interface LabelElement extends Element {
+    /** Adds muted secondary text. */
+    secondary(secondary: string): this;
+    /** Controls whether the main text is masked. */
+    masked(masked: boolean): this;
+    /** Highlights matching text fragments. */
+    highlights(highlights: string): this;
+  }
+  /** A text label with optional secondary, masking, and highlight presentation. */
+  export const Label: Constructor<[text: string], LabelElement>;
+
+  export interface KbdElement extends Element {
+    /** Controls whether the keystroke uses keycap presentation. */
+    appearance(appearance: boolean): this;
+    /** Uses the outlined keycap presentation. */
+    outline(): this;
+  }
+  /** A platform-formatted keyboard shortcut keycap. */
+  export const Kbd: Constructor<[keystroke: string], KbdElement>;
+
+  export interface SeparatorElement extends Element {
+    /** Displays text centered over the separator line. */
+    label(label: string): this;
+    /** Sets the separator line color. */
+    color(color: import("native-shell").Color): this;
+    /** Uses a dashed separator line. */
+    dashed(): this;
+  }
+  /** A horizontal or vertical, solid or dashed separator. */
+  export const Separator: Constructor<[], SeparatorElement>;
+  export const VerticalSeparator: Constructor<[], SeparatorElement>;
+  export const DashedSeparator: Constructor<[], SeparatorElement>;
+  export const VerticalDashedSeparator: Constructor<[], SeparatorElement>;
+
+  export interface ShimmerTextElement extends Element {
+    /** Sets an explicit stable animation identity. */
+    id(id: string): this;
+    /** Sets one shimmer sweep duration in milliseconds. Mobile: kept; the text holds still. */
+    duration_ms(duration_ms: number): this;
+    /** Sets the relative highlight half-width. */
+    spread(spread: number): this;
+    /** Reverses the shimmer direction. */
+    reverse(reverse: boolean): this;
+    /** Runs one sweep instead of looping. */
+    once(once: boolean): this;
+  }
+  /** Loading text in the secondary label color, announced as busy. */
+  export const ShimmerText: Constructor<[text: string], ShimmerTextElement>;
+
+  export interface NotificationElement extends Element {
+    title(text: string): this;
+    message(text: string): this;
+    type(type: "info" | "success" | "warning" | "error"): this;
+    /** Mobile: the toast's *View* action. */
+    on_click(callback: (cx: import("native-shell").Context) => void): this;
+    /** Runs when the toast expires or its action is tapped. */
+    on_close(callback: (cx: import("native-shell").Context) => void): this;
+    autohide(value: boolean): this;
+  }
+  /** A button that shows a notification (a toast on a phone); on_effect_error receives failures. */
+  export const Notification: Constructor<
+    [id: string, label: string, on_effect_error: (message: string, cx: import("native-shell").Context) => void],
+    NotificationElement
+  >;
 
   // --- forms (crates/engine/js/gpui_component/forms.js) ---
 
