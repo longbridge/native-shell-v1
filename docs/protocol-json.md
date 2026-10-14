@@ -169,6 +169,7 @@ The script's props object, verbatim.
 | `RangeChange` | `{"first": 0, "end": 30}` (half-open `[first, end)`, prefetch included, clamped to `[0, ItemCount]`) |
 | `RowHeight` | `{"index", "height"}` |
 | `HostEvent` | `{"name": "select", "payload": …}` |
+| `Resize` (sheet node) | `{"width", "height"}`: the size the sheet presents its content at (below the grabber, above the bottom safe area for a sheet that has one), sent when presented and whenever it changes (detent change, rotation); continuous, coalesced |
 | `Hover` | `{"entered": true, "x", "y"}`: the pointer entered (`true`) or left (`false`) the node; pointer platforms only, sent on nodes with the `HOVER` mask bit |
 | `ToastAction` (root node) | `{"id"}`: the toast's action button was tapped; the renderer dismisses that toast |
 
@@ -201,6 +202,12 @@ The script's props object, verbatim.
   `Delete(page)` follows in the same or a later batch. Renderers run the exit transition and
   only then release the views (the `Delete` is applied to the node table
   immediately; the container stays on screen until the animation ends).
+* A sheet's content is laid out at the width of the environment and, until
+  the renderer reports one, its content height; once the renderer sends
+  `Resize` with the size it presents the content at (per detent), the sheet
+  surface is laid out at that size, so `size_full` / `flex_1` content fills
+  the sheet. The renderer keeps the sheet's height from its detents, not from
+  the frame the core sends.
 * Sheets and dialogs appear when inserted and disappear on `Delete`. A user
   dismissal (swipe, back, backdrop when `Dismissable`) sends `Dismiss` on the
   surface node and hides it locally at once; the core then deletes it.
