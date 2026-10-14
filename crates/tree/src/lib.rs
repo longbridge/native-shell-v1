@@ -393,12 +393,20 @@ impl Tree {
         }
     }
 
+    /// The window to render a list with `count` rows in, before this commit: the current
+    /// window, except that a bottom-aligned list (`ListAlignment` 1) opens at its tail and,
+    /// while its window reaches the end, follows rows appended there. The commit applies the
+    /// same rule, so rendering with this window needs no second pass.
+    pub fn list_window_for(&self, list_id: &str, count: u32, bottom: bool) -> (u32, u32) {
+        window_for(self.lists.get(list_id), count, bottom)
+    }
+
     /// Records the range the renderer reported. Returns true if it changed (re-render the list).
     pub fn set_list_window(&mut self, list_id: &str, first: u32, last: u32) -> bool {
         let l = self
             .lists
             .entry(list_id.to_string())
-            .or_insert_with(|| ListState::new(u32::MAX));
+            .or_insert_with(|| ListState::new(NEVER_COMMITTED));
         let last = last.min(l.count);
         let window = (first.min(last), last);
         if l.window == window {
@@ -599,6 +607,33 @@ impl Tree {
         }
     }
 }
+
+/// See [`Tree::list_window_for`].
+pub(crate) fn window_for(state: Option<&ListState>, count: u32, bottom: bool) -> (u32, u32) {
+    let tail = |len: u32| (count.saturating_sub(len), count);
+    let clamp = |(first, last): (u32, u32)| {
+        let last = last.min(count);
+        (first.min(last), last)
+    };
+    match state {
+        None if bottom => tail(DEFAULT_WINDOW),
+        None => (0, DEFAULT_WINDOW.min(count)),
+        // Committed before, at the bottom, and the count changed: follow the end.
+        Some(l)
+            if l.count != NEVER_COMMITTED
+                && bottom
+                && count != l.count
+                && l.window.1 >= l.count =>
+        {
+            let len = l.window.1 - l.window.0;
+            tail(if len == 0 { DEFAULT_WINDOW } else { len })
+        }
+        Some(l) => clamp(l.window),
+    }
+}
+
+/// The count of a list whose window the renderer set before the list was committed.
+pub(crate) const NEVER_COMMITTED: u32 = u32::MAX;
 
 impl ListState {
     pub(crate) fn new(count: u32) -> ListState {

@@ -2128,3 +2128,88 @@ fn hover_cursor_and_tooltip_keep_a_native_view() {
         "{batch:#?}"
     );
 }
+
+/// A bottom-aligned (chat) list rendering `window` of `count` rows.
+fn chat(window: (u32, u32), count: u32) -> Vec<Surface> {
+    let spec = ListSpec {
+        id: "chat".into(),
+        count,
+        estimated_row_height: 44.0,
+        uniform: false,
+    };
+    let mut l = with_prop(
+        el(ElementKind::List(spec), "flex_1"),
+        Prop::ListAlignment,
+        PropValue::I32(1),
+    );
+    l.children = (window.0..window.1)
+        .map(|i| {
+            let mut r = el(ElementKind::ListRow(i), "p_2");
+            r.children = vec![text("", &format!("Message {i}"))];
+            r
+        })
+        .collect();
+    root(view("flex flex_col size_full", vec![l]))
+}
+
+fn rendered_rows(h: &H) -> Vec<i32> {
+    let mut rows: Vec<i32> = h
+        .of_type(ViewType::ListRow)
+        .iter()
+        .filter_map(|r| match h.prop(*r, Prop::RowIndex) {
+            Some(PropValue::I32(i)) => Some(*i),
+            _ => None,
+        })
+        .collect();
+    rows.sort();
+    rows
+}
+
+#[test]
+fn bottom_aligned_lists_open_at_their_tail_and_follow_appends() {
+    let mut h = H::new();
+    // Before the first commit the render already gets the tail.
+    let w = h.tree.list_window_for("chat", 100, true);
+    assert_eq!(w, (80, 100));
+    h.commit(&chat(w, 100));
+    assert_eq!(h.tree.list_window("chat"), (80, 100));
+    assert_eq!(rendered_rows(&h), (80..100).collect::<Vec<_>>());
+    let list = h.of_type(ViewType::List)[0];
+    assert_eq!(h.prop(list, Prop::ListAlignment), Some(&PropValue::I32(1)));
+
+    // Two messages arrive while the window reaches the end: the new rows render at once.
+    let w = h.tree.list_window_for("chat", 102, true);
+    assert_eq!(w, (82, 102));
+    h.commit(&chat(w, 102));
+    assert_eq!(rendered_rows(&h), (82..102).collect::<Vec<_>>());
+
+    // A caller that rendered with the old window still ends up following the end.
+    h.commit(&chat((82, 102), 103));
+    assert_eq!(h.tree.list_window("chat"), (83, 103));
+
+    // The user scrolled up: new messages do not move the window.
+    assert!(h.tree.set_list_window("chat", 10, 40));
+    let w = h.tree.list_window_for("chat", 110, true);
+    assert_eq!(w, (10, 40));
+    h.commit(&chat(w, 110));
+    assert_eq!(h.tree.list_window("chat"), (10, 40));
+
+    // Top-aligned lists keep opening at the head.
+    assert_eq!(h.tree.list_window_for("other", 100, false), (0, 20));
+}
+
+#[test]
+fn an_empty_bottom_aligned_list_grows_from_its_end() {
+    let mut h = H::new();
+    let w = h.tree.list_window_for("chat", 0, true);
+    assert_eq!(w, (0, 0));
+    h.commit(&chat(w, 0));
+    let w = h.tree.list_window_for("chat", 3, true);
+    assert_eq!(w, (0, 3));
+    h.commit(&chat(w, 3));
+    assert_eq!(rendered_rows(&h), vec![0, 1, 2]);
+    // The renderer reported a range before the list was ever committed: it is kept.
+    let mut fresh = H::new();
+    fresh.tree.set_list_window("chat", 5, 15);
+    assert_eq!(fresh.tree.list_window_for("chat", 50, true), (5, 15));
+}

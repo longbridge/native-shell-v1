@@ -817,6 +817,8 @@ impl Tree {
         }
 
         if let ElementKind::List(spec) = &desc.kind {
+            let bottom = desc.prop(Prop::ListAlignment) == Some(&PropValue::I32(1));
+            let window = crate::window_for(self.lists.get(&spec.id), spec.count, bottom);
             let l = self
                 .lists
                 .entry(spec.id.clone())
@@ -831,7 +833,7 @@ impl Tree {
             l.count = spec.count;
             l.estimated = spec.estimated_row_height;
             l.uniform = spec.uniform;
-            l.window = (l.window.0.min(spec.count), l.window.1.min(spec.count));
+            l.window = window;
             l.heights.resize(spec.count as usize, None);
         }
 
