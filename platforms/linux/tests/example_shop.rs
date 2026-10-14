@@ -80,9 +80,7 @@ fn add(f: &Fixture, product: &str, color: Option<u32>) {
 fn browse_to_order() {
     let f = open();
 
-    // A protocol tap: the first GTK click into the catalog's scroll view is
-    // swallowed (reported to the Linux team).
-    f.tap("product-mug");
+    f.click("product-mug");
     f.wait_for("add-to-cart");
     select(&f, "color", 1);
     f.click("quantity-plus");
@@ -169,7 +167,7 @@ fn large_text() {
     settings.set_gtk_xft_dpi(96 * 1024 * 2);
     let f = open();
     shoot(&f, "catalog-large-text");
-    f.tap("product-pen");
+    f.click("product-pen");
     f.wait_for("add-to-cart");
     shoot(&f, "product-large-text");
     f.click("add-to-cart");
