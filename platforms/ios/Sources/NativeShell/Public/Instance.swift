@@ -126,6 +126,31 @@ public final class NSHInstance: NSObject {
         try loadSources(JSON.string(["manifest": manifest, "files": files]))
     }
 
+    /// Loads a program directory (`native-shell.json` and its files), e.g. one shipped
+    /// in the app bundle. Every UTF-8 file is included, so program-relative text
+    /// assets such as `svg("icons/check.svg")` resolve; other files are skipped.
+    public func loadProgram(directory: URL) throws {
+        try loadSources(NSHInstance.programSources(directory: directory))
+    }
+
+    /// `{"manifest", "files"}` JSON for a program directory.
+    public static func programSources(directory: URL) throws -> String {
+        let manifestURL = directory.appendingPathComponent("native-shell.json")
+        let manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL))
+        var files: [String: String] = [:]
+        let base = directory.standardizedFileURL.path
+        let e = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: [.isRegularFileKey])
+        while let url = e?.nextObject() as? URL {
+            guard (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true,
+                  url.lastPathComponent != "native-shell.json", !url.lastPathComponent.hasPrefix(".") else { continue }
+            let path = url.standardizedFileURL.path
+            guard path.hasPrefix(base + "/"), let data = try? Data(contentsOf: url),
+                  let text = String(data: data, encoding: .utf8) else { continue }
+            files[String(path.dropFirst(base.count + 1))] = text
+        }
+        return JSON.string(["manifest": manifest, "files": files])
+    }
+
     /// Loads a signed `.nspkg` bundle; its signature is checked against `NSHRuntime.trustedKeys`.
     public func loadBundle(_ data: Data) throws {
         guard handle != 0 else { throw NSHInstance.error("instance destroyed") }

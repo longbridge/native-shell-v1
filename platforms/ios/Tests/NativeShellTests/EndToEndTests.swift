@@ -103,18 +103,9 @@ final class EndToEndTests: XCTestCase {
         window = nil
     }
 
-    /// `{manifest, files}` of a program directory.
+    /// `{manifest, files}` of a program directory, as apps load it.
     static func sources(_ dir: URL) throws -> String {
-        let manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: dir.appendingPathComponent("native-shell.json")))
-        var files: [String: String] = [:]
-        let e = FileManager.default.enumerator(at: dir, includingPropertiesForKeys: nil)
-        while let url = e?.nextObject() as? URL {
-            guard ["js", "mjs", "json"].contains(url.pathExtension), url.lastPathComponent != "native-shell.json",
-                  url.lastPathComponent != "host.json" else { continue }
-            let rel = String(url.path.dropFirst(dir.path.count + 1))
-            files[rel] = try String(contentsOf: url, encoding: .utf8)
-        }
-        return JSON.string(["manifest": manifest, "files": files])
+        try NSHInstance.programSources(directory: dir)
     }
 
     @discardableResult
@@ -174,6 +165,8 @@ final class EndToEndTests: XCTestCase {
     }
 
     func tap(_ testId: String, file: StaticString = #filePath, line: UInt = #line) {
+        // A control enabled by the previous event becomes clickable one frame later.
+        waitFor("\(testId) clickable", timeout: 5, { self.view(testId)?.listens(EventMask.click) == true }, file: file, line: line)
         guard let v = view(testId) else { return XCTFail("no view \(testId)", file: file, line: line) }
         XCTAssertTrue(v.accessibilityActivate(), "\(testId) is not clickable", file: file, line: line)
     }
@@ -291,6 +284,23 @@ final class EndToEndTests: XCTestCase {
         XCTAssertFalse(cells().contains { $0.props["last"] as? Double == 999 }, "no listener, no update")
         tap("live")
         waitFor("live again") { self.text("status") == "Live" && quote.listenerCounts["tick"] == 1 }
+        XCTAssertTrue(errors.isEmpty, "\(errors)")
+    }
+
+    /// Program-relative `.svg` files become Shape nodes that draw (gpui-todolist's icons).
+    func testProgramSvgAssetsDraw() throws {
+        try launch(Self.sources(Self.repoRoot.appendingPathComponent("examples/gpui-todolist")), appId: "dev.native-shell.gpui-todolist")
+        let shapes = { self.components.compactMap { $0 as? NSHShapeView } }
+        waitFor("svg icons mounted") { !shapes().isEmpty }
+        for s in shapes() { s.layoutIfNeeded() }
+        let drawn = shapes().filter { v in
+            guard let p = v.renderedPath, !p.isEmpty, v.bounds.width > 0 else { return false }
+            let layer = v.layer.sublayers!.compactMap { $0 as? CAShapeLayer }.first!
+            return layer.strokeColor != nil || layer.fillColor != nil
+        }
+        print("SVG shapes: \(shapes().count), drawn: \(drawn.count)")
+        XCTAssertFalse(drawn.isEmpty, "svg icons have a path, a size and a color")
+        XCTAssertEqual(drawn.count, shapes().count, "every svg icon draws")
         XCTAssertTrue(errors.isEmpty, "\(errors)")
     }
 
