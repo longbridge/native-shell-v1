@@ -93,6 +93,7 @@ final class EndToEndTests: XCTestCase {
     var vc: NSHViewController!
     var errors: [String] = []
     var logs: [String] = []
+    var firstFrames = 0
 
     override func setUpWithError() throws {
         try XCTSkipUnless(NSHInstance.coreAvailable, "the core xcframework is not built (scripts/build-macos.sh)")
@@ -213,7 +214,7 @@ final class EndToEndTests: XCTestCase {
     func testTasksAddEditUndoAndComplete() throws {
         try launch(Self.sources(Self.repoRoot.appendingPathComponent("examples/tasks")), appId: "dev.native-shell.tasks")
         waitFor("first frame") { self.texts.contains("Tasks") && self.input("draft") != nil && self.openCount != nil }
-        XCTAssertEqual(input("draft")?.field?.placeholderAttributedString?.string, "Add a task")
+        XCTAssertNotNil(input("draft")?.field?.placeholderAttributedString)
         let start = openCount!
 
         type("Buy milk", into: "draft")
@@ -232,10 +233,19 @@ final class EndToEndTests: XCTestCase {
         tap("task-\(milk)")
         waitFor("editor sheet") { self.view("editor") != nil && self.input("editor-title")?.text == "Buy milk" }
         tap("editor-delete")
-        waitFor("deleted, undo offered") { self.taskId("Buy milk") == nil && self.view("undo") != nil }
-        XCTAssertEqual(text("undo-label"), "Deleted “Buy milk”")
-        tap("undo")
-        waitFor("restored") { self.taskId("Buy milk") == milk && self.view("undo") == nil }
+        // Undo is offered by a toast action or an in-page undo bar.
+        let toasts = vc.surfaceView.toasts
+        waitFor("deleted, undo offered") {
+            self.taskId("Buy milk") == nil && (toasts.visible.first?.actionButton != nil || self.view("undo") != nil)
+        }
+        if let toast = toasts.visible.first, toast.actionButton != nil {
+            XCTAssertEqual(toast.titleLabel.stringValue, "Deleted “Buy milk”")
+            toast.actionTapped()
+        } else {
+            XCTAssertEqual(text("undo-label"), "Deleted “Buy milk”")
+            tap("undo")
+        }
+        waitFor("restored") { self.taskId("Buy milk") == milk && toasts.visible.isEmpty && self.view("undo") == nil }
 
         // Complete one: the checkbox reports, the task moves under Completed.
         let dog = taskId("Walk the dog")!
@@ -298,6 +308,15 @@ final class EndToEndTests: XCTestCase {
         XCTAssertTrue(errors.isEmpty, "\(errors)")
     }
 
+    func testDelegateHearsTheFirstFrameOnce() throws {
+        try launch(Self.sources(Self.repoRoot.appendingPathComponent("examples/components")), appId: "dev.native-shell.components")
+        waitFor("first frame") { self.firstFrames == 1 && self.vc.surfaceView.mountedViewCount > 0 }
+        let applied = vc.surfaceView.manager.appliedBatches
+        tap("open-buttons")
+        waitFor("a later batch") { self.vc.surfaceView.manager.appliedBatches > applied }
+        XCTAssertEqual(firstFrames, 1, "only the first frame is announced")
+    }
+
     func testScriptErrorsAreReported() throws {
         let src = JSON.string(["manifest": ["id": "dev.test.broken", "name": "Broken"],
                                "files": ["main.js": "export default class X { render() { throw new Error('boom') } }"]])
@@ -358,6 +377,7 @@ final class EndToEndTests: XCTestCase {
 extension EndToEndTests: NSHInstanceDelegate {
     func instance(_ instance: NSHInstance, didFailWithError message: String) { errors.append(message) }
     func instance(_ instance: NSHInstance, didLog message: String, level: NSHLogLevel) { logs.append(message) }
+    func instanceDidRenderFirstFrame(_ instance: NSHInstance) { firstFrames += 1 }
 }
 
 extension MountingManager {

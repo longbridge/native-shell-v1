@@ -10,6 +10,8 @@ import NativeShellShared
     /// Unrecoverable instance error; the instance keeps showing its last good frame.
     @objc optional func instance(_ instance: NSHInstance, didFailWithError message: String)
     @objc optional func instance(_ instance: NSHInstance, didLog message: String, level: NSHLogLevel)
+    /// The program's first frame is on screen (hosts hide their loading state here).
+    @objc optional func instanceDidRenderFirstFrame(_ instance: NSHInstance)
 }
 
 @objcMembers
