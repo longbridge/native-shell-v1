@@ -9,7 +9,7 @@ use native_shell::core::protocol::{Command, EventType, Prop, PropValue};
 use native_shell::testing::Harness;
 
 /// First load, refresh and payment latencies of the stand-in service, with room to spare.
-const LOAD_MS: f64 = 1100.0;
+const LOAD_MS: f64 = 700.0;
 const REFRESH_MS: f64 = 800.0;
 const PAY_MS: f64 = 1300.0;
 
@@ -219,6 +219,9 @@ fn calendar_selects_days_and_shows_an_empty_day() {
     h.tap("add-to-calendar");
     assert_eq!(h.text_of("add-to-calendar"), "In Calendar");
     assert_eq!(toasts(&h).last().unwrap()["title"], "Added to Calendar");
+    h.toast_action("calendar");
+    assert_eq!(h.text_of("add-to-calendar"), "Add to Calendar", "Undo takes it off again");
+    h.tap("add-to-calendar");
     h.tap("back");
     h.tap("tab-calendar");
     let index = days.iter().position(|d| *d == today).unwrap();

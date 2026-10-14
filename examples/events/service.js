@@ -33,7 +33,7 @@ function outcome(call) {
  * @returns {Promise<{ events: Event[], at: number }>}
  */
 export async function fetchProgram(cx, { refresh = false } = {}) {
-  await cx.sleep(refresh ? 700 : 1000);
+  await cx.sleep(refresh ? 700 : 600);
   if (refresh) outcome("refresh");
   return { events: EVENTS, at: Date.now() };
 }

@@ -82,7 +82,7 @@ function ticketCard(cx, ticket) {
     .on_click((_e, cx) => cx.navigator.push(TicketPage, { ticketId: ticket.id }, { title: event.title }))
     .child(
       div()
-        .size_12()
+        .size(48)
         .flex_none()
         .rounded_lg()
         .bg(category(event.category).colors[0])

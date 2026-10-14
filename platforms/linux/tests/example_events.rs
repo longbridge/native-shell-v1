@@ -10,7 +10,10 @@ use native_shell_core::protocol::EventType;
 use support::*;
 
 fn main() -> ExitCode {
-    run(&[("events: discover, calendar, event, booking, ticket", events_flow)])
+    run(&[
+        ("events: discover, calendar, event, booking, ticket", events_flow),
+        ("events: the largest accessibility text size", events_large_text),
+    ])
 }
 
 fn shot(f: &Fixture, name: &str, dark: bool) {
@@ -111,4 +114,26 @@ fn events_flow() {
         f.expect("ticket-1");
         shot(&f, "tickets", dark);
     }
+}
+
+fn events_large_text() {
+    let settings = gtk::Settings::default().expect("settings");
+    settings.set_gtk_enable_animations(false);
+    let dpi = settings.gtk_xft_dpi();
+    // The largest accessibility size scales body text about 2.3×; the layout must hold at 2×.
+    settings.set_gtk_xft_dpi(2 * 96 * 1024);
+    set_dark(false);
+    let f = Fixture::open_dir("../../examples/events");
+    f.wait_for("featured-harbor-lights");
+    shot(&f, "large-text-discover", false);
+    f.tap("tab-calendar");
+    shot(&f, "large-text-calendar", false);
+    f.tap("event-quiet-hours");
+    f.expect("event-title");
+    shot(&f, "large-text-event", false);
+    f.tap("get-tickets");
+    f.expect("tier-seat");
+    shot(&f, "large-text-booking", false);
+    drop(f);
+    settings.set_gtk_xft_dpi(dpi);
 }

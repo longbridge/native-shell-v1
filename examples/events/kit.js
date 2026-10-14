@@ -14,6 +14,8 @@ import { icon } from "./ui.js";
  */
 export function descriptionList(cx, id, items) {
   const t = cx.theme();
+  // At large text sizes a label beside its value leaves neither room: stack them, as iOS does.
+  const stacked = cx.window().font_scale > 1.35;
   return v_flex()
     .test_id(id)
     .rounded_xl()
@@ -22,13 +24,20 @@ export function descriptionList(cx, id, items) {
     .children(
       items.flatMap((item, i) => [
         i > 0 ? div().h(1).ml_4().bg(t.border) : null,
-        h_flex()
-          .items_start()
-          .gap_4()
+        (stacked ? v_flex().gap_0p5() : h_flex().items_start().gap_4())
           .px_4()
           .py_3()
-          .child(div().w_20().flex_none().text_base().text_color(t.muted_foreground).child(item.label))
-          .child(div().test_id(`${id}-${item.label.toLowerCase()}`).flex_1().min_w_0().text_base().text_color(t.foreground).text_right().child(item.value)),
+          .child(div().when(!stacked, (el) => el.w_20().flex_none()).text_base().text_color(t.muted_foreground).child(item.label))
+          .child(
+            div()
+              .test_id(`${id}-${item.label.toLowerCase()}`)
+              .flex_1()
+              .min_w_0()
+              .text_base()
+              .text_color(t.foreground)
+              .when(!stacked, (el) => el.text_right())
+              .child(item.value),
+          ),
       ]),
     );
 }
@@ -70,6 +79,7 @@ export function field(cx, { id, label, state, help, error }) {
  */
 export function steps(cx, id, labels, current) {
   const t = cx.theme();
+  const compact = cx.window().font_scale > 1.35;
   return h_flex()
     .test_id(id)
     .accessibility_label(`Step ${current + 1} of ${labels.length}, ${labels[current]}`)
@@ -79,7 +89,7 @@ export function steps(cx, id, labels, current) {
         const done = i < current;
         const on = i <= current;
         return h_flex()
-          .flex_1()
+          .when(i === current || !compact, (el) => el.flex_1())
           .gap_1p5()
           .items_center()
           .child(
@@ -96,7 +106,10 @@ export function steps(cx, id, labels, current) {
               .text_color(on ? t.primary_foreground : t.muted_foreground)
               .child(done ? icon("check", t.primary_foreground, 14) : String(i + 1)),
           )
-          .child(div().text_sm().font_medium().text_color(i === current ? t.foreground : t.muted_foreground).truncate().child(label));
+          // At large text sizes only the current step keeps its name, so the row still fits.
+          .when(i === current || !compact, (el) =>
+            el.child(div().text_sm().font_medium().text_color(i === current ? t.foreground : t.muted_foreground).truncate().child(label)),
+          );
       }),
     );
 }

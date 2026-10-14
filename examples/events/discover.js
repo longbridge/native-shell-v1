@@ -220,7 +220,7 @@ export class Discover {
             [0, 1, 2].map(() =>
               h_flex()
                 .gap_3()
-                .child(Skeleton.new().size_12().flex_none().rounded_lg())
+                .child(Skeleton.new().size(48).flex_none().rounded_lg())
                 .child(
                   v_flex()
                     .flex_1()
@@ -258,7 +258,7 @@ export function eventRow(cx, e, onOpen, { showDay = false, note = null } = {}) {
     .on_click((_e, cx) => onOpen(cx))
     .child(
       div()
-        .size_12()
+        .size(48)
         .flex_none()
         .rounded_lg()
         .bg(c.colors[0])

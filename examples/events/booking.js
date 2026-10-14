@@ -233,7 +233,7 @@ export default class BookingPage extends View {
       .gap_3()
       .child(
         div()
-          .size_12()
+          .size(48)
           .flex_none()
           .rounded_lg()
           .bg(category(e.category).colors[0])
