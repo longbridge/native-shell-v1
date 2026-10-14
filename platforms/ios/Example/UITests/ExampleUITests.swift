@@ -130,7 +130,8 @@ final class ExampleUITests: XCTestCase {
             app.alerts.firstMatch.buttons["Discard changes"].tap()
             let scroll = wait(app, "settings")
             let clear = element(app, "clear-cache")
-            for _ in 0 ..< 4 where !clear.isHittable { scroll.swipeUp() }
+            scroll.swipeUp()
+            for _ in 0 ..< 3 where !clear.isHittable { scroll.swipeUp() }
             snap("settings-bottom")
             clear.tap()
             XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 5))

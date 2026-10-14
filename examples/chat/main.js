@@ -24,8 +24,12 @@ export default class Chat extends View {
     this.draft = InputState.new({ placeholder: "Message", return_key: "send", auto_capitalize: "sentences" });
     this.draft.on("change", (_e, cx) => cx.notify());
     this.draft.on("submit", (_e, cx) => this.send(cx));
-    // The keyboard takes a moment to rise; then the newest message should still be in view.
-    this.draft.on("focus", (_e, cx) => cx.timer.after(300, (cx) => this.scrollToEnd(cx)));
+    // The keyboard rises over a few hundred milliseconds, and its height reaches
+    // layout at a different moment on each platform; keep the newest message in
+    // view once it has settled.
+    this.draft.on("focus", (_e, cx) => {
+      for (const ms of [300, 700]) cx.timer.after(ms, (cx) => this.scrollToEnd(cx));
+    });
     cx.timer.after(0, (cx) => this.scrollToEnd(cx));
   }
 
@@ -384,7 +388,6 @@ export default class Chat extends View {
     const t = cx.theme();
     return h_flex()
       .test_id("undo-bar")
-      .role("alert")
       .mx_4()
       .mb_2()
       .pl_4()
@@ -394,7 +397,7 @@ export default class Chat extends View {
       .rounded_lg()
       .bg(t.foreground)
       .shadow_md()
-      .child(div().flex_1().text_sm().text_color(t.background).child("Message deleted"))
+      .child(div().role("alert").flex_1().text_sm().text_color(t.background).child("Message deleted"))
       .child(
         Button.new("undo")
           .test_id("undo")

@@ -306,7 +306,6 @@ export default class Tasks extends View {
     const t = cx.theme();
     return h_flex()
       .test_id("undo-bar")
-      .role("alert")
       .mx_4()
       .mb_2()
       .pl_4()
@@ -316,7 +315,7 @@ export default class Tasks extends View {
       .rounded_lg()
       .bg(t.foreground)
       .shadow_md()
-      .child(div().test_id("undo-label").flex_1().min_w_0().text_sm().text_color(t.background).truncate().child(this.undo.label))
+      .child(div().test_id("undo-label").role("alert").flex_1().min_w_0().text_sm().text_color(t.background).truncate().child(this.undo.label))
       .child(
         Button.new("undo")
           .test_id("undo")

@@ -228,6 +228,7 @@ class ScreenshotTest {
 
         push("open-buttons")
         type("post", "The tomatoes finally came in.")
+        hideKeyboard()
         tap("publish")
         snap("components-buttons")
         back()

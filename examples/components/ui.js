@@ -83,12 +83,9 @@ function navBar(cx, { title, back, trailing }) {
     .hit_slop(4)
     .active((s) => s.opacity(0.5))
     .on_click(back.on_click)
-    .when(ios, (el) =>
-      el
-        .text_color(t.primary)
-        .child(icon("chevron_left", t.primary, 24))
-        .child(div().text_base().child(back.label)),
-    )
+    .when(ios, (el) => el.text_color(t.primary).child(icon("chevron_left", t.primary, 24)))
+    // As UIKit does, the previous page's name gives way when it would crowd the title.
+    .when(ios && back.label.length + title.length <= 26, (el) => el.child(div().text_base().child(back.label)))
     .when(!ios, (el) => el.child(icon("arrow_left", t.foreground, 24)));
   const heading = div().role("header").text_lg().font_semibold().text_color(t.foreground).truncate().child(title);
   return v_flex()

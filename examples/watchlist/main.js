@@ -471,7 +471,6 @@ export default class Watchlist extends View {
     const t = cx.theme();
     return h_flex()
       .test_id("undo-bar")
-      .role("alert")
       .mx_4()
       .my_2()
       .pl_4()
@@ -481,7 +480,7 @@ export default class Watchlist extends View {
       .rounded_lg()
       .bg(t.foreground)
       .shadow_md()
-      .child(div().flex_1().min_w_0().text_sm().text_color(t.background).truncate().child(`Removed ${this.undo.symbol}`))
+      .child(div().role("alert").flex_1().min_w_0().text_sm().text_color(t.background).truncate().child(`Removed ${this.undo.symbol}`))
       .child(
         Button.new("undo")
           .test_id("undo")
