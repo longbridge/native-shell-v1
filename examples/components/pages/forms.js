@@ -5,7 +5,7 @@
 // with a copyable number and asks for a rating. Problems are explained under
 // the field they are about when the buyer continues.
 
-import { View, div, h_flex, v_flex, InputState, TextareaState, Switch } from "native-shell";
+import { View, div, h_flex, v_flex, InputState, TextareaState, Switch, Spinner } from "native-shell";
 import {
   VForm,
   HForm,
@@ -25,7 +25,8 @@ import {
   ColorPicker,
   ColorPickerState,
 } from "gpui-component";
-import { button, card, heading, page } from "../ui.js";
+import { filledButton, label, page, row, section } from "../ui.js";
+/** @import { Context } from "native-shell" */
 
 const STEPS = ["Recipient", "Payment", "Done"];
 const BOUQUET = { name: "Spring tulips, 15 stems", price: 45 };
@@ -245,20 +246,14 @@ export default class FormsPage extends View {
       );
   }
 
+  /** @param {Context} cx */
   payment(cx) {
     const t = cx.theme();
-    const line = (label, value, id) =>
-      h_flex()
-        .justify_between()
-        .gap_3()
-        .child(div().text_base().text_color(t.muted_foreground).child(label))
-        .child(div().test_id(id).text_base().text_color(t.foreground).child(value));
     return v_flex()
-      .gap_6()
+      .gap_8()
       .child(
         v_flex()
-          .gap_2()
-          .child(div().role("header").px_4().text_sm().text_color(t.muted_foreground).child("CARD"))
+          .child(label(cx, "footnote", t.muted_foreground, "CARD").role("header").px_4().pb_1p5())
           .child(
             HForm.new()
               .test_id("payment")
@@ -285,7 +280,7 @@ export default class FormsPage extends View {
               )
               .child(
                 Field.new()
-                  .label("Save card")
+                  .label("Save Card")
                   .child(
                     Switch.new("save-card")
                       .test_id("save-card")
@@ -332,49 +327,55 @@ export default class FormsPage extends View {
         ),
       )
       .child(
-        card(cx)
-          .px_4()
-          .py_3()
-          .gap_2()
-          .child(line(BOUQUET.name, money(BOUQUET.price * (1 - this.discount)), "line-flowers"))
-          .child(line("Delivery", money(DELIVERY), "line-delivery"))
-          .child(div().h(1).bg(t.border))
-          .child(
-            h_flex()
-              .justify_between()
-              .child(div().text_base().font_semibold().text_color(t.foreground).child("Total"))
-              .child(div().test_id("total").text_base().font_semibold().text_color(t.foreground).child(money(this.total))),
-          ),
+        section(cx, {
+          header: "Order",
+          rows: [
+            row(cx, { id: "line-flowers", label: BOUQUET.name, value: money(BOUQUET.price * (1 - this.discount)) }),
+            row(cx, { id: "line-delivery", label: "Delivery", value: money(DELIVERY) }),
+            row(cx, {
+              id: "line-total",
+              label: "Total",
+              trailing: label(cx, "headline", t.foreground, money(this.total)).test_id("total"),
+            }),
+          ],
+        }),
       );
   }
 
+  /** @param {Context} cx */
   done(cx) {
     const t = cx.theme();
     return v_flex()
-      .gap_6()
+      .gap_8()
       .child(
-        card(cx)
+        v_flex()
           .test_id("confirmation")
           .p_4()
           .gap_2()
-          .child(div().role("header").text_lg().font_semibold().text_color(t.foreground).child("Order placed"))
+          .rounded(t.radius.md)
+          .bg(t.surface)
+          .child(label(cx, "title3", t.foreground, "Order placed").font_semibold().role("header"))
           .child(
-            div()
-              .text_base()
-              .text_color(t.muted_foreground)
-              .child(`${BOUQUET.name} for ${this.name.value().trim()}, today at ${this.time.value()}. We’ll text you when they’re on the way.`),
+            label(
+              cx,
+              "body",
+              t.muted_foreground,
+              `${BOUQUET.name} for ${this.name.value().trim()}, today at ${this.time.value()}. We’ll text you when they’re on the way.`,
+            ),
           )
           .child(
             h_flex()
               .gap_2()
-              .child(div().text_base().text_color(t.foreground).child(`Order ${ORDER}`))
+              .child(label(cx, "body", t.foreground, `Order ${ORDER}`))
               .child(Clipboard.new("order").test_id("copy-order").value(ORDER).accessibility_label("Copy order number")),
           ),
       )
       .child(
         v_flex()
-          .gap_3()
-          .child(heading(cx, "How was checkout?", "Your rating helps us keep it quick."))
+          .gap_2()
+          .px_4()
+          .child(label(cx, "headline", t.foreground, "How was checkout?").role("header"))
+          .child(label(cx, "subheadline", t.muted_foreground, "Your rating helps us keep it quick."))
           .child(
             Rating.new("checkout-rating")
               .test_id("rating")
@@ -385,33 +386,39 @@ export default class FormsPage extends View {
               }),
           )
           .when(this.rating > 0, (el) =>
-            el.child(div().test_id("thanks").role("alert").text_sm().text_color(t.muted_foreground).child(this.rating >= 4 ? "Thank you!" : "Thanks. We’ll look at what slowed you down.")),
+            el.child(
+              label(cx, "subheadline", t.muted_foreground, this.rating >= 4 ? "Thank you!" : "Thanks. We’ll look at what slowed you down.")
+                .test_id("thanks")
+                .role("alert"),
+            ),
           ),
       )
       .child(
         h_flex()
           .gap_2()
+          .px_4()
           .child(Rating.new("florist").test_id("florist-rating").size("small").value(4.5).disabled(true))
-          .child(div().text_sm().text_color(t.muted_foreground).child("Bloom & Stem · 4.5 from 1,284 reviews")),
+          .child(label(cx, "footnote", t.muted_foreground, "Bloom & Stem · 4.5 from 1,284 reviews")),
       );
   }
 
+  /** @param {Context} cx */
   footer(cx) {
-    if (this.step === 2) return button(cx, "finish", "Done", { variant: "primary", full: true, on_click: (_e, cx) => cx.navigator.pop() });
-    return button(cx, "continue", this.step === 0 ? "Continue" : `Place order · ${money(this.total)}`, {
-      variant: "primary",
-      full: true,
-      loading: this.placing,
+    if (this.step === 2) return filledButton(cx, "finish", "Done", { on_click: (_e, cx) => cx.navigator.pop() });
+    const t = cx.theme();
+    return filledButton(cx, "continue", this.step === 0 ? "Continue" : `Place Order · ${money(this.total)}`, {
+      disabled: this.placing,
+      leading: this.placing ? Spinner.new().size_5().text_color(t.primary_foreground) : undefined,
       on_click: (_e, cx) => this.next(cx),
     });
   }
 
+  /** @param {Context} cx */
   render(cx) {
     const body = this.step === 0 ? this.recipient() : this.step === 1 ? this.payment(cx) : this.done(cx);
     return page(cx, {
       title: "Forms",
       intro: "Sending flowers. Problems are explained under the field when you continue.",
-      grouped: true,
       children: [this.stepper(), body],
       footer: this.footer(cx),
     });

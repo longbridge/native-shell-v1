@@ -42,13 +42,14 @@ struct Example {
     static let sections: [(title: String, examples: [Example])] = [
         ("Apps", [
             Example(name: "tasks", title: "Tasks", summary: "Lists, editing and undo", symbol: "checklist", tint: .systemBlue),
+            Example(name: "notes", title: "Notes", summary: "Folders, checklists and search", symbol: "note.text", tint: .systemYellow),
             Example(name: "chat", title: "Chat", summary: "A thread and its composer", symbol: "bubble.left.and.bubble.right.fill", tint: .systemGreen),
             Example(name: "watchlist", title: "Watchlist", summary: "Host modules and a native cell", symbol: "chart.line.uptrend.xyaxis", tint: .systemIndigo),
             Example(name: "settings", title: "Settings", summary: "Grouped preferences and pages", symbol: "gearshape.fill", tint: .systemGray),
         ]),
         ("Reference", [
             Example(name: "components", title: "Components", summary: "Every control, in context", symbol: "square.grid.2x2.fill", tint: .systemOrange),
-            Example(name: "gpui-todolist", title: "gpui-shell to-do list", summary: "A desktop program, unchanged", symbol: "desktopcomputer", tint: .systemTeal),
+            Example(name: "gpui-todolist", title: "gpui-shell To-Do List", summary: "A desktop program, unchanged", symbol: "desktopcomputer", tint: .systemTeal),
         ]),
     ]
 }
@@ -120,7 +121,7 @@ final class ExampleListController: UITableViewController {
 
     func open(_ name: String, animated: Bool) {
         do {
-            let (sources, appId) = try Programs.sources(name)
+            let (directory, appId) = try Programs.locate(name)
             let config = NSHInstanceConfig(appId: appId)
             let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
                 .appendingPathComponent("programs").appendingPathComponent(appId)
@@ -129,7 +130,7 @@ final class ExampleListController: UITableViewController {
             let instance = try NSHInstance(config: config)
             let vc = ProgramController(instance: instance)
             vc.title = Example.sections.flatMap(\.examples).first { $0.name == name }?.title
-            try instance.loadSources(sources)
+            try instance.loadProgram(directory: directory)
             navigationController?.pushViewController(vc, animated: animated)
         } catch {
             let alert = UIAlertController(title: "Couldn’t open \(name)", message: error.localizedDescription, preferredStyle: .alert)
@@ -177,20 +178,13 @@ final class ProgramController: NSHViewController, NSHInstanceDelegate {
 }
 
 enum Programs {
-    /// `{manifest, files}` for a bundled example directory, and the program's id.
-    static func sources(_ name: String) throws -> (String, String) {
+    /// A bundled example's directory and the program's id from its manifest.
+    static func locate(_ name: String) throws -> (URL, String) {
         guard let dir = Bundle.main.url(forResource: name, withExtension: nil, subdirectory: "examples") else {
             throw NSError(domain: "example", code: 1, userInfo: [NSLocalizedDescriptionKey: "example \(name) is not bundled"])
         }
         let manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: dir.appendingPathComponent("native-shell.json")))
-        var files: [String: String] = [:]
-        let e = FileManager.default.enumerator(at: dir, includingPropertiesForKeys: nil)
-        while let url = e?.nextObject() as? URL {
-            guard url.pathExtension == "js" else { continue }
-            files[String(url.path.dropFirst(dir.path.count + 1))] = try String(contentsOf: url, encoding: .utf8)
-        }
-        let data = try JSONSerialization.data(withJSONObject: ["manifest": manifest, "files": files])
         let id = (manifest as? [String: Any])?["id"] as? String ?? name
-        return (String(decoding: data, as: UTF8.self), id)
+        return (dir, id)
     }
 }

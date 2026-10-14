@@ -635,6 +635,12 @@ declare module "native-shell" {
 
   /** `list(...)` and `uniform_list(...)`. */
   export interface ListElement extends Element {
+    /**
+     * Mobile: GPUI's `ListAlignment` (gpui-shell always uses top). `"bottom"`
+     * opens the list at its end and keeps the end in view while the user is
+     * there — a chat thread as messages arrive and the keyboard rises.
+     */
+    alignment(value: "top" | "bottom"): this;
     /** Mobile: the height assumed for rows not yet rendered. */
     estimated_row_height(px: number): this;
     /**
@@ -1626,6 +1632,257 @@ declare module "gpui-component" {
   export const ColorPicker: FormConstructor<[state: ColorPickerState], ColorPickerElement>;
 
   // --- data (crates/engine/js/gpui_component/data.js) ---
+  type DataSize = "xsmall" | "small" | "medium" | "large";
+  type DataContext = import("native-shell").Context;
+  type DataConstructor<A extends unknown[], E> = { new (...args: A): E; new: (...args: A) => E };
+
+  export interface DescriptionItemElement extends Element {
+    /** Sets the item's value; mobile also takes an element for a value that is more than text. */
+    value(value: string | Element): this;
+    /** Sets how many columns the item spans in the vertical layout. */
+    span(span: number): this;
+  }
+  /** A label/value child for DescriptionList. */
+  export const DescriptionItem: DataConstructor<[label: string], DescriptionItemElement>;
+  export interface DescriptionListElement extends Element {
+    /** Uses the vertical layout: each label above its value, in a grid of `columns`. */
+    vertical(): this;
+    /** gpui-component's `layout(Axis)`. */
+    layout(axis: "horizontal" | "vertical"): this;
+    /** Draws the list on an inset grouped card with separators (the default). */
+    bordered(bordered: boolean): this;
+    /** Sets the vertical layout's column count, 1 through 10 (default 2 on a phone). */
+    columns(columns: number): this;
+    size(size: DataSize): this;
+    /** gpui-component's `item(label, value, span)`. */
+    item(label: string, value: string | Element, span?: number): this;
+  }
+  /** Label/value rows: iOS value rows (label leading, value trailing) or a vertical grid. */
+  export const DescriptionList: DataConstructor<[], DescriptionListElement>;
+
+  export interface TreeItemElement extends Element {
+    /** Whether the item starts expanded; the user's choice wins afterwards. */
+    expanded(expanded: boolean): this;
+    disabled(disabled: boolean): this;
+    /** Mobile: a leading icon, an icon path or name (`"folder"`) or an element. */
+    icon(icon: string | Element): this;
+  }
+  /** A tree node with an id unique in its tree and nested TreeItem children. */
+  export const TreeItem: DataConstructor<[id: string, label: string], TreeItemElement>;
+  export interface TreeElement extends Element {
+    /** Mobile: `(id, cx)` after the user selects a row (a tap, or the arrow keys). */
+    on_select(handler: (id: string, cx: DataContext) => void): this;
+  }
+  /** An outline of TreeItems; expansion and selection are kept under its id across renders. */
+  export const Tree: DataConstructor<[id: string], TreeElement>;
+
+  /** A native recycled list over a snapshot of rows, keyed by each row's `id` (else its position). */
+  export const List: DataConstructor<
+    [id: string, rows: () => readonly unknown[], render_row: (row: any) => Element | null],
+    import("native-shell").ListElement
+  >;
+
+  export interface TabElement extends Element {
+    /** Sets the visible tab label. */
+    label(label: string): this;
+    /** Sets the accessible tab label. */
+    aria_label(label: string): this;
+    selected(selected?: boolean): this;
+    disabled(disabled?: boolean): this;
+  }
+  /** A tab, accepted only as a direct TabBar child. */
+  export const Tab: DataConstructor<[], TabElement>;
+  export interface TabBarElement extends Element {
+    /** Controls the selected zero-based tab index. */
+    selected_index(index: number): this;
+    /** `segmented` is the native segmented control; the others a row that scrolls sideways. */
+    variant(variant: "tab" | "outline" | "pill" | "segmented" | "underline"): this;
+    /** Accepted; the row scrolls instead of an overflow menu. */
+    menu(menu: boolean): this;
+    size(size: DataSize): this;
+    /** Reports the newly selected zero-based index. */
+    on_change(handler: (index: number, cx: DataContext) => void): this;
+  }
+  /** A tab list accepting only Tab children; `Tabs` is its old name. */
+  export const TabBar: DataConstructor<[id: string], TabBarElement>;
+  export const Tabs: DataConstructor<[id: string], TabBarElement>;
+
+  export interface BreadcrumbElement extends Element {
+    /** Mobile: `(index, cx)` when an earlier place in the path is tapped. */
+    on_click(handler: (index: number, cx: DataContext) => void): this;
+  }
+  /** A path of places, the current one last. */
+  export const Breadcrumb: DataConstructor<[labels: string[]], BreadcrumbElement>;
+
+  export interface SettingItemElement extends Element {
+    description(text: string): this;
+    layout(axis: "horizontal" | "vertical"): this;
+    /** Accepted; settings on a phone have no search field. */
+    keywords(keywords: string[]): this;
+    disabled(disabled: boolean): this;
+    /** The item's control. Required. */
+    content(element: Element): this;
+  }
+  export const SettingItem: DataConstructor<[title: string], SettingItemElement>;
+  export interface SettingGroupElement extends Element {
+    title(text: string): this;
+    /** The footer under the group's card. */
+    description(text: string): this;
+  }
+  export const SettingGroup: DataConstructor<[], SettingGroupElement>;
+  export interface SettingPageElement extends Element {
+    description(text: string): this;
+    /** Accepted; groups are always open on a phone. */
+    default_open(open: boolean): this;
+    /** Accepted; the reset control is a desktop affordance. */
+    resettable(resettable: boolean): this;
+    /** Sits beside the page's title. */
+    content(element: Element): this;
+  }
+  export const SettingPage: DataConstructor<[title: string], SettingPageElement>;
+  export interface SettingsElement extends Element {
+    size(size: DataSize): this;
+    /** Accepted; a phone has no sidebar. */
+    sidebar_width(pixels: number): this;
+    sidebar_size_range(minimum: number, maximum: number): this;
+    /** The page shown first. */
+    default_selected_page(index: number): this;
+  }
+  /** Pages of inset grouped settings; several pages switch on a segmented control. */
+  export const Settings: DataConstructor<[id: string], SettingsElement>;
+
+  export interface GroupBoxElement extends Element {
+    title(title: string | Element): this;
+    variant(variant: "normal" | "fill" | "outline"): this;
+  }
+  /** A titled container for grouping related content. */
+  export const GroupBox: DataConstructor<[], GroupBoxElement>;
+
+  /** A row of controls in source order, spaced as iOS's toolbar. */
+  export const Toolbar: DataConstructor<[id: string], Element>;
+
+  /** A date as `"YYYY-MM-DD"`. */
+  type IsoDate = string;
+  export interface CalendarState {
+    /** The selected date (`null` if none), or `[start, end]` in range mode. */
+    date(): IsoDate | null | [IsoDate | null, IsoDate | null];
+    /** A date selects one day; `[start, end]` selects a range (range mode). Shows its month. */
+    set_date(date: IsoDate | null | [IsoDate | null, IsoDate | null]): void;
+    /** Mobile: the month on screen, `month` from 1 to 12. */
+    set_month(year: number, month: number): void;
+    month(): { year: number; month: number };
+    /** gpui-component's disabled matcher: true for days that cannot be chosen. */
+    set_disabled_matcher(matcher: ((date: IsoDate) => boolean) | null): void;
+    /** A selection the user made, with `date()`'s shape. */
+    on(event: "change", handler: (date: IsoDate | null | [IsoDate | null, IsoDate | null], cx: DataContext) => void): boolean;
+    release(): boolean;
+  }
+  /** Retained calendar state; create it outside render. */
+  export const CalendarState: { (): CalendarState; new: () => CalendarState };
+  export interface CalendarElement extends Element {
+    /** Stacks this many consecutive months. */
+    number_of_months(count: number): this;
+    /** 0 (Sunday) to 6 (Saturday); defaults to the locale's first day. */
+    first_day_of_week(day: number): this;
+  }
+  /** An inline month calendar. */
+  export const Calendar: DataConstructor<[state: CalendarState], CalendarElement>;
+
+  export interface CarouselState {
+    item_count(): number;
+    selected_index(): number | null;
+    axis(): "horizontal" | "vertical";
+    is_looping(): boolean;
+    has_previous(): boolean;
+    has_next(): boolean;
+    set_selected_index(index: number): void;
+    set_item_count(count: number): void;
+    set_looping(looping: boolean): void;
+    select_next(): boolean;
+    select_previous(): boolean;
+    release(): boolean;
+  }
+  /** Retained carousel state; create it outside render. */
+  export const CarouselState: {
+    (item_count: number, selected_index?: number, axis?: "horizontal" | "vertical", looping?: boolean): CarouselState;
+    new: (item_count: number, selected_index?: number, axis?: "horizontal" | "vertical", looping?: boolean) => CarouselState;
+  };
+  export interface CarouselElement extends Element {
+    /** Accepted; focus rings are drawn natively. */
+    focus_ring(on: boolean): this;
+    item_count(count: number): this;
+    /** Selects an item without emitting a change, for a script that owns the selection. */
+    selected_index(index: number): this;
+    /** Reports the newly selected zero-based item index. */
+    on_change(handler: (index: number, cx: DataContext) => void): this;
+  }
+  /** Slides paged by a swipe, composed from the Carousel parts. */
+  export const Carousel: DataConstructor<[id: string, state: CarouselState], CarouselElement>;
+  /** The clipped viewport; accepts only CarouselItem children. */
+  export const CarouselContent: DataConstructor<[state: CarouselState], Element>;
+  /** One indexed slide. */
+  export const CarouselItem: DataConstructor<[id: string, index: number, state: CarouselState], Element>;
+  export interface CarouselControlElement extends Element {
+    size(size: DataSize): this;
+  }
+  export const CarouselPrevious: DataConstructor<[state: CarouselState], CarouselControlElement>;
+  export const CarouselNext: DataConstructor<[state: CarouselState], CarouselControlElement>;
+  /** The page dots; accepts only CarouselPaginationItem children. */
+  export const CarouselPagination: DataConstructor<[], Element>;
+  /** One dot; a tap shows its item. */
+  export const CarouselPaginationItem: DataConstructor<[id: string, index: number, state: CarouselState], CarouselControlElement>;
+
+  export interface MenuItemElement extends Element {
+    disabled(disabled: boolean): this;
+    /** Accepted; a phone's pull-down menu marks no item. */
+    checked(checked: boolean): this;
+  }
+  /** One action of a Menu; choosing it runs the nearest `.on_action(action, …)` above the menu. */
+  export const MenuItem: DataConstructor<[label: string, action: string], MenuItemElement>;
+  /** Accepted; a phone's pull-down menu has no separators. */
+  export const MenuSeparator: DataConstructor<[], Element>;
+  export interface MenuElement extends Element {
+    disabled(disabled: boolean): this;
+  }
+  /** A button with the label that opens the platform's menu of MenuItems. */
+  export const Menu: DataConstructor<[label: string], MenuElement>;
+  export interface DropdownMenuElement extends Element {
+    /** Appends an item in call order. */
+    item(label: string, callback: (cx: DataContext) => void): this;
+  }
+  /** A button with the label that opens the platform's menu. */
+  export const DropdownMenu: DataConstructor<[id: string, label: string], DropdownMenuElement>;
+  export interface DropdownButtonElement extends Element {
+    /** iOS's tinted button. */
+    outline(): this;
+    variant(variant: "primary" | "secondary" | "danger" | "ghost"): this;
+    size(size: DataSize): this;
+    disabled(disabled: boolean): this;
+    selected(selected: boolean): this;
+    /** Accepted; the platform places the menu. */
+    menu_anchor(anchor: "top_right" | "bottom_right" | "bottom_left" | "top_left"): this;
+    /** Runs when the labeled half is tapped. */
+    on_click(handler: (event: import("native-shell").ClickEvent, cx: DataContext) => void): this;
+    /** Appends a menu item in call order. */
+    menu_item(label: string, callback: (cx: DataContext) => void): this;
+  }
+  /** A split button: the labeled half acts, the chevron half opens a menu. */
+  export const DropdownButton: DataConstructor<[id: string, label: string], DropdownButtonElement>;
+
+  export interface IconElement extends Element {
+    /** `xsmall` 12, `small` 16, `medium` 20 (default), `large` 24; mobile also takes points. */
+    size(size: DataSize | number): this;
+    /** The glyph's color: a theme token or a color literal. */
+    color(color: import("native-shell").Color): this;
+    /** Rotates the icon by radians. */
+    rotate(radians: number): this;
+  }
+  /**
+   * gpui-component's icon set by path (`"icons/chevron-right.svg"`), stem
+   * (`"chevron-right"`) or IconName spelling (`"ChevronRight"`), drawn natively;
+   * any other path is an SVG from the program's directory.
+   */
+  export const Icon: DataConstructor<[path: string], IconElement>;
 
   // --- charts (crates/engine/js/gpui_component/charts.js) ---
 
