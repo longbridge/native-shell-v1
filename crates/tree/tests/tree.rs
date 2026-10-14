@@ -2046,3 +2046,85 @@ fn rem_lengths_follow_the_clamped_font_scale() {
         );
     }
 }
+
+#[test]
+fn hover_cursor_and_tooltip_keep_a_native_view() {
+    use native_shell_core::style::{Arg, StyleOp};
+    let mut h = H::new();
+    let mut hover = StyleOp::new("hover", vec![]);
+    hover.nested = Some((
+        "hover".into(),
+        vec![
+            StyleOp::new("opacity", vec![Arg::Num(0.7)]),
+            StyleOp::new("bg", vec![Arg::Str("#eeeeee".into())]),
+        ],
+    ));
+    let mut styled = view("", vec![]);
+    let theme =
+        native_shell_core::theme::Theme::default_for(native_shell_core::theme::Appearance::Light);
+    styled.style = Rc::new(
+        native_shell_core::style::resolve(&[hover, StyleOp::new("cursor_pointer", vec![])], &theme)
+            .unwrap(),
+    );
+    let tooltip = with_prop(
+        view("", vec![]),
+        Prop::Tooltip,
+        PropValue::Str("Copy link".into()),
+    );
+    let mut on_hover = view("", vec![]);
+    on_hover.handlers = vec![(EventType::Hover, 3)];
+    h.commit(&root(view(
+        "",
+        vec![
+            keyed(styled, "a"),
+            keyed(tooltip, "b"),
+            keyed(on_hover, "c"),
+            keyed(view("p_2", vec![]), "flat"),
+        ],
+    )));
+    let surface = h.tree.surface_node("root").unwrap();
+    let kids = h.rep.children(surface).to_vec();
+    assert_eq!(
+        kids.len(),
+        3,
+        "the plain view is flattened, the others are native:\n{}",
+        h.tree.dump()
+    );
+    assert_eq!(
+        h.prop(kids[0], Prop::HoverOpacity),
+        Some(&PropValue::F32(0.7))
+    );
+    assert_eq!(
+        h.prop(kids[0], Prop::HoverBackground),
+        Some(&PropValue::Color(0xFFEE_EEEE))
+    );
+    assert_eq!(
+        h.prop(kids[0], Prop::Cursor),
+        Some(&PropValue::I32(
+            native_shell_core::protocol::CursorStyle::PointingHand as i32
+        ))
+    );
+    assert_eq!(
+        h.prop(kids[1], Prop::Tooltip),
+        Some(&PropValue::Str("Copy link".into()))
+    );
+    assert_eq!(h.rep.nodes[&kids[2]].mask, event_mask::HOVER);
+    assert_eq!(h.tree.handler(kids[2], EventType::Hover), Some(3));
+
+    // Hover styling removed: the props are reset.
+    let batch = h.commit(&root(view(
+        "",
+        vec![keyed(view("bg=#ffffff", vec![]), "a")],
+    )));
+    assert!(
+        batch.iter().any(|m| matches!(
+            m,
+            Mutation::SetProp {
+                prop: Prop::Cursor,
+                value: PropValue::Null,
+                ..
+            }
+        )),
+        "{batch:#?}"
+    );
+}

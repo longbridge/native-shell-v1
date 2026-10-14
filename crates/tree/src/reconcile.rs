@@ -83,8 +83,9 @@ fn kind_of(desc: &Desc) -> Kind {
     }
 }
 
-/// The flattening rule: a view that paints nothing, listens to nothing, carries no
-/// accessibility, test or ref identity, is visible and does not scroll needs no native view.
+/// The flattening rule: a view that paints nothing, listens to nothing (handlers include
+/// hover), carries no accessibility, test, tooltip or ref identity, has no press or pointer
+/// feedback, is visible and does not scroll needs no native view.
 fn flattenable(desc: &Desc) -> bool {
     let s = &desc.style;
     !s.visual.paints()
@@ -97,6 +98,9 @@ fn flattenable(desc: &Desc) -> bool {
         && s.transitions.is_empty()
         && s.active_opacity.is_none()
         && s.active_background.is_none()
+        && s.hover_opacity.is_none()
+        && s.hover_background.is_none()
+        && s.cursor.is_none()
 }
 
 fn native_type(desc: &Desc) -> Option<ViewType> {

@@ -101,6 +101,15 @@ pub(crate) fn derive(
     if let Some(c) = s.active_background {
         out.push((Prop::ActiveBackground, PropValue::Color(c)));
     }
+    if let Some(o) = s.hover_opacity {
+        out.push((Prop::HoverOpacity, PropValue::F32(o)));
+    }
+    if let Some(c) = s.hover_background {
+        out.push((Prop::HoverBackground, PropValue::Color(c)));
+    }
+    if let Some(c) = s.cursor {
+        out.push((Prop::Cursor, PropValue::I32(c as i32)));
+    }
 
     match (&desc.kind, native) {
         (_, ViewType::Scroll) if s.scroll == ScrollAxis::X => {
