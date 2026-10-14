@@ -8,6 +8,10 @@
 //   -reset                   start programs with empty storage
 //   -actions "<a>;<b>;…"     after launch: tap:<test id>, wait:<seconds>, back,
 //                            capture:<png path> (the window), quit
+//
+// A scripted run (-actions) keeps its program data in a temporary directory
+// and does not save its window frame, so it never touches the data or window
+// of the app as someone uses it.
 
 import AppKit
 import NativeShellMac
@@ -30,7 +34,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         NSApp.mainMenu = MainMenu.make()
 
-        split = LauncherSplitController(reset: args.contains("-reset"))
+        let scripted = Self.argument("-actions") != nil
+        let dataRoot = scripted
+            ? FileManager.default.temporaryDirectory.appendingPathComponent("native-shell-examples-scripted")
+            : FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("native-shell-examples")
+        split = LauncherSplitController(dataRoot: dataRoot, reset: args.contains("-reset"))
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 760),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                           backing: .buffered, defer: false)
@@ -40,9 +48,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.contentViewController = split
         window.setContentSize(NSSize(width: 1040, height: 760))
         window.contentMinSize = NSSize(width: 760, height: 540)
-        window.setFrameAutosaveName("Examples")
         window.tabbingMode = .disallowed
-        if !window.setFrameUsingName("Examples") { window.center() }
+        if scripted {
+            window.center()
+        } else {
+            window.setFrameAutosaveName("Examples")
+            if !window.setFrameUsingName("Examples") { window.center() }
+        }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
@@ -140,7 +152,7 @@ final class Automation {
             case "tap": split.program?.tap(arg)
             case "back": split.program?.performBack()
             case "capture": capture(arg)
-            case "quit": NSApp.terminate(nil)
+            case "quit": Automation.quit()
             default: NSLog("unknown step %@", step)
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: next)
@@ -149,7 +161,13 @@ final class Automation {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: next)
         // A script never keeps the app running: a step that cannot finish (a locked
         // screen blocks window captures) must not stall a batch of captures.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 45) { NSApp.terminate(nil) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 45) { Automation.quit() }
+    }
+
+    /// Ends a scripted run at once. `NSApp.terminate` is refused while a window
+    /// sheet is open, and a script has nothing to save.
+    static func quit() {
+        exit(0)
     }
 
     /// The window (with its shadow trimmed) as a PNG, through the system screenshot tool.

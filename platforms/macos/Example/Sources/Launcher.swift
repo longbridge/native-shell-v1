@@ -29,9 +29,11 @@ struct Example {
 final class LauncherSplitController: NSSplitViewController {
     private let sidebar = SidebarController()
     private let detail = DetailController()
+    private let dataRoot: URL
     private let reset: Bool
 
-    init(reset: Bool) {
+    init(dataRoot: URL, reset: Bool) {
+        self.dataRoot = dataRoot
         self.reset = reset
         super.init(nibName: nil, bundle: nil)
     }
@@ -61,7 +63,7 @@ final class LauncherSplitController: NSSplitViewController {
     private func open(_ name: String) {
         guard let example = Example.all.first(where: { $0.name == name }) else { return }
         view.window?.title = example.title
-        detail.show(example, reset: reset)
+        detail.show(example, dataRoot: dataRoot, reset: reset)
     }
 }
 
@@ -172,7 +174,7 @@ final class DetailController: NSViewController {
         view = v
     }
 
-    func show(_ example: Example, reset: Bool) {
+    func show(_ example: Example, dataRoot: URL, reset: Bool) {
         if let old = program {
             old.view.removeFromSuperview()
             old.removeFromParent()
@@ -182,8 +184,7 @@ final class DetailController: NSViewController {
         do {
             let (sources, appId) = try Programs.sources(example.name)
             let config = NSHInstanceConfig(appId: appId)
-            let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-                .appendingPathComponent("native-shell-examples").appendingPathComponent(appId)
+            let dir = dataRoot.appendingPathComponent(appId)
             if reset { try? FileManager.default.removeItem(at: dir) }
             config.dataDirectory = dir
             let instance = try NSHInstance(config: config)
