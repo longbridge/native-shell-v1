@@ -391,7 +391,7 @@ deployment target iOS 14):
   @objc optional var eventSink: NSHEventSink? { get set }   // set by the renderer; component calls sink.emit("select", payload)
 }
 NSHRuntime.shared.register(module:), .register(component:), .emit(module:event:payload:) // broadcast to instances listening
-NSHRuntime.shared.themeProvider: (NSHAppearance) -> [String: UIColor]   // maps the app's design tokens to the 17 shell tokens
+NSHRuntime.shared.themeProvider: (NSHAppearance) -> [String: UIColor]   // maps the app's design tokens to the shell color tokens
 NSHRuntime.shared.imageLoader / urlOpener / logger hooks (defaults: URLSession + NSCache, UIApplication.open, os_log)
 ```
 
@@ -449,7 +449,7 @@ NativeShell.imageLoader = ImageLoader { url, imageView -> … }   // apps plug G
   restore defaults. Props arrive whole on every change. Size: style first; if
   unsized and `measure` exists, the core asks for it during layout (JS thread)
   with the available width.
-* **Theme**: apps map their design system to the 17 shell tokens via the theme
+* **Theme**: apps map their design system to the shell color tokens via the theme
   provider (sent as `theme: {light, dark}` in the instance config);
   appearance changes re-render instances. Host components re-skin themselves.
 
