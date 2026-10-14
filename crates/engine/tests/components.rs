@@ -70,7 +70,7 @@ fn components_map_to_native_kinds_with_props() {
     // The primary button paints with the theme's primary color.
     let primary = Theme::default_for(Appearance::Light).color("primary").unwrap();
     assert_eq!(h.prop("b1", Prop::BackgroundColor), Some(PropValue::Color(primary)));
-    assert!(h.prop("b1", Prop::ActiveOpacity).is_some(), "active styles go native");
+    assert!(h.prop("b1", Prop::ActiveBackground).is_some(), "active styles go native");
     assert_eq!(h.prop("b2", Prop::A11yState), Some(PropValue::Json(r#"{"disabled":true}"#.into())));
 }
 
@@ -205,4 +205,53 @@ export default class S extends View {
     assert_eq!(h.frame("theme").width, short, "the width did not jump");
     // The fake measurer gives 8 per character + 32: "Match the system" is the widest.
     assert_eq!(short, 8.0 * 16.0 + 32.0);
+}
+
+#[test]
+fn button_presets_follow_ios() {
+    let main = r#"
+import { View, v_flex, Button } from "native-shell";
+export default class B extends View {
+  render() {
+    return v_flex().items_start()
+      .child(Button.new("save").test_id("save").primary().size("large").label("Save"))
+      .child(Button.new("more").test_id("more").variant("outline").label("More"))
+      .child(Button.new("x").test_id("x").ghost().size("xsmall").label("Edit"))
+      .child(Button.new("del").test_id("del").variant("destructive").size("small").disabled(true).label("Delete"))
+      .child(Button.new("square").test_id("square").size(30).label("S"))
+      .child(Button.new("plain").test_id("plain").label("Plain"));
+  }
+}
+"#;
+    let h = Harness::new(&[("main.js", main)]);
+    assert!(h.error_logs().is_empty(), "{:?}", h.error_logs());
+    let light = Theme::default_for(Appearance::Light);
+    let c = |t: &str| PropValue::Color(light.color(t).unwrap());
+    // large: 50 pt, radius 12, filled with the primary color; pressed darkens it.
+    assert_eq!(h.frame("save").height, 50.0);
+    assert_eq!(h.prop("save", Prop::BackgroundColor), Some(c("primary")));
+    assert_eq!(h.prop("save", Prop::CornerRadii), Some(PropValue::F32Array(vec![12.0; 4])));
+    let Some(PropValue::Color(pressed)) = h.prop("save", Prop::ActiveBackground) else { panic!("no pressed fill") };
+    assert_ne!(Some(PropValue::Color(pressed)), Some(c("primary")));
+    // medium (the default size): 44 pt, radius 10, tinted.
+    assert_eq!(h.frame("more").height, 44.0);
+    assert_eq!(h.prop("more", Prop::BackgroundColor), Some(c("accent")));
+    // xsmall ghost: 28 pt, no fill, fades when pressed, keeps a 44 pt target.
+    assert_eq!(h.frame("x").height, 28.0);
+    assert_eq!(h.prop("x", Prop::BackgroundColor), None);
+    assert_eq!(h.prop("x", Prop::ActiveOpacity), Some(PropValue::F32(0.6)));
+    assert_eq!(h.prop("x", Prop::HitSlop), Some(PropValue::F32Array(vec![8.0; 4])));
+    // small, destructive, disabled: 34 pt at 40% opacity.
+    assert_eq!(h.frame("del").height, 34.0);
+    assert_eq!(h.prop("del", Prop::BackgroundColor), Some(c("destructive")));
+    assert_eq!(h.prop("del", Prop::Opacity), Some(PropValue::F32(0.4)));
+    // A number is still the size style; no preset without a variant or size name.
+    assert_eq!(h.frame("square").height, 30.0);
+    assert_eq!(h.prop("square", Prop::BackgroundColor), None);
+    assert_eq!(h.prop("plain", Prop::BackgroundColor), None);
+
+    // Heights are rems: they follow the (clamped) zoom of a large text size.
+    let env = native_shell::core::host::Environment { font_scale: 2.0, ..Default::default() };
+    let zoomed = Harness::build(&[("main.js", main)]).environment(env).start();
+    assert!((zoomed.frame("save").height - 50.0 * 1.6).abs() < 0.5, "{:?}", zoomed.frame("save"));
 }

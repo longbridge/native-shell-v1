@@ -20,7 +20,7 @@
 // `SliderState`) so a drag or an IME composition is never interrupted by a
 // re-render.
 
-import { N, scope, markDirty, refuseInRender, refuseStateInRender, setTheme, FocusHandle } from "nsh:core";
+import { N, scope, markDirty, refuseInRender, refuseStateInRender, setTheme, theme, FocusHandle } from "nsh:core";
 import { Element, chainKey } from "nsh:elements";
 
 export const set_theme = (theme) => setTheme(theme);
@@ -31,37 +31,80 @@ function released(what, kind) {
 
 // Buttons and links -----------------------------------------------------------
 
-const BUTTON_BASE = [
-  ["flex"], ["flex_row"], ["items_center"], ["justify_center"], ["gap_2"], ["h_10"], ["px_4"], ["rounded_md"],
-  ["text_sm"], ["font_medium"],
-];
-
-const VARIANTS = {
-  primary: [["bg", "primary"], ["text_color", "primary_foreground"], ["@active", [["opacity", 0.8]]]],
-  secondary: [["bg", "secondary"], ["text_color", "secondary_foreground"], ["@active", [["opacity", 0.8]]]],
-  outline: [["border_1"], ["border_color", "border"], ["bg", "background"], ["text_color", "foreground"], ["@active", [["bg", "muted"]]]],
-  ghost: [["text_color", "foreground"], ["@active", [["bg", "muted"]]]],
-  destructive: [["bg", "destructive"], ["text_color", "destructive_foreground"], ["@active", [["opacity", 0.8]]]],
+// iOS button presets, under gpui-component's Button names: sizes `xsmall`,
+// `small`, `medium` (default), `large` (the filled primary action), variants
+// `primary`, `secondary`, `outline` (iOS "tinted"), `danger`, `success`,
+// `warning`, `ghost`, `link`. Lengths are in rems so they follow the rem zoom;
+// text sizes are points (renderers scale text by the font scale).
+const BUTTON_SIZES = {
+  xsmall: { h: "1.75rem", px: "0.625rem", radius: "0.5rem", text: 13, weight: [], slop: 8 },
+  small: { h: "2.125rem", px: "0.75rem", radius: "0.5rem", text: 15, weight: [], slop: 5 },
+  medium: { h: "2.75rem", px: "0.875rem", radius: "0.625rem", text: 17, weight: [], slop: 0 },
+  large: { h: "3.125rem", px: "1rem", radius: "0.75rem", text: 17, weight: [["font_semibold"]], slop: 0 },
 };
 
-const VARIANT_KEYS = Object.fromEntries(Object.entries(VARIANTS).map(([k, ops]) => [k, chainKey([...BUTTON_BASE, ...ops])]));
-const DISABLED_KEY = chainKey([["opacity", 0.5]]);
+/** Fill and text tokens; filled variants darken when pressed, plain ones fade. */
+const VARIANTS = {
+  primary: { bg: "primary", fg: "primary_foreground" },
+  secondary: { bg: "secondary", fg: "foreground" },
+  outline: { bg: "accent", fg: "accent_foreground" },
+  danger: { bg: "destructive", fg: "destructive_foreground" },
+  success: { bg: "success", fg: "success_foreground" },
+  warning: { bg: "warning", fg: "warning_foreground" },
+  ghost: { bg: null, fg: "primary" },
+  link: { bg: null, fg: "primary", bare: true },
+};
+const VARIANT_ALIASES = { destructive: "danger", tinted: "outline" };
+
+/** `#rrggbb[aa]` 15% of the way to black: iOS's highlighted filled button. */
+function pressed(hex) {
+  const m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(hex ?? "");
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const ch = (shift) => Math.round(((n >> shift) & 255) * 0.85).toString(16).padStart(2, "0");
+  return `#${ch(16)}${ch(8)}${ch(0)}${m[2] ?? ""}`;
+}
+
+function buttonPreset(variant, size, disabled) {
+  const v = VARIANTS[variant];
+  const z = BUTTON_SIZES[size];
+  const ops = [["flex"], ["flex_row"], ["items_center"], ["justify_center"], ["gap_2"], ["text_size", z.text], ...z.weight];
+  if (!v.bare) ops.push(["h", z.h], ["px", z.px], ["rounded", z.radius]);
+  ops.push(["text_color", v.fg]);
+  if (v.bg) ops.push(["bg", v.bg], ["@active", [["bg", pressed(theme()[v.bg])]]]);
+  else ops.push(["@active", [["opacity", 0.6]]]);
+  if (disabled) ops.push(["opacity", 0.4]);
+  return chainKey(ops);
+}
+
 const ROW_KEY = chainKey([["flex"], ["flex_row"], ["items_center"]]);
 const LABELED_KEY = chainKey([["flex"], ["flex_row"], ["items_center"], ["gap_2"]]);
 const INPUT_KEY = chainKey([["flex"], ["items_center"]]);
 
-/** gpui-base's `Button`: activation, disabled and selected state, no styling unless `.variant(...)`. */
+/**
+ * gpui-base's `Button`: activation, disabled and selected state, no styling
+ * until a variant or a size is chosen (gpui-component's styled Button).
+ */
 class ButtonElement extends Element {
   constructor(id, role) {
     super("view");
     this._k = String(id);
     this._P().role = role;
     this._variant = null;
+    this._size = null;
+    this._slopSet = false;
   }
 
   _sync() {
-    if (this._variant === null) return this;
-    return this._preset(VARIANT_KEYS[this._variant] + (this._dis ? DISABLED_KEY : ""));
+    if (this._variant === null && this._size === null) return this;
+    const size = this._size ?? "medium";
+    // A small button keeps a 44 pt touch target.
+    if (!this._slopSet) {
+      const slop = BUTTON_SIZES[size].slop;
+      if (slop > 0) this._P().hit_slop = [slop, slop, slop, slop];
+      else delete this._P().hit_slop;
+    }
+    return this._preset(buttonPreset(this._variant ?? "secondary", size, this._dis));
   }
 
   /** Mobile: the button's text. */
@@ -69,11 +112,40 @@ class ButtonElement extends Element {
     return this.child(String(s));
   }
 
-  /** Mobile: a native-looking preset (`primary`, `secondary`, `outline`, `ghost`, `destructive`). */
+  /** The preset by name: gpui-component's variants (`destructive` and `tinted` are accepted too). */
   variant(v) {
-    if (!(v in VARIANTS)) throw new TypeError(`Button.variant(): use one of ${Object.keys(VARIANTS).join(", ")}, got ${JSON.stringify(v)}`);
-    this._variant = v;
+    const name = VARIANT_ALIASES[v] ?? v;
+    if (!(name in VARIANTS)) {
+      throw new TypeError(`Button.variant(): use one of ${Object.keys(VARIANTS).join(", ")}, got ${JSON.stringify(v)}`);
+    }
+    this._variant = name;
     return this._sync();
+  }
+
+  primary() { return this.variant("primary"); }
+  secondary() { return this.variant("secondary"); }
+  outline() { return this.variant("outline"); }
+  danger() { return this.variant("danger"); }
+  success() { return this.variant("success"); }
+  warning() { return this.variant("warning"); }
+  ghost() { return this.variant("ghost"); }
+  link() { return this.variant("link"); }
+
+  /**
+   * gpui-component's `size("xsmall" | "small" | "medium" | "large")`; a number
+   * or length is the `size` style (width and height), as on any element.
+   */
+  size(v) {
+    if (typeof v === "string" && v in BUTTON_SIZES) {
+      this._size = v;
+      return this._sync();
+    }
+    return super.size(v);
+  }
+
+  hit_slop(px) {
+    this._slopSet = true;
+    return super.hit_slop(px);
   }
 
   disabled(value = true) {
