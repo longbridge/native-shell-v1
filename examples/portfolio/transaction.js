@@ -21,6 +21,7 @@ const PRICE = /^\d+(\.\d{1,4})?$/;
  */
 export function openTransactionForm(cx, { market, transactions, symbol, save }) {
   const today = isoDate(new Date());
+  /** @type {{ type: "buy" | "sell", symbol: string, date: string }} */
   const draft = {
     type: "buy",
     symbol: symbol ?? INSTRUMENTS[0].symbol,

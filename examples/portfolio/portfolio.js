@@ -9,7 +9,10 @@ import { INSTRUMENTS, OLDEST_DAY, isoDate, shortDate, timeline, tradingDate, tra
 const KEY = "portfolio.transactions.v1";
 const SETTINGS_KEY = "portfolio.settings.v1";
 
-/** A first run starts with a believable history, bought at the simulated prices of the day. */
+/**
+ * A first run starts with a believable history, bought at the simulated prices of the day.
+ * @type {[symbol: string, type: "buy" | "sell", shares: number, day: number][]}
+ */
 const SAMPLE = [
   ["WAVE", "buy", 60, 250],
   ["NOVA", "buy", 25, 240],
