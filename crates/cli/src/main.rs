@@ -126,7 +126,9 @@ fn run(cli: Cli) -> Result<ExitCode> {
                     Err(e) => eprintln!("[dev] error: {e:#}"),
                 }
             })?;
-            println!("Serving {} at http://{}:{}", dir.display(), dev::lan_ip(), server.addr.port());
+            let url = format!("http://{}:{}", dev::lan_ip(), server.addr.port());
+            println!("Serving {} at {url}", dir.display());
+            println!("Run it on Linux (in platforms/linux): cargo run --example run -- --dev {url}");
             loop {
                 std::thread::park();
             }

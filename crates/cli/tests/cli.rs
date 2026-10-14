@@ -187,6 +187,8 @@ fn dev_server_serves_reloads_and_logs() {
             break url.rsplit(':').next().unwrap().trim().parse().unwrap();
         }
     };
+    let connect = lines.next().expect("dev server exited").unwrap();
+    assert!(connect.contains("--dev http://") && connect.ends_with(&format!(":{port}")), "{connect}");
 
     let (status, manifest) = http(port, "GET", "/manifest", "");
     assert_eq!(status, 200);
