@@ -830,6 +830,52 @@ final class MountingTests: XCTestCase {
         XCTAssertEqual(layer.lineWidth, 2 * 35.0 / 24.0, accuracy: 0.01)
     }
 
+    func testPointerHoverCursorAndTooltip() {
+        h.apply { b in
+            b.create(1, .view, parent: 0, frame: CGRect(x: 0, y: 0, width: 100, height: 44), props: [
+                (.backgroundColor, .color(0xFFFF_FFFF)), (.opacity, .f32(0.8)),
+                (.hoverOpacity, .f32(0.5)), (.hoverBackground, .color(0xFFEE_EEEE)),
+                (.activeOpacity, .f32(0.25)), (.activeBackground, .color(0xFF00_0000)),
+                (.cursor, .i32(CursorStyle.pointingHand.rawValue)), (.tooltip, .str("Open settings")),
+            ])
+            b.mask(1, EventMask.hover)
+            b.create(2, .view, parent: 0, frame: CGRect(x: 0, y: 50, width: 200, height: 30), props: [(.cursor, .i32(CursorStyle.iBeam.rawValue))])
+        }
+        let v = h.view(1)!
+        XCTAssertTrue(v.gestureRecognizers?.contains { $0 is UIHoverGestureRecognizer } ?? false)
+        XCTAssertTrue(v.interactions.contains { $0 is UIPointerInteraction }, "cursor")
+        if #available(iOS 15.0, *) {
+            XCTAssertEqual((v.interactions.first { $0 is UIToolTipInteraction } as? UIToolTipInteraction)?.defaultToolTip, "Open settings")
+        }
+        // Hover feedback is native; the script hears Hover because it listens.
+        v.hoverChanged(true, at: CGPoint(x: 10, y: 5))
+        XCTAssertEqual(v.alpha, 0.8 * 0.5, accuracy: 0.001)
+        XCTAssertEqual(v.layer.backgroundColor.map { UIColor(cgColor: $0) }, Colors.argb(0xFFEE_EEEE))
+        // Pressed wins over hovered.
+        v.pressed = true
+        XCTAssertEqual(v.alpha, 0.8 * 0.25, accuracy: 0.001)
+        XCTAssertEqual(v.layer.backgroundColor.map { UIColor(cgColor: $0) }, Colors.argb(0xFF00_0000))
+        v.pressed = false
+        v.hoverChanged(false, at: .zero)
+        XCTAssertEqual(v.alpha, 0.8, accuracy: 0.001)
+        XCTAssertEqual(v.layer.backgroundColor.map { UIColor(cgColor: $0) }, Colors.argb(0xFFFF_FFFF))
+        XCTAssertEqual(h.events(.hover).map { $0.payload.bool("entered") }, [true, false])
+        XCTAssertEqual(h.events(.hover).first?.payload.double("x"), 10)
+        // Cursor shapes: beam for text, lift for pointing; arrow installs nothing.
+        XCTAssertNotNil(h.view(2)!.pointerStyle())
+        XCTAssertNotNil(v.pointerStyle())
+        // Reset on reuse.
+        h.apply { $0.delete(1) }
+        h.apply { $0.create(3, .view, parent: 0, frame: CGRect(x: 0, y: 0, width: 100, height: 44)) }
+        let reused = h.view(3)!
+        XCTAssertTrue(reused === v)
+        XCTAssertFalse(reused.gestureRecognizers?.contains { $0 is UIHoverGestureRecognizer } ?? false)
+        XCTAssertFalse(reused.interactions.contains { $0 is UIPointerInteraction })
+        XCTAssertTrue(reused.interactions.isEmpty)
+        XCTAssertEqual(reused.cursor, .arrow)
+        XCTAssertNil(reused.tooltip)
+    }
+
     func testHardwareKeysRouteToNearestListenerOrRoot() {
         h.apply { b in
             b.create(1, .view, parent: 0, frame: CGRect(x: 0, y: 0, width: 100, height: 100))

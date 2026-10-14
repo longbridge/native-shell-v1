@@ -215,6 +215,20 @@ open class NSHComponentView: UIView, UIGestureRecognizerDelegate {
             hitSlop = a.count == 4 ? UIEdgeInsets(top: CGFloat(a[0]), left: CGFloat(a[3]), bottom: CGFloat(a[2]), right: CGFloat(a[1])) : .zero
         case .focusable:
             break
+        case .hoverOpacity:
+            hoverOpacity = value.number.map { CGFloat($0) }
+            updateFeedbackAlpha()
+            updateGestures()
+        case .hoverBackground:
+            hoverBackground = value.uiColor
+            updateBackground()
+            updateGestures()
+        case .cursor:
+            cursor = value.int.flatMap { CursorStyle(rawValue: Int32($0)) } ?? .arrow
+            updatePointerInteraction()
+        case .tooltip:
+            tooltip = value.string.flatMap { $0.isEmpty ? nil : $0 }
+            updateTooltip()
         default:
             return false
         }
@@ -229,6 +243,7 @@ open class NSHComponentView: UIView, UIGestureRecognizerDelegate {
         setEventMask(0)
         animation = nil
         pressed = false
+        hovered = false
         transform = .identity
         alpha = 1
         applyFrame(.zero)
@@ -247,6 +262,13 @@ open class NSHComponentView: UIView, UIGestureRecognizerDelegate {
     private var backgroundShape: CAShapeLayer?
     private var borderShape: CAShapeLayer?
     private var activeOpacity: CGFloat?
+    private var hoverOpacity: CGFloat?
+    private var hoverBackground: UIColor?
+    private(set) var cursor: CursorStyle = .arrow
+    private(set) var tooltip: String?
+    private var hoverRecognizer: UIGestureRecognizer?
+    private var pointerInteraction: UIInteraction?
+    private var tooltipInteraction: UIInteraction?
     private var activeBackground: UIColor?
     private var hitSlop: UIEdgeInsets = .zero
     private var role: A11yRole = .none
@@ -256,7 +278,16 @@ open class NSHComponentView: UIView, UIGestureRecognizerDelegate {
         radii.allSatisfy({ $0 == radii[0] }) ? radii[0] : nil
     }
 
-    private var currentBackground: UIColor? { pressed && activeBackground != nil ? activeBackground : baseBackground }
+    /// Pressed wins over hovered, as on desktop.
+    private var currentBackground: UIColor? {
+        if pressed, let b = activeBackground { return b }
+        if hovered, let b = hoverBackground { return b }
+        return baseBackground
+    }
+
+    private func updateFeedbackAlpha() {
+        if pressed, let o = activeOpacity { alpha = baseAlpha * o } else if hovered, let o = hoverOpacity { alpha = baseAlpha * o } else { alpha = baseAlpha }
+    }
 
     private func updateBackground() {
         if uniformRadius != nil {
@@ -466,8 +497,17 @@ open class NSHComponentView: UIView, UIGestureRecognizerDelegate {
     var pressed = false {
         didSet {
             guard pressed != oldValue else { return }
-            if let o = activeOpacity { alpha = pressed ? baseAlpha * o : baseAlpha }
-            if activeBackground != nil { updateBackground(); layoutDecorations() }
+            updateFeedbackAlpha()
+            if activeBackground != nil || hoverBackground != nil { updateBackground(); layoutDecorations() }
+        }
+    }
+
+    /// A pointer (iPad trackpad or mouse) is over the view.
+    var hovered = false {
+        didSet {
+            guard hovered != oldValue else { return }
+            updateFeedbackAlpha()
+            if hoverBackground != nil { updateBackground(); layoutDecorations() }
         }
     }
 
@@ -501,6 +541,16 @@ open class NSHComponentView: UIView, UIGestureRecognizerDelegate {
         }
         toggle(&panRecognizer, listens(EventMask.pan)) { UIPanGestureRecognizer(target: self, action: #selector(onPan(_:))) }
         toggle(&pinchRecognizer, listens(EventMask.pinch)) { UIPinchGestureRecognizer(target: self, action: #selector(onPinch(_:))) }
+        let hover = hoverOpacity != nil || hoverBackground != nil || listens(EventMask.hover)
+        if hover, hoverRecognizer == nil {
+            let g = UIHoverGestureRecognizer(target: self, action: #selector(onHover(_:)))
+            addGestureRecognizer(g)
+            hoverRecognizer = g
+        } else if !hover, let g = hoverRecognizer {
+            removeGestureRecognizer(g)
+            hoverRecognizer = nil
+            hovered = false
+        }
         let press = activeOpacity != nil || activeBackground != nil || listens(EventMask.pressIn) || listens(EventMask.pressOut)
         toggle(&pressRecognizer, press) { PressGestureRecognizer(target: self, action: #selector(onPress(_:))) }
     }
@@ -536,6 +586,66 @@ open class NSHComponentView: UIView, UIGestureRecognizerDelegate {
     @objc func onPinch(_ g: UIPinchGestureRecognizer) {
         guard let phase = Self.phase(g.state) else { return }
         send(.pinch, ["phase": phase, "scale": Double(g.scale)])
+    }
+
+    @objc func onHover(_ g: UIGestureRecognizer) {
+        let p = g.location(in: self)
+        switch g.state {
+        case .began: hoverChanged(true, at: p)
+        case .ended, .cancelled, .failed: hoverChanged(false, at: p)
+        default: break
+        }
+    }
+
+    /// Pointer entered or left: native feedback, then `Hover` if the script listens.
+    func hoverChanged(_ entered: Bool, at p: CGPoint) {
+        hovered = entered
+        if listens(EventMask.hover) { send(.hover, ["entered": entered, "x": Double(p.x), "y": Double(p.y)]) }
+    }
+
+    // MARK: Pointer
+
+    private func updatePointerInteraction() {
+        let want = cursor != .arrow
+        if want, pointerInteraction == nil {
+            let i = UIPointerInteraction(delegate: self)
+            addInteraction(i)
+            pointerInteraction = i
+        } else if !want, let i = pointerInteraction {
+            removeInteraction(i)
+            pointerInteraction = nil
+        }
+    }
+
+    /// The iPad pointer style for a GPUI cursor: a beam for text, a lift for
+    /// pointing hands and other interactive cursors; others fall back to the default.
+    func pointerStyle() -> UIPointerStyle? {
+        switch cursor {
+        case .iBeam:
+            return UIPointerStyle(shape: .verticalBeam(length: max(16, min(bounds.height, 28))), constrainedAxes: [])
+        case .iBeamCursorForVerticalLayout:
+            return UIPointerStyle(shape: .horizontalBeam(length: max(16, min(bounds.width, 28))), constrainedAxes: [])
+        case .pointingHand, .openHand, .closedHand, .dragLink, .dragCopy, .contextualMenu:
+            guard window != nil else { return nil }
+            return UIPointerStyle(effect: .lift(UITargetedPreview(view: self)))
+        default:
+            return nil
+        }
+    }
+
+    private func updateTooltip() {
+        if #available(iOS 15.0, *) {
+            if let text = tooltip {
+                if let t = tooltipInteraction as? UIToolTipInteraction { t.defaultToolTip = text } else {
+                    let t = UIToolTipInteraction(defaultToolTip: text)
+                    addInteraction(t)
+                    tooltipInteraction = t
+                }
+            } else if let t = tooltipInteraction {
+                removeInteraction(t)
+                tooltipInteraction = nil
+            }
+        }
     }
 
     @objc func onPress(_ g: PressGestureRecognizer) {
@@ -663,5 +773,11 @@ enum Paths {
         p.addArc(tangent1End: CGPoint(x: r.minX, y: r.minY), tangent2End: CGPoint(x: r.minX + tl, y: r.minY), radius: tl)
         p.closeSubpath()
         return p
+    }
+}
+
+extension NSHComponentView: UIPointerInteractionDelegate {
+    public func pointerInteraction(_ interaction: UIPointerInteraction, styleFor region: UIPointerRegion) -> UIPointerStyle? {
+        pointerStyle()
     }
 }
