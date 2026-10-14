@@ -31,6 +31,7 @@ mod children;
 mod layout;
 mod props;
 mod reconcile;
+mod stretch;
 pub mod testing;
 
 use std::collections::HashMap;

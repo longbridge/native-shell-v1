@@ -429,7 +429,7 @@ impl Converter<'_> {
             "segmented" => ElementKind::Segmented,
             "select" => ElementKind::Select,
             "date" => ElementKind::DatePicker,
-            "shape" => ElementKind::Shape,
+            "shape" => ElementKind::Shape { stretch: field(obj, "_stretch")?.as_bool() == Some(true) },
             "host" => ElementKind::HostComponent(string_field(obj, "_hn")?.ok_or("host component without a name")?),
             "list" => return self.list(obj),
             "row" => return Err("list rows can only appear inside a list".into()),
@@ -547,13 +547,13 @@ impl Converter<'_> {
         match icon.layers.as_slice() {
             [] => {}
             [layer] => {
-                d.kind = ElementKind::Shape;
+                d.kind = ElementKind::Shape { stretch: false };
                 paint(layer, &mut d.props);
             }
             layers => {
                 let overlay = self.overlay_style()?;
                 for layer in layers {
-                    let mut shape = Desc::new(ElementKind::Shape, overlay.clone());
+                    let mut shape = Desc::new(ElementKind::Shape { stretch: false }, overlay.clone());
                     paint(layer, &mut shape.props);
                     d.children.push(shape);
                     self.nodes += 1;
