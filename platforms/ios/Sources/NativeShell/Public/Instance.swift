@@ -140,41 +140,7 @@ public final class NSHInstance: NSObject {
     /// `{"manifest", "files"}` JSON for a program directory (hidden entries and
     /// `node_modules` skipped).
     public static func programSources(directory: URL) throws -> String {
-        let manifestURL = directory.appendingPathComponent("native-shell.json")
-        let manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL))
-        var files: [String: String] = [:]
-        let base = directory.standardizedFileURL.path
-        let e = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles])
-        while let url = e?.nextObject() as? URL {
-            if url.lastPathComponent == "node_modules" {
-                e?.skipDescendants()
-                continue
-            }
-            guard (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true,
-                  url.lastPathComponent != "native-shell.json" else { continue }
-            let path = url.standardizedFileURL.path
-            guard path.hasPrefix(base + "/") else { continue }
-            let data = try Data(contentsOf: url)
-            files[String(path.dropFirst(base.count + 1))] = String(data: data, encoding: .utf8)
-                ?? "data:\(mimeType(url.pathExtension));base64,\(data.base64EncodedString())"
-        }
-        return JSON.string(["manifest": manifest, "files": files])
-    }
-
-    /// The same table as the CLI's; the engine only needs the base64 payload.
-    private static func mimeType(_ ext: String) -> String {
-        switch ext.lowercased() {
-        case "png": return "image/png"
-        case "jpg", "jpeg": return "image/jpeg"
-        case "gif": return "image/gif"
-        case "webp": return "image/webp"
-        case "svg": return "image/svg+xml"
-        case "ttf": return "font/ttf"
-        case "otf": return "font/otf"
-        case "woff2": return "font/woff2"
-        case "json": return "application/json"
-        default: return "application/octet-stream"
-        }
+        try ProgramDirectory.sourcesJSON(directory)
     }
 
     /// Loads a signed `.nspkg` bundle; its signature is checked against `NSHRuntime.trustedKeys`.
