@@ -32,6 +32,7 @@ use serde::Serialize;
 use taffy::prelude::*;
 use taffy::style::{Overflow, Position as TaffyPosition};
 
+use crate::protocol::CursorStyle;
 use crate::theme::Theme;
 
 #[rustfmt::skip]
@@ -304,6 +305,11 @@ pub struct Resolved {
     pub transitions: Vec<Transition>,
     pub active_opacity: Option<f32>,
     pub active_background: Option<u32>,
+    /// `.hover(…)`: applied natively while a pointer is over the node (pointer platforms).
+    pub hover_opacity: Option<f32>,
+    pub hover_background: Option<u32>,
+    /// The pointer's shape over the node (`cursor_pointer` …).
+    pub cursor: Option<CursorStyle>,
     pub border_widths: [f32; 4],
     /// Which of the lengths above were given in rems.
     pub rems: RemLengths,
@@ -488,8 +494,18 @@ fn apply_state(r: &mut Resolved, state: &str, inner: &[StyleOp], theme: &Theme) 
             }
             Ok(())
         }
-        // Touch screens have no hover; focus rings are drawn natively.
-        "hover" | "focus" | "focus_visible" | "group_hover" => Ok(()),
+        // Like `active`, applied by the renderer without a round trip; touch screens ignore it.
+        "hover" => {
+            if s.visual.opacity < 1.0 {
+                r.hover_opacity = Some(s.visual.opacity);
+            }
+            if let Some(bg) = s.visual.background {
+                r.hover_background = Some(bg);
+            }
+            Ok(())
+        }
+        // Focus rings are drawn natively.
+        "focus" | "focus_visible" | "group_hover" => Ok(()),
         other => Err(StyleError(format!("unknown state style `{other}`"))),
     }
 }
@@ -947,7 +963,9 @@ fn apply_effect(r: &mut Resolved, e: Effect) {
                 .collect();
             set_shadows(r, shadows);
         }
-        Effect::Cursor(_) | Effect::Debug(_) | Effect::DebugBelow(_) => {}
+        // The generated table names GPUI's `CursorStyle` variants, which the protocol mirrors.
+        Effect::Cursor(name) => r.cursor = CursorStyle::ALL.iter().copied().find(|c| c.name() == name),
+        Effect::Debug(_) | Effect::DebugBelow(_) => {}
         Effect::Opacity(v) => r.visual.opacity = v.clamp(0.0, 1.0),
         Effect::GridCols(g) => r.layout.grid_template_columns = grid_template(g),
         Effect::GridRows(g) => r.layout.grid_template_rows = grid_template(g),
@@ -1528,8 +1546,8 @@ mod tests {
         assert!(one("hidden").is_hidden());
         assert_eq!(one("block").layout.display, Display::Block);
         assert_eq!(one("absolute").layout.position, TaffyPosition::Absolute);
-        // Pointer cursors are accepted and do nothing on touch screens.
-        assert_eq!(one("cursor_pointer"), Resolved::base());
+        // A cursor sets only the pointer shape (pointer platforms; touch screens ignore it).
+        assert_eq!(one("cursor_pointer"), Resolved { cursor: Some(CursorStyle::PointingHand), ..Resolved::base() });
     }
 
     #[test]
@@ -1684,5 +1702,22 @@ mod tests {
         assert_eq!(r.text.size, Some(14.0));
         // At the base rem nothing changes.
         assert_eq!(r.scaled_layout(REM), r.layout);
+    }
+
+    #[test]
+    fn hover_state_and_cursors() {
+        let mut o = op("hover");
+        o.nested = Some(("hover".into(), vec![opa("opacity", vec![Arg::Num(0.8)]), opa("bg", vec![s("muted")])]));
+        let r = resolve(&[o, op("cursor_pointer")], &theme()).unwrap();
+        assert_eq!(r.hover_opacity, Some(0.8));
+        assert_eq!(r.hover_background, theme().color("muted"));
+        assert_eq!(r.cursor, Some(CursorStyle::PointingHand));
+        assert_eq!(r.active_opacity, None);
+        // Every generated cursor method names a protocol cursor.
+        let cursors: Vec<String> = nullary_names().into_iter().filter(|n| n.starts_with("cursor_")).collect();
+        assert!(cursors.len() >= 21, "{cursors:?}");
+        for name in &cursors {
+            assert!(one(name).cursor.is_some(), "{name}");
+        }
     }
 }
