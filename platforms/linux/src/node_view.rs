@@ -241,7 +241,8 @@ impl NodeView {
         }
     }
 
-    fn allocate_at_frame(&self) {
+    /// Allocates this node at the frame the core gave it, in its parent's coordinates.
+    pub fn allocate_at_frame(&self) {
         let Some(f) = self.frame() else {
             self.allocate(0, 0, -1, None);
             return;

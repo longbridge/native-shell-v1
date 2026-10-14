@@ -5,6 +5,11 @@ mod control;
 mod date_picker;
 mod host_component;
 mod list;
+pub mod modal;
+#[cfg(test)]
+mod overlay_tests;
+pub mod overlays;
+pub mod pages;
 mod progress;
 mod scroll;
 mod segmented;
@@ -16,6 +21,8 @@ mod toggle;
 use native_shell_core::protocol::ViewType;
 
 use crate::component::{Component, NodeCx, Plain};
+
+pub use overlays::root;
 
 pub fn create(view_type: ViewType, cx: &NodeCx) -> Box<dyn Component> {
     match view_type {
@@ -33,6 +40,9 @@ pub fn create(view_type: ViewType, cx: &NodeCx) -> Box<dyn Component> {
         ViewType::Select => Box::new(select::Select::new(cx)),
         ViewType::DatePicker => Box::new(date_picker::DatePicker::new(cx)),
         ViewType::HostComponent => Box::<host_component::HostComponentNode>::default(),
+        ViewType::Page => pages::create(cx),
+        ViewType::Sheet => modal::create(cx, modal::ModalKind::Sheet),
+        ViewType::Dialog => modal::create(cx, modal::ModalKind::Dialog),
         _ => Box::new(Plain),
     }
 }

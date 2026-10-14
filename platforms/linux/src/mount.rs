@@ -11,7 +11,7 @@ use gtk::{graphene, gsk};
 
 use native_shell_core::protocol::{self, Mutation, Prop, PropValue, ViewType, ROOT_NODE};
 
-use crate::component::{self, Component, NodeCx, Plain, Shared};
+use crate::component::{self, Component, NodeCx, Shared};
 use crate::node_view::{NodeView, Shadow};
 use crate::theme::ThemeTokens;
 
@@ -33,12 +33,14 @@ pub struct MountingManager {
 impl MountingManager {
     pub fn new(shared: Rc<Shared>) -> MountingManager {
         let mut nodes = HashMap::new();
+        let root_cx = NodeCx { node: ROOT_NODE, view: &shared.root, shared: &shared };
+        let root_component = crate::components::root(&root_cx);
         nodes.insert(
             ROOT_NODE,
             Node {
                 view: shared.root.clone(),
                 view_type: ViewType::View,
-                component: Box::new(Plain),
+                component: root_component,
                 parent: None,
                 mask: 0,
             },
@@ -123,6 +125,8 @@ impl MountingManager {
                 }
             }
         }
+        // The root presents the surfaces the batch changed once it is complete.
+        touched.push(ROOT_NODE);
         touched.sort_unstable();
         touched.dedup();
         for node in touched {
@@ -165,12 +169,15 @@ impl MountingManager {
         if node == ROOT_NODE {
             return;
         }
+        let keep_views = self.nodes.get(&node).is_some_and(|n| n.component.keeps_views_on_delete());
         let mut stack = vec![node];
         while let Some(id) = stack.pop() {
             stack.extend(self.nodes.iter().filter(|(_, n)| n.parent == Some(id)).map(|(k, _)| *k));
             self.with_node(id, |component, cx| component.unmount(cx));
             if let Some(n) = self.nodes.remove(&id) {
-                n.view.detach();
+                if !keep_views {
+                    n.view.detach();
+                }
             }
         }
     }

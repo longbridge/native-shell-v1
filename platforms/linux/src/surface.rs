@@ -105,6 +105,7 @@ impl SurfaceView {
             theme: RefCell::new(ThemeTokens::default()),
             root: imp.root.clone(),
             runtime: instance.runtime().clone(),
+            overlays: Default::default(),
         });
         imp.manager.replace(Some(MountingManager::new(shared)));
         imp.instance.replace(Some(instance.clone()));

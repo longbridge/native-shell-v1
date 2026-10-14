@@ -24,6 +24,8 @@ pub struct Shared {
     pub root: NodeView,
     /// Host component types and the log sink.
     pub runtime: crate::runtime::Runtime,
+    /// Presents pages, sheets, dialogs and toasts; set up by the root component.
+    pub overlays: crate::components::overlays::Overlays,
 }
 
 /// The node a component call is about.
@@ -66,6 +68,13 @@ pub trait Component {
 
     /// The node is being deleted.
     fn unmount(&mut self, _cx: &NodeCx) {}
+
+    /// When this node is the root of a deleted subtree, its views stay where
+    /// they are instead of being detached: a page or sheet runs its exit
+    /// transition first and releases them itself when it ends.
+    fn keeps_views_on_delete(&self) -> bool {
+        false
+    }
 }
 
 /// Plain container: everything is base view behavior.

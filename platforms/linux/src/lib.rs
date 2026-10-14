@@ -11,6 +11,8 @@
 mod clipboard;
 mod component;
 mod components;
+#[cfg(test)]
+mod gtk_test;
 mod instance;
 mod mount;
 mod node_view;
@@ -18,6 +20,7 @@ mod runtime;
 mod surface;
 mod text;
 mod theme;
+mod toast;
 
 pub use instance::{default_data_dir, Instance, InstanceOptions};
 pub use native_shell::{Limits, Metrics, ThemeConfig};
