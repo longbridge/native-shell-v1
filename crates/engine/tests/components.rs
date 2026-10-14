@@ -183,3 +183,26 @@ fn a_control_is_drawn_or_native_by_how_it_is_built_not_by_this_renders_children(
     assert_eq!(empty.len(), 1, "the checked drawn switch without children, once: {empty:?}");
     assert!(empty[0].contains("`box`"), "{empty:?}");
 }
+
+#[test]
+fn a_select_keeps_its_width_as_its_value_changes() {
+    // Sized by its widest option, as iOS pop-up buttons and Android spinners are.
+    let main = r#"
+import { View, h_flex, Select } from "native-shell";
+export default class S extends View {
+  init() { this.value = "dark"; }
+  render() {
+    return h_flex().child(Select.new("theme").test_id("theme").items([
+      { label: "Dark", value: "dark" },
+      { label: "Match the system", value: "system" },
+    ]).value(this.value).on_change((v, cx) => { this.value = v; cx.notify(); }));
+  }
+}
+"#;
+    let mut h = Harness::new(&[("main.js", main)]);
+    let short = h.frame("theme").width;
+    h.select("theme", 1);
+    assert_eq!(h.frame("theme").width, short, "the width did not jump");
+    // The fake measurer gives 8 per character + 32: "Match the system" is the widest.
+    assert_eq!(short, 8.0 * 16.0 + 32.0);
+}
