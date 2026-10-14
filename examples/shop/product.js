@@ -218,6 +218,13 @@ export default class ProductPage extends View {
       );
   }
 
+  buyLabel(cx, atLimit) {
+    if (atLimit) return `Limit of ${MAX_QUANTITY} reached`;
+    // At accessibility text sizes the total doesn't fit beside the verb; the price is on the page above.
+    if (cx.window().font_scale >= 1.5) return "Add to Cart";
+    return `Add to Cart · ${money(this.product.price * this.quantity)}`;
+  }
+
   buyBar(cx) {
     const t = cx.theme();
     const atLimit = store.quantityOf(this.product.id, this.color, this.size) >= MAX_QUANTITY;
@@ -238,7 +245,7 @@ export default class ProductPage extends View {
           .flex_1()
           .disabled(atLimit)
           .on_click((_e, cx) => this.add(cx))
-          .child(atLimit ? `Limit of ${MAX_QUANTITY} reached` : `Add to Cart · ${money(this.product.price * this.quantity)}`),
+          .child(this.buyLabel(cx, atLimit)),
       );
   }
 }
