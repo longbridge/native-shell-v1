@@ -497,19 +497,19 @@ fn components_status_page_walks_an_order_through_its_states() {
     assert_eq!(h.surfaces().len(), 2);
 
     // Recommendations load behind still placeholders, then appear; Refresh repeats it.
-    assert!(h.find("picks-loading").is_some() && h.find("picks").is_none());
+    assert!(h.find("picks-loading").is_some() && h.find("pick-ink").is_none());
     assert!(h.texts().contains(&"Finding picks for you…".to_string()));
     h.advance(1300.0);
-    assert!(h.find("picks").is_some() && h.find("picks-loading").is_none());
+    assert!(h.find("pick-ink").is_some() && h.find("picks-loading").is_none());
     h.tap("refresh-picks");
     assert!(h.find("picks-loading").is_some());
     h.advance(1300.0);
-    assert!(h.find("picks").is_some());
+    assert!(h.find("pick-ink").is_some());
 
     // Delayed: a warning tag and a dismissible banner.
     assert_eq!(h.text_of("order-tag"), "Delayed");
     assert_eq!(h.prop("order-alert", Prop::A11yLabel), Some(PropValue::Str(
-        "Running late. A storm held your parcel in Memphis. New estimate: Saturday, October 18.".into()
+        "Running Late. A storm held your parcel in Memphis. New estimate: Saturday, October 18.".into()
     )));
     let dismiss = labeled(&h, "Dismiss");
     assert_eq!(dismiss.len(), 1);
@@ -519,8 +519,8 @@ fn components_status_page_walks_an_order_through_its_states() {
     // Payment issue: an error banner, a fix, and a dot on the Account tab.
     assert!(h.find("account-badge").is_none());
     h.select("delivery-state", 2);
-    assert_eq!(h.text_of("order-tag"), "On hold");
-    assert!(h.text_of("order-alert").starts_with("Payment declined"));
+    assert_eq!(h.text_of("order-tag"), "On Hold");
+    assert!(h.text_of("order-alert").starts_with("Payment Declined"));
     assert!(h.find("account-badge").is_some());
     h.clear_commands();
     h.tap("update-payment");

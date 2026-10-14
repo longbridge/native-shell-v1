@@ -635,6 +635,12 @@ declare module "native-shell" {
 
   /** `list(...)` and `uniform_list(...)`. */
   export interface ListElement extends Element {
+    /**
+     * Mobile: GPUI's `ListAlignment` (gpui-shell always uses top). `"bottom"`
+     * opens the list at its end and keeps the end in view while the user is
+     * there — a chat thread as messages arrive and the keyboard rises.
+     */
+    alignment(value: "top" | "bottom"): this;
     /** Mobile: the height assumed for rows not yet rendered. */
     estimated_row_height(px: number): this;
     /**
