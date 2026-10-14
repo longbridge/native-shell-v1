@@ -16,6 +16,11 @@ nshell check examples/components
 | Selection | Checkout preferences | Switches for settings that apply at once, checkmarks for independent choices and for one of a small set, an unavailable option kept visible with its reason; the whole row is the control |
 | Sliders and Progress | Slideshow settings and an upload | The value written next to each slider; a spinner while the wait is unknown, then determinate progress with Cancel Upload; the finished state |
 | Pickers | A table booking | A segmented control for two modes, menus for longer lists, the native date picker, and a footer sentence that reads the booking back |
+| Description List | An order's details | The status with its one action (a split button: *Track Package*, or another delivery option from its menu), then the order, items and delivery as label/value rows and a two-column grid; less frequent actions in a *More* menu; a loading state while the order arrives |
+| Tree | A project's files | Folders that open in place with a turning disclosure chevron, the selected file's details, a path above that goes back to any folder, a toolbar that sorts (a pull-down menu), counts and adds a folder |
+| Calendar | A cabin booking | Past and booked nights dimmed, a check-in to check-out range (one date for a day visit), and a summary that prompts for what is missing, explains a stay across a booked night, or prices the stay; *Request Booking* waits for valid dates |
+| Carousel | A trip's photo album | Photos paged by swipe, arrows and dots, a caption under each, a star to keep it, and Favorites with its empty state |
+| Settings | Notification preferences | Two pages on a segmented control, inset grouped sections with footers, and rows that stay visible but disabled, with the reason, while notifications are off |
 | Overlays | A shared document | The smallest surface for each decision: a sheet for share targets, an alert-style dialog for a one-field rename, a toast for a result you can’t see (making it available offline), an alert for a deletion that can’t be undone |
 
 ## Design notes
@@ -23,7 +28,8 @@ nshell check examples/components
 **Primary task.** Find how a control looks and behaves in context, then read
 the page's code.
 
-**Hierarchy.** The index is an inset grouped list (Actions, Input, Feedback)
+**Hierarchy.** The index is an inset grouped list (Actions, Input, Data and
+Navigation, Feedback)
 under a large title that collapses as it scrolls; each row has a colored icon
 tile, names the component family and its scenario, and pushes a page with the
 native transition, a navigation bar with "Components" as the back label, and
@@ -40,5 +46,8 @@ the verb, with Cancel first and the destructive action in red.
 
 **States.** Every page shows its rest, pressed and disabled states; Buttons
 and Sliders and Progress show loading; Text Fields shows validation errors;
-Pickers shows the requested state; Overlays shows the deleted state. All of
-them use theme tokens only and grow with Dynamic Type.
+Pickers shows the requested state; Overlays shows the deleted state;
+Description List loads; Calendar prompts, explains a clash and requests;
+Carousel has an empty Favorites; Settings disables what depends on a switch. All of
+them use theme tokens only (the album's photos are illustrations in
+`assets/photos`) and grow with Dynamic Type.

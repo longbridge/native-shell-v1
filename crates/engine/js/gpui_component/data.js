@@ -10,7 +10,7 @@
 import { scope } from "nsh:core";
 import { Element, div, h_flex, v_flex, list, chainKey } from "nsh:elements";
 import { IconElement } from "nsh:component/icons";
-import { TEXT, LEADING, CARD, checkSize, separator } from "nsh:component/shared";
+import { TEXT, LEADING, CARD, isComponentSize, separator, sectionHeader } from "nsh:component/shared";
 
 export { IconElement as Icon } from "nsh:component/icons";
 export { Tree, TreeItem } from "nsh:component/tree";
@@ -107,7 +107,8 @@ export class DescriptionList extends Element {
   }
 
   size(size) {
-    this._size = checkSize(size, "DescriptionList.size()");
+    if (!isComponentSize(size)) return super.size(size);
+    this._size = size;
     return this._sync();
   }
 
@@ -216,14 +217,14 @@ export class GroupBox extends Element {
 
   constructor() {
     super("view");
-    this._preset([["flex"], ["flex_col"], ["gap_2"]]);
+    this._preset([["flex"], ["flex_col"]]);
     this._title = null;
     this._content = new Element("view")._preset(GROUP_KEYS.normal);
     this._sync();
   }
 
   title(title) {
-    this._title = title instanceof Element ? title : div().role("header").px_4().text_size(TEXT.footnote).line_height(LEADING.footnote).text_color("muted_foreground").child(String(title));
+    this._title = title instanceof Element ? title : sectionHeader(title);
     return this._sync();
   }
 
@@ -273,8 +274,8 @@ export class Toolbar extends Element {
 
 /**
  * A path of places, the current one last. The earlier ones are tinted
- * buttons that go back there (`on_click(index)`, mobile); the row scrolls
- * sideways when the path is longer than the screen.
+ * buttons that go back there (`on_item_click(index)`, mobile); a path longer than
+ * the screen wraps, so the current place is never cut off.
  */
 export class Breadcrumb extends Element {
   static new(labels) {
@@ -285,7 +286,7 @@ export class Breadcrumb extends Element {
     super("view");
     if (!Array.isArray(labels) || labels.some((l) => typeof l !== "string")) throw new TypeError("Breadcrumb(labels) expects an array of strings");
     this._onClick = null;
-    this._preset([["flex"], ["flex_row"], ["items_center"], ["overflow_x_scroll"]]);
+    this._preset([["flex"], ["flex_row"], ["flex_wrap"], ["items_center"]]);
     this._P().role = "list";
     const last = labels.length - 1;
     labels.forEach((label, i) => {
@@ -306,8 +307,8 @@ export class Breadcrumb extends Element {
   }
 
   /** Mobile: `(index, cx)` when an earlier place in the path is tapped. */
-  on_click(fn) {
-    if (typeof fn !== "function") throw new TypeError(".on_click(handler) expects a function");
+  on_item_click(fn) {
+    if (typeof fn !== "function") throw new TypeError(".on_item_click(handler) expects a function");
     this._onClick = fn;
     return this;
   }
@@ -430,7 +431,8 @@ export class TabBar extends Element {
   }
 
   size(size) {
-    this._size = checkSize(size, "TabBar.size()");
+    if (!isComponentSize(size)) return super.size(size);
+    this._size = size;
     return this._sync();
   }
 
