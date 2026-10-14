@@ -1,103 +1,148 @@
 // Chat: one conversation thread.
 //
-// The thread reads bottom-up like every messenger: newest at the bottom, the
-// composer under it and always above the keyboard, Return sends. Messages
-// from one sender a few minutes apart form a burst (tight spacing, one tail),
-// days are separated by a quiet label, and delivery state is shown once, under
-// your latest message. A tap or a long press on a message opens its actions,
+// The thread reads bottom-up like every messenger: it opens at the newest
+// message, the composer sits under it and always above the keyboard, Return
+// sends. Messages from one sender a few minutes apart form a burst (tight
+// spacing, one tail), days and unread messages are marked, and delivery state
+// is shown once, under your latest message. Photos and files travel with
+// their upload state. A tap or a long press on a message opens its actions,
 // so nothing depends on discovering the gesture. See README.md.
+//
+// The thread is built from gpui-component's conversation parts: a
+// `MessageScroller` (a bottom-aligned list that keeps the newest row in view
+// as messages arrive and the keyboard rises), `Message`, `Bubble`,
+// `Attachment` and `Marker`.
 
-import { View, div, h_flex, v_flex, list, Button, Input, InputState, Spinner } from "native-shell";
-import { CONTACT, recentMessages, fetchEarlier, clock, dayLabel, sameBurst } from "./conversation.js";
+import { View, div, h_flex, v_flex, image, Button, Input, InputState } from "native-shell";
+import { Attachment, Bubble, Marker, Message, MessageScroller, MessageScrollerState } from "gpui-component";
+import { CONTACT, recentMessages, fetchEarlier, clock, dayLabel, sameBurst, summary } from "./conversation.js";
 import { avatar, icon } from "./ui.js";
+/** @import { Message as Msg } from "./conversation.js" */
+/** @import { Context } from "native-shell" */
 
 const UNDO_MS = 5000;
 
 export default class Chat extends View {
-  init(_props, cx) {
-    /** @type {import("./conversation.js").Message[]} */
+  init() {
+    /** @type {Msg[]} */
     this.messages = recentMessages();
     /** "more" | "loading" | "done" | "error" */
     this.history = "more";
     this.undo = null;
     this.nextId = 1;
+    this.scroller = MessageScrollerState(this.rows().length);
     this.draft = InputState.new({ placeholder: "Message", return_key: "send", auto_capitalize: "sentences" });
     this.draft.on("change", (_e, cx) => cx.notify());
     this.draft.on("submit", (_e, cx) => this.send(cx));
-    // The keyboard rises over a few hundred milliseconds, and its height reaches
-    // layout at a different moment on each platform; keep the newest message in
-    // view once it has settled.
-    this.draft.on("focus", (_e, cx) => {
-      for (const ms of [300, 700]) cx.timer.after(ms, (cx) => this.scrollToEnd(cx));
-    });
-    cx.timer.after(0, (cx) => this.scrollToEnd(cx));
   }
 
   rows() {
+    /** @type {any[]} */
     const rows = [{ key: "history", kind: "history" }];
     const lastMine = this.messages.findLastIndex((m) => m.from === "me");
+    const firstUnread = this.messages.findIndex((m) => m.unread);
     this.messages.forEach((m, i) => {
       const prev = this.messages[i - 1];
       const label = dayLabel(m.at);
       if (!prev || dayLabel(prev.at) !== label) rows.push({ key: `day-${label}`, kind: "day", label, at: m.at });
+      if (i === firstUnread) {
+        rows.push({ key: "unread", kind: "unread", count: this.messages.filter((x) => x.unread).length });
+      }
       rows.push({
         key: m.id,
         kind: "message",
         message: m,
-        joined: sameBurst(prev, m) && dayLabel(prev.at) === label,
+        joined: sameBurst(prev, m) && dayLabel(prev.at) === label && i !== firstUnread,
         tail: !sameBurst(m, this.messages[i + 1]),
         showStatus: i === lastMine,
+        last: i === this.messages.length - 1,
       });
     });
     return rows;
   }
 
-  scrollToEnd(cx) {
-    cx.scroll_to_item("messages", this.rows().length - 1, "bottom");
+  /**
+   * Replaces the messages and tells the scroller how the rows moved: older
+   * history arrives above, new messages below.
+   * @param {Msg[]} messages
+   * @param {"above" | "below" | "within"} where
+   */
+  setMessages(messages, where) {
+    const before = this.rows().length;
+    this.messages = messages;
+    const after = this.rows().length;
+    if (where === "above") this.scroller.prepend(after - before);
+    else if (where === "below") this.scroller.append(after - before);
+    else this.scroller.splice(0, before, after);
   }
 
+  /** @param {string} id @param {Partial<Msg>} change */
+  patch(id, change) {
+    this.messages = this.messages.map((m) => (m.id === id ? { ...m, ...change } : m));
+  }
+
+  /** @param {Context} cx */
   send(cx) {
     const text = this.draft.value().trim();
     if (text === "") return;
-    const message = /** @type {import("./conversation.js").Message} */ ({
-      id: `new-${this.nextId++}`,
-      from: "me",
-      text,
-      at: Date.now(),
-      status: "sending",
-    });
-    this.messages = [...this.messages, message];
+    /** @type {Msg} */
+    const message = { id: `new-${this.nextId++}`, from: "me", text, at: Date.now(), status: "sending" };
+    this.setMessages([...this.messages, message], "below");
     this.draft.set_value("");
+    // Sending from further up the thread brings you back to it.
+    this.scroller.scroll_to_end();
     cx.notify();
-    this.scrollToEnd(cx);
     this.deliver(message.id, cx);
   }
 
-  // A stand-in for the network round trip that confirms delivery.
+  /**
+   * A stand-in for the network round trip that confirms delivery.
+   * @param {string} id @param {Context} cx
+   */
   deliver(id, cx) {
     cx.timer.after(700, (cx) => {
-      this.setStatus(id, "sent");
+      this.patch(id, { status: "sent" });
       cx.notify();
     });
   }
 
-  setStatus(id, status) {
-    this.messages = this.messages.map((m) => (m.id === id ? { ...m, status } : m));
+  /**
+   * A stand-in for an upload: progress in steps, then delivered.
+   * @param {Msg} message @param {Context} cx
+   */
+  upload(message, cx) {
+    const attachment = message.attachment;
+    if (attachment === undefined) return;
+    let progress = 0;
+    const task = cx.timer.every(150, (cx) => {
+      progress = Math.min(100, progress + 20);
+      const done = progress === 100;
+      this.patch(message.id, { attachment: { ...attachment, progress: done ? undefined : progress }, status: done ? "sent" : "sending" });
+      if (done) task.cancel();
+      cx.notify();
+    });
   }
 
+  /** @param {Msg} message @param {Context} cx */
   retry(message, cx) {
-    this.setStatus(message.id, "sending");
+    if (message.attachment) {
+      this.patch(message.id, { status: "sending", attachment: { ...message.attachment, progress: 0 } });
+      this.upload(message, cx);
+    } else {
+      this.patch(message.id, { status: "sending" });
+      this.deliver(message.id, cx);
+    }
     cx.notify();
-    this.deliver(message.id, cx);
   }
 
+  /** @param {Context} cx */
   loadEarlier(cx) {
     this.history = "loading";
     cx.notify();
     cx.spawn(async (cx) => {
       try {
         const page = await fetchEarlier(cx);
-        this.messages = [...page.messages, ...this.messages];
+        this.setMessages([...page.messages, ...this.messages], "above");
         this.history = page.more ? "more" : "done";
       } catch {
         this.history = "error";
@@ -106,9 +151,13 @@ export default class Chat extends View {
     });
   }
 
+  /** @param {Msg} message @param {Context} cx */
   remove(message, cx) {
     const index = this.messages.findIndex((m) => m.id === message.id);
-    this.messages = this.messages.filter((m) => m.id !== message.id);
+    this.setMessages(
+      this.messages.filter((m) => m.id !== message.id),
+      "within",
+    );
     this.undo?.timer.cancel();
     const timer = cx.timer.after(UNDO_MS, (cx) => {
       this.undo = null;
@@ -118,15 +167,17 @@ export default class Chat extends View {
     cx.notify();
   }
 
+  /** @param {Context} cx */
   restore(cx) {
     if (!this.undo) return;
     const { message, index, timer } = this.undo;
     timer.cancel();
-    this.messages = [...this.messages.slice(0, index), message, ...this.messages.slice(index)];
+    this.setMessages([...this.messages.slice(0, index), message, ...this.messages.slice(index)], "within");
     this.undo = null;
     cx.notify();
   }
 
+  /** @param {Msg} message @param {Context} cx */
   openActions(message, cx) {
     cx.haptic("selection");
     const t = cx.theme();
@@ -170,18 +221,20 @@ export default class Chat extends View {
                   .text_color(t.muted_foreground)
                   .child(`${message.from === "me" ? "You" : CONTACT.name} · ${dayLabel(message.at)}, ${clock(message.at)}`),
               )
-              .child(div().text_base().text_color(t.foreground).line_clamp(3).child(message.text)),
+              .child(div().text_base().text_color(t.foreground).line_clamp(3).child(summary(message))),
           )
           .child(div().h(1).mx_4().mb_1().bg(t.border))
           .when(message.status === "failed", (el) =>
             el.child(action("action-retry", "refresh", "Send again", t.foreground, (cx) => this.retry(message, cx))),
           )
-          .child(
-            action("action-copy", "copy", "Copy text", t.foreground, (cx) => {
-              cx.write_to_clipboard(message.text);
-              // Android shows its own clipboard confirmation; a second one would repeat it.
-              if (cx.window().platform !== "android") cx.push_toast({ title: "Copied", level: "success", timeout: 1500 });
-            }),
+          .when(message.text !== undefined, (el) =>
+            el.child(
+              action("action-copy", "copy", "Copy text", t.foreground, (cx) => {
+                cx.write_to_clipboard(message.text ?? "");
+                // Android shows its own clipboard confirmation; a second one would repeat it.
+                if (cx.window().platform !== "android") cx.push_toast({ title: "Copied", level: "success", timeout: 1500 });
+              }),
+            ),
           )
           .child(action("action-delete", "trash", "Delete for me", t.destructive, (cx) => this.remove(message, cx))),
       { detents: ["medium"] },
@@ -190,28 +243,23 @@ export default class Chat extends View {
 
   render(cx) {
     const t = cx.theme();
-    const win = cx.window();
     const rows = this.rows();
     return v_flex()
       .size_full()
       .bg(t.background)
-      .line_height(1.375)
       .child(this.header(cx))
       .child(
-        list(
-          "messages",
-          rows.length,
-          (i) => rows[i].key,
-          (i, cx) => this.row(rows[i], cx, win),
-        )
+        new MessageScroller("messages", this.scroller, (i) => this.row(rows[i], cx))
           .test_id("messages")
-          .flex_1()
-          .estimated_row_height(60),
+          .jump_button_label("Latest messages")
+          .estimated_row_height(60)
+          .flex_1(),
       )
       .when(this.undo !== null, (el) => el.child(this.undoBar(cx)))
-      .child(this.composer(cx, win));
+      .child(this.composer(cx));
   }
 
+  /** @param {Context} cx */
   header(cx) {
     const t = cx.theme();
     return h_flex()
@@ -231,41 +279,47 @@ export default class Chat extends View {
       );
   }
 
-  row(row, cx, win) {
-    if (row.kind === "history") return this.historyRow(cx);
-    const t = cx.theme();
-    if (row.kind === "day") {
-      return div()
-        .pt_6()
-        .pb_2()
-        .text_center()
-        .text_xs()
-        .font_medium()
-        .text_color(t.muted_foreground)
-        .child(`${row.label} · ${clock(row.at)}`);
+  /** @param {any} row @param {Context} cx */
+  row(row, cx) {
+    switch (row.kind) {
+      case "history":
+        return this.historyRow(cx);
+      case "day":
+        return new Marker(row.key)
+          .alignment("center")
+          .pt_6()
+          .pb_2()
+          .child(div().font_semibold().child(row.label))
+          .child(clock(row.at));
+      case "unread":
+        return new Marker("unread")
+          .test_id("unread")
+          .variant("separator")
+          .px_4()
+          .pt_6()
+          .pb_2()
+          .text_color(cx.theme().primary)
+          .child(`${row.count} unread ${row.count === 1 ? "message" : "messages"}`);
+      default:
+        return this.messageRow(row, cx);
     }
-    return this.messageRow(row, cx, win);
   }
 
+  /** @param {Context} cx */
   historyRow(cx) {
     const t = cx.theme();
-    const box = h_flex().justify_center().gap_2().px_4().pt_4().pb_2().min_h_12();
+    const box = h_flex().key("history").justify_center().px_4().pt_4().pb_2().min_h_12();
     switch (this.history) {
       case "loading":
-        return box
-          .test_id("history-loading")
-          .child(Spinner.new())
-          .child(div().text_sm().text_color(t.muted_foreground).child("Loading earlier messages…"));
+        return box.child(new Marker("history-loading").test_id("history-loading").alignment("center").loading(true).child("Loading earlier messages…"));
       case "done":
-        return box
-          .test_id("history-start")
-          .child(
-            div()
-              .text_sm()
-              .text_center()
-              .text_color(t.muted_foreground)
-              .child(`This is the beginning of your conversation with ${CONTACT.name}.`),
-          );
+        return box.child(
+          new Marker("history-start")
+            .test_id("history-start")
+            .alignment("center")
+            .text_center()
+            .child(`This is the beginning of your conversation with ${CONTACT.name}.`),
+        );
       default:
         return box.child(
           Button.new("load-earlier")
@@ -289,47 +343,62 @@ export default class Chat extends View {
     }
   }
 
-  messageRow({ message: m, joined, tail, showStatus }, cx, win) {
-    const t = cx.theme();
+  /** @param {{ message: Msg, joined: boolean, tail: boolean, showStatus: boolean, last: boolean }} row @param {Context} cx */
+  messageRow({ message: m, joined, tail, showStatus, last }, cx) {
     const mine = m.from === "me";
     const failed = m.status === "failed";
-    const bubble = Button.new(`bubble-${m.id}`)
+    return new Message()
+      .key(m.id)
+      .alignment(mine ? "end" : "start")
+      .px_4()
+      .pt(joined ? 2 : 12)
+      // The newest message keeps a gap above the composer.
+      .when(last, (el) => el.pb_3())
+      .when(failed, (el) => el.footer(this.failedLine(m, cx)))
+      .when(showStatus && !failed, (el) => el.footer(div().test_id("delivery").child(deliveryText(m))))
+      .child(m.attachment ? this.attachment(m, cx) : this.bubble(m, mine, tail));
+  }
+
+  /** @param {Msg} m @param {boolean} mine @param {boolean} tail */
+  bubble(m, mine, tail) {
+    return new Bubble()
+      .variant(mine ? "filled" : "secondary")
+      .tail(tail)
       .test_id(`bubble-${m.id}`)
+      .role("button")
       .accessibility_label(`${mine ? "You" : CONTACT.name}, ${clock(m.at)}: ${m.text}`)
       .accessibility_hint("Shows actions")
-      .max_w(Math.round(win.width * 0.78))
-      .px_4()
-      .py_2()
-      .rounded_2xl()
-      .when(tail && mine, (el) => el.rounded_br(6))
-      .when(tail && !mine, (el) => el.rounded_bl(6))
-      .bg(mine ? t.primary : t.muted)
-      .text_base()
-      .text_color(mine ? t.primary_foreground : t.foreground)
       .active((s) => s.opacity(0.7))
       .on_click((_e, cx) => this.openActions(m, cx))
       .on_long_press((_e, cx) => this.openActions(m, cx))
-      .child(m.text);
-    return v_flex()
-      .px_4()
-      .pt(joined ? 2 : 12)
-      .when(mine, (el) => el.items_end())
-      .when(!mine, (el) => el.items_start())
-      .child(bubble)
-      .when(failed, (el) => el.child(this.failedLine(m, cx)))
-      .when(showStatus && !failed, (el) =>
-        el.child(div().test_id("delivery").pt_1().text_xs().text_color(t.muted_foreground).child(deliveryText(m))),
-      );
+      .child(m.text ?? "");
   }
 
+  /** @param {Msg} m @param {Context} cx */
+  attachment(m, cx) {
+    const a = /** @type {import("./conversation.js").Attachment} */ (m.attachment);
+    const status = m.status === "failed" ? "failed" : m.status === "sending" ? "uploading" : "complete";
+    const el = new Attachment(`attachment-${m.id}`)
+      .test_id(`attachment-${m.id}`)
+      .status(status)
+      .accessibility_label(`${m.from === "me" ? "You" : CONTACT.name}, ${clock(m.at)}: ${summary(m)}`)
+      .accessibility_hint("Shows actions")
+      .active((s) => s.opacity(0.7))
+      .on_click((_e, cx) => this.openActions(m, cx))
+      .on_long_press((_e, cx) => this.openActions(m, cx));
+    if (a.progress !== undefined) el.progress(a.progress);
+    if (a.kind === "image" && a.src) return el.axis("vertical").size("large").media(image(a.src));
+    return el.title(a.name).description(status === "failed" ? "Upload failed" : a.detail);
+  }
+
+  /** @param {Msg} m @param {Context} cx */
   failedLine(m, cx) {
     const t = cx.theme();
     return h_flex()
       .test_id(`failed-${m.id}`)
       .gap_1()
-      .pt_1()
       .child(icon("alert", t.destructive, 14))
-      .child(div().text_xs().text_color(t.destructive).child("Not delivered"))
+      .child(div().text_color(t.destructive).child("Not delivered"))
       .child(
         Button.new(`retry-${m.id}`)
           .test_id(`retry-${m.id}`)
@@ -339,7 +408,6 @@ export default class Chat extends View {
           .py_1()
           .rounded_md()
           .hit_slop(10)
-          .text_xs()
           .font_semibold()
           .text_color(t.primary)
           .active((s) => s.bg(t.muted))
@@ -348,8 +416,10 @@ export default class Chat extends View {
       );
   }
 
-  composer(cx, win) {
+  /** @param {Context} cx */
+  composer(cx) {
     const t = cx.theme();
+    const win = cx.window();
     const empty = this.draft.value().trim() === "";
     return h_flex()
       .gap_2()
@@ -390,6 +460,7 @@ export default class Chat extends View {
       );
   }
 
+  /** @param {Context} cx */
   undoBar(cx) {
     const t = cx.theme();
     return h_flex()
@@ -420,10 +491,11 @@ export default class Chat extends View {
   }
 }
 
+/** @param {Msg} m */
 function deliveryText(m) {
   switch (m.status) {
     case "sending":
-      return "Sending…";
+      return m.attachment ? "Uploading…" : "Sending…";
     case "read":
       return `Read ${clock(m.at)}`;
     default:
