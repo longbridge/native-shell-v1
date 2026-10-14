@@ -198,10 +198,9 @@ class ShellInstance internal constructor(
         fun walk(path: String, rel: String) {
             val list = context.assets.list(path) ?: return
             if (list.isEmpty()) {
-                // Sources plus text assets the engine reads itself (svg() icons).
-                if (rel.endsWith(".js") || rel.endsWith(".mjs") || rel.endsWith(".json") || rel.endsWith(".svg")) {
-                    files[rel] = context.assets.open(path).bufferedReader().use { it.readText() }
-                }
+                // Text files go as text; binary ones (images…) as `data:` URLs, which the
+                // engine materializes for image(path) (the sources contract is text only).
+                files[rel] = programFile(rel, context.assets.open(path).use { it.readBytes() })
                 return
             }
             for (name in list) walk("$path/$name", if (rel.isEmpty()) name else "$rel/$name")
@@ -212,7 +211,7 @@ class ShellInstance internal constructor(
         loadSources(manifest, files)
     }
 
-    /** Loads a signed `.msp` bundle; the signature is verified before any script runs. */
+    /** Loads a signed `.nspkg` bundle; the signature is verified before any script runs. */
     fun loadBundle(bytes: ByteArray) {
         check(!isDestroyed) { "instance destroyed" }
         if (engine.loadBundle(bytes) != 0) failed("loadBundle")
@@ -321,6 +320,26 @@ class ShellInstance internal constructor(
 
     companion object {
         private const val CLIPBOARD_MODULE = "nsh/clipboard"
+
+        /** One program file in the sources JSON: text as is, anything else as a base64 `data:` URL. */
+        internal fun programFile(name: String, bytes: ByteArray): String {
+            val ext = name.substringAfterLast('.', "").lowercase()
+            if (ext in TEXT_EXTENSIONS) return String(bytes, Charsets.UTF_8)
+            return "data:${mimeType(ext)};base64," + android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+        }
+
+        private val TEXT_EXTENSIONS = setOf("js", "mjs", "json", "svg", "txt", "md", "css", "csv", "html", "xml", "ts")
+
+        internal fun mimeType(ext: String): String = when (ext) {
+            "png" -> "image/png"
+            "jpg", "jpeg" -> "image/jpeg"
+            "gif" -> "image/gif"
+            "webp" -> "image/webp"
+            "bmp" -> "image/bmp"
+            "ico" -> "image/x-icon"
+            "pdf" -> "application/pdf"
+            else -> android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "application/octet-stream"
+        }
 
         /**
          * Creates an instance backed by the native engine.
