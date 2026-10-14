@@ -74,7 +74,7 @@ pub fn build(text: &ParsedText, width: Option<f32>, font_scale: f32) -> TextLayo
 
 /// Returns the layout's base font.
 fn configure(layout: &pango::Layout, text: &ParsedText, width: Option<f32>, font_scale: f32) -> pango::FontDescription {
-    let base = text.first_run().map_or_else(|| font(None, DEFAULT_SIZE, 400, false, font_scale), |r| run_font(r, font_scale));
+    let base = text.first_run().map_or_else(|| font_description(DEFAULT_SIZE, 400, None, false, font_scale), |r| run_font(r, font_scale));
     layout.set_font_description(Some(&base));
     layout.set_wrap(pango::WrapMode::WordChar);
     layout.set_width(match width {
@@ -204,10 +204,12 @@ fn geometry(layout: pango::Layout, text: &ParsedText, font_scale: f32) -> TextLa
 }
 
 fn run_font(run: &Run, font_scale: f32) -> pango::FontDescription {
-    font(run.family.as_deref(), run.size, run.weight, run.italic, font_scale)
+    font_description(run.size, run.weight, run.family.as_deref(), run.italic, font_scale)
 }
 
-fn font(family: Option<&str>, size: f32, weight: i32, italic: bool, font_scale: f32) -> pango::FontDescription {
+/// The font of a run (or a `TextStyle`): `size` in unscaled points, `weight`
+/// 1–1000, `family` as in the protocol (`None` = system UI face).
+pub fn font_description(size: f32, weight: i32, family: Option<&str>, italic: bool, font_scale: f32) -> pango::FontDescription {
     let mut desc = pango::FontDescription::new();
     desc.set_family(&families(family));
     desc.set_absolute_size(f64::from(size * font_scale) * f64::from(pango::SCALE));

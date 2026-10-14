@@ -14,7 +14,8 @@ use std::sync::{Mutex, OnceLock};
 
 use native_shell_core::host::{TextMetrics, WidthMode};
 
-pub use layout::{build, TextLayout};
+#[allow(unused_imports)] // for TextInput and controls
+pub use layout::{build, families, font_description, TextLayout};
 pub use parse::{parse, Align, ParsedText};
 
 /// Device pixels per point and the user's text size factor, as `f32` bits.
