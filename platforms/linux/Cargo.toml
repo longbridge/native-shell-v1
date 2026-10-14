@@ -1,0 +1,30 @@
+# The GTK 4 renderer is its own workspace: it needs the GTK development
+# libraries, which the root workspace (built on macOS and in the Android job)
+# must not require.
+[workspace]
+
+[package]
+name = "native-shell-gtk"
+description = "GTK 4 renderer of native-shell for Linux desktops."
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+
+[dependencies]
+native-shell = { path = "../../crates/engine" }
+native-shell-core = { path = "../../crates/core" }
+native-shell-services = { path = "../../crates/services" }
+gtk = { package = "gtk4", version = "0.11", features = ["v4_18"] }
+adw = { package = "libadwaita", version = "0.9", features = ["v1_7"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+async-channel = "2"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "unwind"
