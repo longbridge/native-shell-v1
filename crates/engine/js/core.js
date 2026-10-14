@@ -322,6 +322,19 @@ const TYPOGRAPHY = {
   xl: { size: 20, line_height: 28, weight: 600 },
   mono: "monospace",
   mono_md: { size: 13, line_height: 20, weight: 400 },
+  // Mobile: the iOS text styles as roles (points at font scale 1; renderers
+  // scale text by the user's font scale, as Dynamic Type does).
+  large_title: { size: 34, line_height: 41, weight: 700 },
+  title1: { size: 28, line_height: 34, weight: 400 },
+  title2: { size: 22, line_height: 28, weight: 400 },
+  title3: { size: 20, line_height: 25, weight: 400 },
+  headline: { size: 17, line_height: 22, weight: 600 },
+  body: { size: 17, line_height: 22, weight: 400 },
+  callout: { size: 16, line_height: 21, weight: 400 },
+  subheadline: { size: 15, line_height: 20, weight: 400 },
+  footnote: { size: 13, line_height: 18, weight: 400 },
+  caption1: { size: 12, line_height: 16, weight: 400 },
+  caption2: { size: 11, line_height: 13, weight: 400 },
 };
 
 let themeCache = null;

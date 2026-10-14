@@ -65,7 +65,10 @@ PathBuilder dash arrays and real gradient or pattern fills, `process.*`,
 
 `text`, `span`, `link`, `shape`, `host_component`, `Spinner`, native `Select`
 and `DatePicker`, `cx.window()` (safe area, keyboard height, platform, font
-scale), `cx.navigator` (push/pop pages), `cx.alert`, `cx.haptic`,
+scale), the iOS text styles as `cx.theme().typography` roles (`large_title`,
+`title1`–`title3`, `headline`, `body`, `callout`, `subheadline`, `footnote`,
+`caption1`, `caption2`; size, line height and weight in points, scaled by the
+font scale) next to gpui-shell's keys, `cx.navigator` (push/pop pages), `cx.alert`, `cx.haptic`,
 `cx.focus / blur / scroll_to / scroll_to_item`, toast actions (`push_toast({…, action: {label, on_click}})`), `cx.set_title`,
 `cx.set_can_go_back`, `cx.on_back`, `.key`, `.test_id`, `.hit_slop`,
 `.on_long_press`, `.on_pan`, `.on_pinch`, `.on_press_in / out`, `.href`, and

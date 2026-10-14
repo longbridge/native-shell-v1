@@ -488,3 +488,19 @@ export default class R extends View {
     // Frames snap to device pixels.
     assert!((width - (10.0 + 2.0 * 25.6)).abs() < 0.5, "p_4 is 1rem a side: {width}");
 }
+
+#[test]
+fn typography_keeps_gpui_shell_keys_and_adds_the_ios_text_styles() {
+    let main = r#"
+import { View, div } from "native-shell";
+export default class T extends View {
+  render(cx) {
+    const t = cx.theme().typography;
+    const s = (r) => `${r.size}/${r.line_height}/${r.weight}`;
+    return div().test_id("t").child([t.sans, s(t.md), t.mono, s(t.large_title), s(t.headline), s(t.body), s(t.caption2)].join(" "));
+  }
+}
+"#;
+    let h = Harness::new(&[("main.js", main)]);
+    assert_eq!(h.text_of("t"), "system-ui 16/24/400 monospace 34/41/700 17/22/600 17/22/400 11/13/400");
+}
