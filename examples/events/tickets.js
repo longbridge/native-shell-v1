@@ -20,10 +20,13 @@ export class TicketsTab {
   render(cx) {
     const tickets = allTickets();
     const count = tickets.reduce((n, t) => n + t.quantity, 0);
+    const bg = cx.theme().grouped_background;
+    // Tickets are cards, so they sit on the grouped background, as passes do in a wallet.
     return v_flex()
       .flex_1()
       .min_h_0()
-      .child(statusBar(cx))
+      .bg(bg)
+      .child(statusBar(cx, bg))
       .child(
         v_flex()
           .id("tickets")

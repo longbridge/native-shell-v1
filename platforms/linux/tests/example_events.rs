@@ -70,6 +70,11 @@ fn events_flow() {
             f.find("offline").is_none()
         }));
 
+        // No tickets yet: what the tab is for.
+        f.tap("tab-tickets");
+        f.expect("no-tickets");
+        shot(&f, "tickets-empty", dark);
+
         // The calendar: today's agenda, then a day with nothing on.
         f.tap("tab-calendar");
         f.expect("agenda");
