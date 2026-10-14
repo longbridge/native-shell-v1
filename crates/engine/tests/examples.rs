@@ -37,6 +37,16 @@ fn disabled(h: &Harness, test_id: &str) -> bool {
     }
 }
 
+/// The payload of the most recent toast.
+fn last_toast(h: &Harness) -> String {
+    h.commands()
+        .iter()
+        .rev()
+        .find(|(n, c, _)| *n == ROOT_NODE && *c == Command::ShowToast)
+        .map(|(_, _, p)| p.clone())
+        .unwrap_or_else(|| panic!("no toast in {:?}", h.commands()))
+}
+
 fn assert_clean(h: &Harness) {
     assert!(h.error_logs().is_empty(), "{:?}", h.error_logs());
 }
@@ -87,17 +97,17 @@ fn tasks_add_complete_edit_delete_undo_and_persist() {
     h.tap("editor-cancel");
     assert_eq!(h.text_of("title-3"), "Book the dentist for a cleaning");
 
-    // Delete from the sheet, then undo; the bar goes away on its own.
+    // Delete from the sheet, then undo from the toast.
     h.tap("task-4");
+    h.clear_commands();
     h.tap("editor-delete");
     assert!(h.find("task-4").is_none());
-    assert_eq!(h.text_of("undo-label"), "Deleted “Return the library books”");
-    h.tap("undo");
-    assert!(h.find("task-4").is_some() && h.find("undo-bar").is_none());
+    let toast = last_toast(&h);
+    assert!(toast.contains("Deleted “Return the library books”") && toast.contains("Undo"), "{toast}");
+    h.toast_action("undo");
+    assert!(h.find("task-4").is_some());
     h.tap("task-4");
     h.tap("editor-delete");
-    h.advance(5100.0);
-    assert!(h.find("undo-bar").is_none());
 
     // Clearing completed tasks names the count and asks first.
     h.tap("clear-completed");
@@ -154,7 +164,7 @@ fn settings_toggles_pickers_account_and_confirmations() {
     let dir = data_dir("settings");
     let mut h = started(build("settings").data_dir(&dir));
     assert_eq!(h.view_type("settings"), ViewType::Scroll);
-    assert_eq!(h.text_of("account-name"), "Ada Lovelace");
+    assert_eq!(h.text_of("account-label"), "Ada Lovelace");
 
     // The daily summary depends on notifications: disabled, not hidden.
     assert!(h.find("summary-time").is_some());
@@ -162,12 +172,16 @@ fn settings_toggles_pickers_account_and_confirmations() {
     assert!(disabled(&h, "summary"));
     assert!(h.find("summary-time").is_none());
     h.toggle("notifications");
-    h.pick_date("summary-time", "2026-10-14T07:45");
+    h.pick_date("summary-time", "07:45");
 
     // The theme applies at once and persists.
-    let light = h.prop("account", Prop::BackgroundColor);
+    let screen = |h: &Harness| {
+        let parent = h.native().nodes[&h.find("settings").unwrap()].parent.unwrap();
+        h.native().prop(parent, Prop::BackgroundColor).cloned()
+    };
+    let light = screen(&h);
     h.select("theme", 2);
-    assert_ne!(h.prop("account", Prop::BackgroundColor), light);
+    assert_ne!(screen(&h), light);
 
     // Clearing the cache waits for the measurement, then asks with the size.
     assert!(disabled(&h, "clear-cache"));
@@ -199,14 +213,14 @@ fn settings_toggles_pickers_account_and_confirmations() {
     assert_eq!(h.alert().unwrap()["title"], "Sign out of ada@example.net?");
     h.alert_action(1);
     assert_eq!(h.surfaces().len(), 1);
-    assert_eq!(h.text_of("account-name"), "Sign in");
+    assert_eq!(h.text_of("account-label"), "Sign In");
     assert_clean(&h);
 
     // Everything above persisted.
     drop(h);
     let h = started(build("settings").data_dir(&dir));
-    assert_eq!(h.text_of("account-name"), "Sign in");
-    assert!(h.texts().iter().any(|t| t.contains("Delivered at")));
+    assert_eq!(h.text_of("account-label"), "Sign In");
+    assert!(format!("{:?}", h.props("summary-time")).contains("7:45"), "{:?}", h.props("summary-time"));
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -248,9 +262,11 @@ fn chat_sends_retries_loads_history_and_deletes_with_undo() {
     h.tap("action-copy");
     assert!(h.commands().iter().any(|(_, c, p)| *c == Command::SetClipboard && p.contains("first-aid kit")));
     h.long_press("bubble-m7");
+    h.clear_commands();
     h.tap("action-delete");
-    assert!(h.find("bubble-m7").is_none() && h.find("undo-bar").is_some());
-    h.tap("undo");
+    assert!(h.find("bubble-m7").is_none());
+    assert!(last_toast(&h).contains("Undo"));
+    h.toast_action("undo");
     assert!(h.find("bubble-m7").is_some());
     assert_clean(&h);
 }
@@ -336,9 +352,11 @@ fn watchlist_uses_host_modules_and_components() {
     // A row opens its detail; removing it offers undo.
     h.host_event("cell-KITE.US", "select", "{}");
     assert_eq!(h.text_of("detail-price"), "107.00");
+    h.clear_commands();
     h.tap("remove");
-    assert!(h.find("cell-KITE.US").is_none() && h.find("undo-bar").is_some());
-    h.tap("undo");
+    assert!(h.find("cell-KITE.US").is_none());
+    assert!(last_toast(&h).contains("Removed KITE.US"));
+    h.toast_action("undo");
     assert!(h.find("cell-KITE.US").is_some());
 
     // Adding from the sheet subscribes the new symbol.
@@ -456,7 +474,8 @@ fn components_pages_show_their_states() {
     h.pick_date("date", "2026-12-24");
     assert_eq!(h.text_of("summary"), "Table for 4 on Thu, Dec 24 at 1:00 PM.");
     h.tap("request");
-    assert!(h.find("requested").is_some());
+    assert!(h.text_of("summary").starts_with("Requested."));
+    assert!(disabled(&h, "request"));
     h.tap("back");
 
     // Overlays: sheet, dialog, toast, alert.
@@ -468,7 +487,7 @@ fn components_pages_show_their_states() {
     assert!(h.find("rename-dialog").is_some());
     h.type_text("rename-input", "Coast trip plan");
     h.tap("rename-save");
-    assert_eq!(h.text_of("doc-name"), "Coast trip plan.pdf");
+    assert_eq!(h.text_of("doc-label"), "Coast trip plan.pdf");
     h.clear_commands();
     h.tap("offline");
     assert!(h

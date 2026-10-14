@@ -1,9 +1,11 @@
-// Buttons, in a post composer: one primary commit (Publish), a quieter
-// alternative (Save draft), a low-emphasis exit (Discard…), and a destructive
-// commit in its own zone. Shows rest, pressed, disabled and loading states.
+// Buttons, in a post composer: one filled primary commit (Publish), a gray
+// filled alternative (Save Draft), a plain exit (Discard…), tinted icon
+// buttons as shortcuts into the post, and a destructive row set apart. Shows
+// rest, pressed, disabled and loading states.
 
-import { View, div, h_flex, v_flex, Button, Textarea, TextareaState } from "native-shell";
-import { button, card, heading, icon, page } from "../ui.js";
+import { View, div, h_flex, v_flex, Button, Spinner, Textarea, TextareaState } from "native-shell";
+import { filledButton, icon, label, page, row, section, textButton, textStyle } from "../ui.js";
+/** @import { Context } from "native-shell" */
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -12,14 +14,21 @@ function today() {
   return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
 }
 
+/** @type {{ id: string, icon: "calendar" | "link" | "photo", label: string, text: string | null }[]} */
+const SHORTCUTS = [
+  { id: "date", icon: "calendar", label: "Insert today’s date", text: today() },
+  { id: "link", icon: "link", label: "Insert a link", text: "https://example.org/garden" },
+  { id: "photo", icon: "photo", label: "Attach a photo", text: null },
+];
+
 export default class ButtonsPage extends View {
-  init(_props, cx) {
-    this.post = TextareaState.new({ placeholder: "What’s new with the garden?", rows: 4, auto_capitalize: "sentences" });
+  init() {
+    this.post = TextareaState.new({ placeholder: "What’s new with the garden?", rows: 5, auto_capitalize: "sentences" });
     this.post.on("change", (_e, cx) => {
       this.state = "draft";
       cx.notify();
     });
-    /** "draft" | "publishing" | "published" | "saved" */
+    /** @type {"draft" | "publishing" | "published" | "saved"} */
     this.state = "draft";
   }
 
@@ -27,23 +36,27 @@ export default class ButtonsPage extends View {
     this.post.release();
   }
 
+  /** @param {Context} cx */
   publish(cx) {
     this.state = "publishing";
+    cx.blur();
     cx.notify();
     // Publishing is a network request in a real app; the button shows the wait.
     cx.timer.after(1200, (cx) => {
       this.state = "published";
       this.post.set_value("");
+      cx.haptic("success");
       cx.notify();
     });
   }
 
+  /** @param {Context} cx */
   discard(cx) {
     cx.alert({
       title: "Discard this post?",
       message: "The text you wrote will be lost.",
       actions: [
-        { label: "Keep editing", style: "cancel" },
+        { label: "Keep Editing", style: "cancel" },
         {
           label: "Discard",
           style: "destructive",
@@ -57,6 +70,14 @@ export default class ButtonsPage extends View {
     });
   }
 
+  /** @param {string} text @param {Context} cx */
+  insert(text, cx) {
+    const value = this.post.value();
+    this.post.set_value(value === "" || value.endsWith(" ") ? value + text : `${value} ${text}`);
+    this.state = "draft";
+    cx.notify();
+  }
+
   render(cx) {
     const t = cx.theme();
     const empty = this.post.value().trim() === "";
@@ -64,124 +85,94 @@ export default class ButtonsPage extends View {
     return page(cx, {
       title: "Buttons",
       intro:
-        "A post composer. Publish is the one primary action; the others step down in emphasis by how often and how safely they are used.",
+        "A post composer. Publish is the one filled button; the others step down in emphasis by how often and how safely they are used.",
       children: [
-        card(cx)
-          .child(
-            Textarea.new(this.post)
+        section(cx, {
+          footer: this.state === "published" ? "Published to your followers." : null,
+          footerId: "published",
+          rows: [
+            textStyle(Textarea.new(this.post), cx, "body")
               .test_id("post")
               .accessibility_label("Post")
               .min_h_32()
               .px_4()
               .py_3()
-              .text_base()
               .text_color(t.foreground),
-          )
-          .child(div().h(1).bg(t.border))
-          .child(
-            h_flex()
-              .gap_2()
-              .p_3()
-              .child(
-                button(cx, "discard", "Discard…", {
-                  variant: "ghost",
-                  disabled: empty || busy,
-                  on_click: (_e, cx) => this.discard(cx),
-                }),
-              )
-              .child(div().flex_1())
-              .child(
-                button(cx, "save-draft", this.state === "saved" ? "Saved" : "Save draft", {
-                  variant: "outline",
-                  disabled: empty || busy || this.state === "saved",
-                  icon: this.state === "saved" ? "check" : undefined,
-                  on_click: (_e, cx) => {
-                    this.state = "saved";
-                    cx.notify();
-                  },
-                }),
-              )
-              .child(
-                button(cx, "publish", busy ? "Publishing…" : "Publish", {
-                  variant: "primary",
-                  disabled: empty,
-                  loading: busy,
-                  on_click: (_e, cx) => this.publish(cx),
-                }),
-              ),
-          ),
-        this.state === "published"
-          ? h_flex()
-              .test_id("published")
-              .role("alert")
-              .gap_2()
-              .child(icon("check", t.foreground, 18))
-              .child(div().text_sm().text_color(t.foreground).child("Published to your followers."))
-          : null,
+          ],
+        }),
         v_flex()
           .gap_3()
           .child(
-            heading(
-              cx,
-              "Icon buttons",
-              "Shortcuts into the post: a familiar symbol, a 44 pt target and an accessible name. Attaching a photo stays unavailable until photo access is allowed.",
-            ),
+            filledButton(cx, "publish", busy ? "Publishing…" : "Publish", {
+              disabled: empty || busy,
+              leading: busy ? Spinner.new().size_4() : undefined,
+              on_click: (_e, cx) => this.publish(cx),
+            }),
           )
           .child(
+            filledButton(cx, "save-draft", this.state === "saved" ? "Saved" : "Save Draft", {
+              tone: "gray",
+              disabled: empty || busy || this.state === "saved",
+              leading: this.state === "saved" ? icon("check", t.primary, 18) : undefined,
+              on_click: (_e, cx) => {
+                this.state = "saved";
+                cx.haptic("success");
+                cx.notify();
+              },
+            }),
+          )
+          .child(
+            div()
+              .flex()
+              .justify_center()
+              .child(textButton(cx, "discard", "Discard…", { disabled: empty || busy, on_click: (_e, cx) => this.discard(cx) })),
+          ),
+        v_flex()
+          .gap_2()
+          .child(label(cx, "footnote", t.muted_foreground, "SHORTCUTS").px_4())
+          .child(
             h_flex()
-              .gap_2()
+              .gap_3()
               .children(
-                /** @type {[string, "calendar" | "link" | "upload", string, string | null][]} */ ([
-                  ["date", "calendar", "Insert today’s date", today()],
-                  ["link", "link", "Insert a link", "https://example.org/garden"],
-                  ["photo", "upload", "Attach a photo", null],
-                ]).map(([id, name, label, text]) => {
-                  const disabled = text === null || busy;
+                SHORTCUTS.map(({ id, icon: name, label: text, text: insert }) => {
+                  const disabled = insert === null || busy;
                   return Button.new(`icon-${id}`)
                     .test_id(`icon-${id}`)
-                    .accessibility_label(label)
+                    .accessibility_label(text)
                     .disabled(disabled)
                     .size_11()
                     .flex()
                     .items_center()
                     .justify_center()
-                    .rounded_lg()
-                    .border_1()
-                    .border_color(t.border)
+                    .rounded_full()
+                    .bg(t.accent)
                     .when(disabled, (el) => el.opacity(0.4))
-                    .when(!disabled, (el) =>
-                      el
-                        .active((s) => s.bg(t.muted))
-                        .on_click((_e, cx) => {
-                          const value = this.post.value();
-                          this.post.set_value(value === "" || value.endsWith(" ") ? value + text : `${value} ${text}`);
-                          this.state = "draft";
-                          cx.notify();
-                        }),
-                    )
-                    .child(icon(name, disabled ? t.muted_foreground : t.foreground));
+                    .when(!disabled, (el) => el.active((s) => s.opacity(0.5)).on_click((_e, cx) => this.insert(insert ?? "", cx)))
+                    .child(icon(name, t.accent_foreground, 20));
                 }),
               ),
-          ),
-        v_flex()
-          .gap_3()
-          .child(heading(cx, "Danger zone", "A destructive commit is separated from everyday actions and always confirms."))
-          .child(
-            button(cx, "delete-account", "Delete account…", {
-              variant: "destructive",
-              full: true,
+          )
+          .child(label(cx, "footnote", t.muted_foreground, "Attaching a photo stays unavailable until photo access is allowed.").px_4()),
+        section(cx, {
+          footer: "Your posts and followers are removed for good.",
+          rows: [
+            row(cx, {
+              id: "delete-account",
+              label: "Delete Account…",
+              destructive: true,
               on_click: (_e, cx) =>
                 cx.alert({
                   title: "Delete your account?",
                   message: "Your posts and followers are removed for good. This can’t be undone.",
                   actions: [
                     { label: "Cancel", style: "cancel" },
-                    { label: "Delete account", style: "destructive" },
+                    { label: "Delete Account", style: "destructive" },
                   ],
                 }),
             }),
-          ),
-      ].filter(Boolean),
+          ],
+        }),
+      ],
     });
   }
 }
