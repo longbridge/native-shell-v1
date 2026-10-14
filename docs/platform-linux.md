@@ -126,6 +126,10 @@ screenshots. The crate's own GTK unit tests use `src/gtk_test.rs`.
   attached. The display therefore connects a minimal Broadway client that
   acknowledges each frame's roundtrip and reports a 1600 × 1600 screen, so
   frame clocks, animations and phone-sized windows behave as on a desktop.
+* `example_runtime()` is a runtime with the example apps' accent (`primary`
+  #2563eb light, #60a5fa dark, as the iOS, Android and Linux example apps set
+  it); tests that screenshot example screens use it, so their images compare
+  with the other platforms'.
 * Screenshots written under `screenshots/` go to `target/screenshots/` unless
   `NSH_SCREENSHOTS=1` is set, so a test run never rewrites the committed
   images. `cargo run --example screenshot` renders every example to
@@ -136,6 +140,9 @@ screenshots. The crate's own GTK unit tests use `src/gtk_test.rs`.
 ## Differences from iOS
 
 * No haptics: `Haptic` is ignored.
+* No navigation bar: pages are full screen and programs draw their own
+  headers (as they do on iOS with the bar hidden); back is Escape, Alt+Left,
+  the mouse back button or the edge swipe.
 * Sheets span the full window width, also on wide windows.
 * Switches keep the iOS system green when on, not the GNOME accent.
 * Pull to refresh has no desktop control: it maps to pulling past the top
