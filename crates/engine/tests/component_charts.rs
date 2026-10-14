@@ -66,8 +66,9 @@ fn color(appearance: Appearance, token: &str) -> u32 {
     Theme::default_for(appearance).color(token).unwrap()
 }
 
+/// The first series color.
 fn primary() -> u32 {
-    color(Appearance::Light, "primary")
+    color(Appearance::Light, "chart_1")
 }
 
 fn frame(h: &Harness, node: u32) -> native_shell::core::protocol::Frame {
@@ -183,9 +184,9 @@ fn line_series_and_dots_take_the_palette_in_order() {
     let strokes: Vec<_> = shapes(&h).iter().map(|s| h.native().prop(*s, Prop::StrokeColor).cloned()).collect();
     assert_eq!(
         strokes,
-        vec![Some(PropValue::Color(primary())), Some(PropValue::Color(color(Appearance::Light, "success")))]
+        vec![Some(PropValue::Color(primary())), Some(PropValue::Color(color(Appearance::Light, "chart_2")))]
     );
-    assert_eq!(painted(&h, color(Appearance::Light, "success")).len(), 2, "a dot per point");
+    assert_eq!(painted(&h, color(Appearance::Light, "chart_2")).len(), 2, "a dot per point");
     // `stroke` colors the series it follows; token names resolve.
     let h = chart(rows, r#"new LineChart(() => this.rows).y((r) => r.x).stroke("warning")"#);
     assert_eq!(h.native().prop(shapes(&h)[0], Prop::StrokeColor), Some(&PropValue::Color(color(Appearance::Light, "warning"))));
@@ -229,7 +230,7 @@ fn pie_slices_start_at_twelve_and_turn_clockwise() {
     assert_eq!(paths(&h), vec!["M0 -100A100 100 0 0 1 0 100L0 0Z", "M0 100A100 100 0 0 1 0 -100L0 0Z"]);
     assert_eq!(h.native().prop(shapes(&h)[0], Prop::ViewBox), Some(&PropValue::F32Array(vec![-100.0, -100.0, 200.0, 200.0])));
     let fills: Vec<_> = shapes(&h).iter().map(|s| h.native().prop(*s, Prop::FillColor).cloned()).collect();
-    assert_eq!(fills, vec![Some(PropValue::Color(primary())), Some(PropValue::Color(color(Appearance::Light, "success")))]);
+    assert_eq!(fills, vec![Some(PropValue::Color(primary())), Some(PropValue::Color(color(Appearance::Light, "chart_2")))]);
     // A donut's hole runs back counterclockwise; one slice is a whole ring.
     let h = chart(r#"[{ label: "All", value: 3 }]"#, "new PieChart(() => this.rows).inner_radius(50)");
     assert_eq!(paths(&h)[0], "M0 -100A100 100 0 1 1 0 100A100 100 0 1 1 0 -100ZM0 -50A50 50 0 1 0 0 50A50 50 0 1 0 0 -50Z");
@@ -390,9 +391,9 @@ export default class C extends View {
 }
 "#;
     let mut h = Harness::new(&[("main.js", main)]);
-    assert_eq!(painted(&h, color(Appearance::Light, "primary")).len(), 1);
+    assert_eq!(painted(&h, color(Appearance::Light, "chart_1")).len(), 1);
     h.set_environment(Environment { appearance: Appearance::Dark, ..Environment::default() });
-    assert_eq!(painted(&h, color(Appearance::Dark, "primary")).len(), 1, "{}", h.dump());
+    assert_eq!(painted(&h, color(Appearance::Dark, "chart_1")).len(), 1, "{}", h.dump());
 }
 
 #[test]
