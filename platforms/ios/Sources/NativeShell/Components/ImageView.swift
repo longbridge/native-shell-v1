@@ -93,8 +93,8 @@ final class NSHImageView: NSHComponentView {
         imageView.image = tint != nil ? image?.withRenderingMode(.alwaysTemplate) : image
     }
 
-    override func prepareForReuse() {
-        super.prepareForReuse()
+    override func resetForReuse() {
+        super.resetForReuse()
         loadToken += 1
         loaded = nil
         imageView.image = nil
