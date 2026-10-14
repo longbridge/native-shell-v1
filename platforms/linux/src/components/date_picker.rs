@@ -1,6 +1,6 @@
 //! `DatePicker`, as the iOS compact picker: the localized value in a pill (a
-//! date pill and a time pill for date and time), drawn. A pill opens a GTK
-//! popover: a `GtkCalendar` for the date, hour and minute spin buttons for
+//! date pill and a time pill for date and time), drawn, trailing-aligned. A
+//! pill opens a GTK popover: a `GtkCalendar` for the date, hour and minute spin buttons for
 //! the time. Values are `YYYY-MM-DD`, `HH:mm` and `YYYY-MM-DDTHH:mm` by
 //! `DateMode`, both in `Date` and in `{date}` change payloads.
 
@@ -158,17 +158,24 @@ impl DatePicker {
         let canvas = Canvas::new(gtk::AccessibleRole::Group, false);
         let state = Rc::new(State { value: Cell::new(Value::now()), mode: Cell::new(0), raw: RefCell::default(), muted: Cell::new(false) });
         let s = state.clone();
-        canvas.set_layout(move |c, _, h| {
-            // Pills sit side by side from the leading edge, as the compact picker's.
+        canvas.set_layout(move |c, w, h| {
+            // Pills sit side by side against the trailing edge, where a row's
+            // other trailing controls end.
             let texts = s.value.get().display(s.mode.get());
             let ph = pill_height().min(h as f32).round();
-            let mut x = 0.0;
-            for (pill, text) in pills(c).iter().zip(&texts) {
-                let (tw, _) = control::text_size(&control::line(text, FONT_SIZE, 400, 0, None));
-                let w = (tw + 2.0 * PADDING).ceil();
-                let t = gtk::gsk::Transform::new().translate(&gtk::graphene::Point::new(x, ((h as f32 - ph) / 2.0).round()));
-                pill.allocate(w as i32, ph as i32, -1, Some(t));
-                x += w + GAP;
+            let widths: Vec<f32> = texts
+                .iter()
+                .map(|t| (control::text_size(&control::line(t, FONT_SIZE, 400, 0, None)).0 + 2.0 * PADDING).ceil())
+                .collect();
+            let total = widths.iter().sum::<f32>() + GAP * widths.len().saturating_sub(1) as f32;
+            let rtl = c.direction() == gtk::TextDirection::Rtl;
+            let mut x = if rtl { 0.0 } else { (w as f32 - total).max(0.0) };
+            let y = ((h as f32 - ph) / 2.0).round();
+            let order: Vec<(Canvas, f32)> = pills(c).into_iter().zip(widths).collect();
+            let order: Vec<_> = if rtl { order.into_iter().rev().collect() } else { order };
+            for (pill, pw) in order {
+                pill.allocate(pw as i32, ph as i32, -1, Some(gtk::gsk::Transform::new().translate(&gtk::graphene::Point::new(x, y))));
+                x += pw + GAP;
             }
         });
         cx.view.set_content(Some(canvas.upcast_ref()));

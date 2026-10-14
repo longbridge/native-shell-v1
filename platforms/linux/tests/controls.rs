@@ -20,6 +20,8 @@ fn main() -> ExitCode {
         ("date picker picks date and time", date_picker_picks),
         ("progress and spinner follow the theme", progress_and_spinner_draw),
         ("controls screenshots", controls_screenshots),
+        ("settings example: switches, time and theme", settings_example),
+        ("components example: control pages", components_pages),
     ])
 }
 
@@ -259,9 +261,87 @@ fn progress_and_spinner_draw() {
 
 fn controls_screenshots() {
     let f = fixture();
-    f.screenshot("target/agents/linux-controls/controls-light.png");
+    f.screenshot("screenshots/controls-light.png");
     f.set_dark(true);
-    f.screenshot("target/agents/linux-controls/controls-dark.png");
+    f.screenshot("screenshots/controls-dark.png");
+}
+
+/// Light and dark screenshots of what `f` shows, into `screenshots/`.
+fn screenshots(f: &Fixture, name: &str) {
+    f.set_dark(false);
+    f.screenshot(format!("screenshots/controls-{name}-light.png"));
+    f.set_dark(true);
+    f.screenshot(format!("screenshots/controls-{name}-dark.png"));
+    f.set_dark(false);
+}
+
+fn settings_example() {
+    gtk::Settings::default().expect("settings").set_gtk_enable_animations(false);
+    let f = Fixture::open_dir("../../examples/settings");
+    screenshots(&f, "settings");
+    // Notifications are on by default, so is the daily summary and its time.
+    f.expect("summary-time");
+    let notifications = control(&f, "notifications");
+    key(&f, &notifications, gdk::Key::space);
+    assert!(f.find("summary-time").is_none());
+    assert!(!control(&f, "summary").is_sensitive());
+    key(&f, &control(&f, "notifications"), gdk::Key::space);
+    assert!(control(&f, "summary").is_sensitive());
+
+    // The theme menu switches the program to dark.
+    let theme = control(&f, "theme");
+    tap(&f, &theme);
+    let popover = theme.first_child().and_downcast::<gtk::Popover>().expect("theme menu");
+    let list = find(popover.upcast_ref(), |w| w.is::<gtk::ListBox>()).and_downcast::<gtk::ListBox>().expect("menu list");
+    list.emit_by_name::<()>("row-activated", &[&list.row_at_index(2).expect("Dark")]);
+    f.settle();
+    assert_eq!(f.pixel(4, 200), 0xff0a0a0a, "the dark background");
+}
+
+/// A components example page as the program's root view.
+fn components_page(page: &str) -> Fixture {
+    gtk::Settings::default().expect("settings").set_gtk_enable_animations(false);
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/components");
+    let read = |p: &str| std::fs::read_to_string(dir.join(p)).unwrap_or_else(|e| panic!("{p}: {e}"));
+    let mut files: Vec<(String, String)> = vec![("main.js".into(), format!("export {{ default }} from \"./pages/{page}.js\";"))];
+    files.push(("ui.js".into(), read("ui.js")));
+    for entry in std::fs::read_dir(dir.join("pages")).expect("pages").flatten() {
+        let name = format!("pages/{}", entry.file_name().to_string_lossy());
+        let text = read(&name);
+        files.push((name, text));
+    }
+    let files: Vec<(&str, &str)> = files.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+    Fixture::with_files(&read("native-shell.json"), &files)
+}
+
+fn components_pages() {
+    let f = components_page("selection");
+    assert_eq!(control(&f, "switch-orders").accessible_role(), gtk::AccessibleRole::Switch);
+    key(&f, &control(&f, "switch-prices"), gdk::Key::space);
+    screenshots(&f, "components-selection");
+    drop(f);
+
+    let f = components_page("progress");
+    assert_eq!(control(&f, "volume").accessible_role(), gtk::AccessibleRole::Slider);
+    key(&f, &control(&f, "volume"), gdk::Key::End);
+    f.tap("upload-start");
+    f.expect("upload-spinner");
+    screenshots(&f, "components-progress");
+    pump_for(std::time::Duration::from_millis(1300));
+    f.wait_for("upload-progress");
+    screenshots(&f, "components-progress-uploading");
+    drop(f);
+
+    let f = components_page("pickers");
+    let sitting = controls(&f, "sitting");
+    tap(&f, &sitting[1]);
+    let guests = control(&f, "guests");
+    tap(&f, &guests);
+    let popover = guests.first_child().and_downcast::<gtk::Popover>().expect("guests menu");
+    let list = find(popover.upcast_ref(), |w| w.is::<gtk::ListBox>()).and_downcast::<gtk::ListBox>().expect("menu list");
+    list.emit_by_name::<()>("row-activated", &[&list.row_at_index(3).expect("4 guests")]);
+    f.settle();
+    screenshots(&f, "components-pickers");
 }
 
 fn descendants(w: &gtk::Widget) -> Vec<gtk::Widget> {
