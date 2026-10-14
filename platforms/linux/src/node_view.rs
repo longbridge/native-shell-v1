@@ -401,10 +401,8 @@ impl NodeView {
         imp.tick.replace(Some(id));
     }
 
-    /// Advances running transitions to frame time `now` (µs); false when all
-    /// are done. The frame clock drives this; tests and offscreen renders,
-    /// which have no running clock, call it directly.
-    pub fn step_animations(&self, now: i64) -> bool {
+    /// Advances running transitions to frame time `now` (µs); false when all are done.
+    fn step_animations(&self, now: i64) -> bool {
         let imp = self.imp();
         let advance = |start: &mut Option<i64>, anim: &Anim| {
             let start = *start.get_or_insert(now);

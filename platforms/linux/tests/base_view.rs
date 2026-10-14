@@ -445,31 +445,26 @@ export default class App extends View {
     assert_eq!(panel.presented_frame().map(|r| r.height), Some(100.0));
     assert!((panel.opacity() - 0.2).abs() < 1e-6);
     f.tap("toggle");
-    // The model is at the target; the screen starts from where it was.
+    // The model is at the target at once; the screen gets there on the frame clock.
     assert_eq!(panel.frame().map(|r| r.height), Some(200.0));
-    assert!(panel.is_animating());
-    let t0 = panel.frame_clock().map_or(0, |c| c.frame_time());
-    panel.step_animations(t0);
-    assert_eq!(panel.presented_frame().map(|r| r.height), Some(100.0));
-    panel.step_animations(t0 + 50_000);
-    let h = panel.presented_frame().map_or(0.0, |r| r.height);
-    assert!((h - 125.0).abs() < 0.5, "linear quarter of the way: {h}");
-    assert!(
-        (panel.opacity() - 0.6).abs() < 0.01,
-        "opacity halfway: {}",
-        panel.opacity()
-    );
-    assert!(!panel.step_animations(t0 + 200_000));
+    let mut heights = Vec::new();
+    let done = pump_until(Duration::from_secs(2), || {
+        heights.push(panel.presented_frame().map_or(0.0, |r| r.height));
+        !panel.is_animating()
+    });
+    assert!(done, "the transition ends");
+    assert!(heights.iter().any(|h| *h > 100.5 && *h < 199.5), "in-between frames were shown: {heights:?}");
+    assert!(heights.windows(2).all(|w| w[1] >= w[0]), "linear never goes back: {heights:?}");
     assert_eq!(panel.presented_frame().map(|r| r.height), Some(200.0));
-    assert_eq!(panel.opacity(), 1.0);
-    assert!(!panel.is_animating());
+    assert!((panel.opacity() - 1.0).abs() < 0.01);
 
     // Reduce Motion: frames jump, fades still run.
     settings.set_gtk_enable_animations(false);
     f.tap("toggle");
     assert_eq!(panel.presented_frame().map(|r| r.height), Some(100.0));
     assert!(panel.is_animating(), "the fade still runs");
-    panel.finish_animations();
+    assert!(pump_until(Duration::from_secs(2), || !panel.is_animating()));
+    assert!((panel.opacity() - 0.2).abs() < 0.01);
     settings.set_gtk_enable_animations(true);
 }
 
