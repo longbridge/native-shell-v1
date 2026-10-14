@@ -132,6 +132,15 @@ export default class App extends View {
     let (_, logical) = label.layout().pixel_extents();
     assert!(label.layout().line_count() >= 3, "wraps");
     assert!((logical.height() - node.height()).abs() <= 1, "label {} vs frame {}", logical.height(), node.height());
+
+    // Selection and Copy are the label's own (drag, double click, Ctrl+C, context menu).
+    assert!(label.is_focusable(), "keyboard selection needs focus");
+    label.select_region(0, 7);
+    assert_eq!(label.selection_bounds(), Some((0, 7)));
+    label.emit_by_name::<()>("copy-clipboard", &[]);
+    let clipboard = label.clipboard();
+    let copied = gtk::glib::MainContext::default().block_on(clipboard.read_text_future());
+    assert_eq!(copied.ok().flatten().as_deref(), Some("Refunds"));
 }
 
 fn text_follows_the_desktop_text_size() {
