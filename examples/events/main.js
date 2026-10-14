@@ -12,6 +12,8 @@ import { CalendarTab } from "./calendar.js";
 import { TicketsTab } from "./tickets.js";
 import EventPage from "./event.js";
 import { fetchProgram } from "./service.js";
+import { eventById } from "./catalog.js";
+import { allTickets } from "./store.js";
 import { tabBar } from "./ui.js";
 /** @import { Context } from "native-shell" */
 /** @import { Event } from "./catalog.js" */
@@ -87,6 +89,11 @@ export default class Events extends View {
       .bg(t.background)
       .line_height(1.375)
       .child(page.render(cx))
-      .child(tabBar(cx, TABS, this.tab, (id, cx) => this.show(id, cx)));
+      .child(tabBar(cx, TABS.map((tab) => (tab.id === "tickets" ? { ...tab, badge: ticketsToday() } : tab)), this.tab, (id, cx) => this.show(id, cx)));
   }
+}
+
+/** Bookings for events happening today: the Tickets tab badges them, so they're one tap away at the door. */
+function ticketsToday() {
+  return allTickets().filter((t) => eventById(t.eventId)?.day === 0).length;
 }

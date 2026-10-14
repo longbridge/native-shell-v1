@@ -9,7 +9,7 @@
 // the keyboard) and for drawings that have a fixed aspect.
 
 import { div, h_flex, v_flex, shape, Button, Spinner } from "native-shell";
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "gpui-component";
+import { Badge, Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "gpui-component";
 import { category } from "./catalog.js";
 import { dayDate } from "./dates.js";
 /** @import { ClickEvent, Color, Context, Element } from "native-shell" */
@@ -152,7 +152,7 @@ export function barIcon(cx, id, name, label, onClick) {
 /**
  * The tab bar: one item per top-level section, the current one in the tint.
  * @param {Context} cx
- * @param {{ id: string, label: string, icon: IconName }[]} items
+ * @param {{ id: string, label: string, icon: IconName, badge?: number }[]} items
  * @param {string} current
  * @param {(id: string, cx: Context) => void} onSelect
  */
@@ -175,7 +175,7 @@ export function tabBar(cx, items, current, onSelect) {
           .test_id(`tab-${item.id}`)
           .role("tab")
           .aria_selected(selected)
-          .accessibility_label(item.label)
+          .accessibility_label(item.badge ? `${item.label}, ${item.badge} today` : item.label)
           .flex_1()
           .flex()
           .flex_col()
@@ -185,7 +185,7 @@ export function tabBar(cx, items, current, onSelect) {
           .min_h_11()
           .active((s) => s.opacity(0.5))
           .on_click((_e, cx) => onSelect(item.id, cx))
-          .child(icon(item.icon, color, 24))
+          .child(Badge.new().count(item.badge ?? 0).size("small").child(icon(item.icon, color, 24)))
           .child(div().text_xs().font_medium().text_color(color).child(item.label));
       }),
     );

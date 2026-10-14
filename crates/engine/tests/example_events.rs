@@ -294,3 +294,15 @@ fn a_sold_out_event_cannot_be_booked() {
     assert!(disabled(&h, "get-tickets"));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn the_tickets_tab_badges_bookings_for_today() {
+    let dir = data_dir("badge");
+    let mut h = loaded(&dir);
+    assert_eq!(h.text_of("tab-tickets"), "Tickets");
+    book(&mut h, "night-market", "ga");
+    h.tap("back");
+    h.tap("back");
+    assert_eq!(h.text_of("tab-tickets"), "1 Tickets");
+    let _ = std::fs::remove_dir_all(&dir);
+}

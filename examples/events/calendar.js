@@ -127,7 +127,7 @@ export class CalendarTab {
     return v_flex()
       .pt_5()
       .gap_2()
-      .child(new Marker("agenda-title").test_id("agenda-title").role("header").px_4().child(longDate(date)))
+      .child(new Marker("agenda-title").test_id("agenda-title").role("header").px_4().text_size(13).font_weight(600).child(longDate(date)))
       .child(
         today.length === 0
           ? emptyState(cx, {

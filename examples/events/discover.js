@@ -61,7 +61,7 @@ export class Discover {
             days.map((day) =>
               v_flex()
                 .gap_1()
-                .child(new Marker(`day-${day}`).test_id(`day-${day}`).role("header").px_4().child(relativeDay(day)))
+                .child(new Marker(`day-${day}`).test_id(`day-${day}`).role("header").px_4().text_size(13).font_weight(600).child(relativeDay(day)))
                 .child(
                   v_flex()
                     .children(
