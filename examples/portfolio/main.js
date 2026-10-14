@@ -558,6 +558,6 @@ export default class Portfolio extends View {
 }
 
 /** The allocation's colors, in slice order; the legend uses the same list. */
-export function sliceColors(t) {
-  return [t.primary, t.success, t.warning, t.destructive, t.muted_foreground];
+function sliceColors(t) {
+  return [t.chart_1, t.chart_2, t.chart_3, t.chart_4, t.chart_5];
 }
