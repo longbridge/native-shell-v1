@@ -48,6 +48,17 @@ fn type_into(f: &Fixture, test_id: &str, text: &str) {
     panic!("no editable text in {test_id:?}");
 }
 
+fn contains(root: &gtk::Widget, matches: &dyn Fn(&gtk::Widget) -> bool) -> bool {
+    let mut child = root.first_child();
+    while let Some(c) = child {
+        if matches(&c) || contains(&c, matches) {
+            return true;
+        }
+        child = c.next_sibling();
+    }
+    false
+}
+
 fn screenshots(f: &Fixture, name: &str) {
     f.set_dark(false);
     f.screenshot(format!("screenshots/components-forms-{name}-light.png"));
@@ -58,6 +69,9 @@ fn screenshots(f: &Fixture, name: &str) {
 
 fn forms_checkout() {
     let f = forms_page();
+    // The card message is a multi-line field (an InputGroupTextarea), so its
+    // placeholder sits on the first line instead of centering in the box.
+    assert!(contains(&f.expect("message-input"), &|w| w.is::<gtk::TextView>()), "the card message is multi-line");
     f.click("continue");
     f.expect("name-error");
     screenshots(&f, "recipient-errors");

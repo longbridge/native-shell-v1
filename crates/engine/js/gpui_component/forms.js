@@ -17,7 +17,7 @@
 
 import { scope, Entity, markDirty, startTimer, cancelTimer, popoverState, deferPopover, refuseStateInRender, windowInfo } from "nsh:core";
 import { Element, chainKey, div, h_flex, v_flex, text, span, shape, svg } from "nsh:elements";
-import { Input, InputState, TextareaState, DatePicker, Spinner } from "nsh:components";
+import { Input, InputState, Textarea, TextareaState, DatePicker, Spinner } from "nsh:components";
 
 // Shared --------------------------------------------------------------------------
 
@@ -563,7 +563,7 @@ class InputGroupControl extends Element {
     const name = multiline ? "InputGroupTextarea" : "InputGroupInput";
     const kind = multiline ? TextareaState : InputState;
     if (!(state instanceof kind)) throw new TypeError(`${name} expects one ${kind.name} entity`);
-    Object.assign(this, Input.new(state));
+    Object.assign(this, (multiline ? Textarea : Input).new(state));
     this._what = name;
     this._state = state;
     this._disabled = false;

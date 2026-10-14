@@ -1787,12 +1787,15 @@ declare module "gpui-component" {
     month(): { year: number; month: number };
     /** gpui-component's disabled matcher: true for days that cannot be chosen. */
     set_disabled_matcher(matcher: ((date: IsoDate) => boolean) | null): void;
+    /** Mobile: a dot under a day's number, secondary ("default") or in the tint ("tinted"). */
+    set_marker_matcher(matcher: ((date: IsoDate) => null | "default" | "tinted") | null): void;
     /** A selection the user made, with `date()`'s shape. */
     on(event: "change", handler: (date: IsoDate | null | [IsoDate | null, IsoDate | null], cx: DataContext) => void): boolean;
     release(): boolean;
   }
   /** Retained calendar state; create it outside render. */
   export const CalendarState: { (): CalendarState; new: () => CalendarState };
+  /** Mobile: with a test id, each day is `<id>-YYYY-MM-DD` and the month buttons `<id>-prev` / `<id>-next`. */
   export interface CalendarElement extends Element {
     /** Stacks this many consecutive months. */
     number_of_months(count: number): this;

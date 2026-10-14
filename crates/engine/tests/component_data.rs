@@ -490,6 +490,49 @@ fn calendar_week_starts_on_the_locales_first_day() {
 }
 
 #[test]
+fn calendar_marks_days_and_names_its_parts() {
+    let mut h = start(&calendar(
+        r#"this.state.set_month(2020, 10); this.state.set_marker_matcher((d) => d === "2020-10-16" ? "tinted" : d === "2020-10-20" ? "default" : null);"#,
+        "new Calendar(this.state)",
+    ));
+    assert_eq!(h.prop("cal-2020-10-16", Prop::A11yLabel), Some(PropValue::Str("Friday, October 16, 2020, has events".into())));
+    let dot = |h: &Harness, id: &str| {
+        let disc = h.native().children(h.find(id).unwrap())[0];
+        let kids = h.native().children(disc).to_vec();
+        kids.iter().find_map(|k| match h.native().prop(*k, Prop::BackgroundColor) {
+            Some(PropValue::Color(c)) => Some(*c),
+            _ => None,
+        })
+    };
+    let theme = Theme::default_for(Appearance::Light);
+    assert_eq!(dot(&h, "cal-2020-10-16"), theme.color("primary"));
+    assert_eq!(dot(&h, "cal-2020-10-20"), theme.color("muted_foreground"));
+    assert_eq!(dot(&h, "cal-2020-10-17"), None);
+    // Day and month-button ids make taps scriptable.
+    h.tap("cal-2020-10-16");
+    assert_eq!(log(&h), r#""2020-10-16""#);
+    assert_eq!(dot(&h, "cal-2020-10-16"), theme.color("primary_foreground"), "white on the selected disc");
+    h.tap("cal-next");
+    assert!(h.find("cal-2020-11-02").is_some());
+    h.tap("cal-prev");
+    assert!(h.find("cal-2020-10-31").is_some());
+}
+
+#[test]
+fn calendar_columns_fit_at_twice_the_text_size() {
+    let src = program(&calendar("this.state.set_month(2020, 10);", "new Calendar(this.state)"));
+    let env = Environment { font_scale: 2.0, ..Environment::default() };
+    let h = started(Harness::build(&[("main.js", &src)]).environment(env).start());
+    assert_eq!(&h.texts()[2..4], ["S", "M"], "narrow weekday symbols");
+    // Saturday's column ends inside the 390 pt screen, and its disc inside the column.
+    let sat = h.find("cal-2020-10-31").unwrap();
+    let cell = h.native().nodes[&sat].frame.unwrap();
+    assert!(cell.x + cell.width <= 390.5, "{cell:?}");
+    let disc = h.native().nodes[&h.native().children(sat)[0]].frame.unwrap();
+    assert!(disc.x >= 0.0 && disc.x + disc.width <= cell.width + 0.5, "{disc:?} in {cell:?}");
+}
+
+#[test]
 fn calendar_state_is_refused_in_render() {
     let err = render_error("export default class C extends View { render() { return new Calendar(CalendarState()); } }");
     assert!(err.contains("CalendarState() cannot run during render"), "{err}");

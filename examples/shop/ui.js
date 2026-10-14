@@ -283,3 +283,59 @@ function titleSize(cx) {
   const scale = cx.window().font_scale;
   return (cx.theme().typography.large_title.size * Math.min(scale, 1.6)) / scale;
 }
+
+/**
+ * An action sheet for a long press: what it acts on, then one row per
+ * action (destructive ones in red), dismissed by a swipe down or a tap above it.
+ * @param {Context} cx
+ * @param {{ id: string, title: string, message?: string, actions: { id: string, label: string, icon: keyof typeof ICONS, destructive?: boolean, run: (cx: Context) => void }[] }} opts
+ */
+export function actionSheet(cx, { id, title, message, actions }) {
+  cx.haptic("medium");
+  cx.open_sheet(
+    () => {
+      const t = cx.theme();
+      const rows = actions.map((a) =>
+        Button.new(a.id)
+          .test_id(a.id)
+          .flex()
+          .items_center()
+          .gap_3()
+          .px_4()
+          .py_3()
+          .min_h_12()
+          .active((s) => s.bg(t.secondary))
+          .on_click((_e, cx) => {
+            window.close_sheet();
+            a.run(cx);
+          })
+          .child(text(cx, "body", a.label, a.destructive ? t.destructive : t.foreground).flex_1())
+          .child(icon(a.icon, a.destructive ? t.destructive : t.primary, 20)),
+      );
+      return v_flex()
+        .test_id(id)
+        .size_full()
+        .bg(t.background)
+        .px_4()
+        .pt_5()
+        .pb(cx.window().safe_area.bottom + 16)
+        .gap_4()
+        .child(
+          v_flex()
+            .px_4()
+            .gap_0p5()
+            .child(text(cx, "headline", title).role("header").text_center().truncate())
+            .when(Boolean(message), (el) => el.child(text(cx, "footnote", message, t.muted_foreground).text_center())),
+        )
+        // On the sheet's own background the rows sit on the muted fill, not the grouped surface.
+        .child(
+          v_flex()
+            .rounded_xl()
+            .bg(t.muted)
+            .overflow_hidden()
+            .children(rows.flatMap((row, i) => (i === 0 ? [row] : [div().h(1).ml_4().bg(t.border), row]))),
+        );
+    },
+    { detents: ["medium"] },
+  );
+}

@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use native_shell::core::protocol::{Command, EventType, Prop, PropValue, ROOT_NODE};
+use native_shell::core::protocol::{Command, Prop, PropValue, ROOT_NODE};
 use native_shell::testing::{Harness, HarnessBuilder};
 
 fn build() -> HarnessBuilder {
@@ -49,12 +49,6 @@ fn last_toast(h: &Harness) -> String {
         .find(|(n, c, _)| *n == ROOT_NODE && *c == Command::ShowToast)
         .map(|(_, _, p)| p.clone())
         .unwrap_or_default()
-}
-
-fn pan(h: &mut Harness, test_id: &str, phase: &str, dx: f32) {
-    let node = h.find(test_id).unwrap_or_else(|| panic!("no {test_id}\n{}", h.dump()));
-    let payload = serde_json::json!({ "phase": phase, "dx": dx, "dy": 0, "vx": 0, "vy": 0 }).to_string();
-    h.dispatch(node, EventType::Pan, &payload);
 }
 
 /// Waits out the simulated catalog request.
@@ -211,7 +205,7 @@ fn shop_browse_add_to_cart_check_out_and_see_the_order() {
 }
 
 #[test]
-fn shop_cart_removes_with_undo_by_button_and_swipe_and_persists() {
+fn shop_cart_removes_with_undo_by_button_and_long_press_and_persists() {
     let dir = data_dir("cart");
     let mut h = loaded(&dir);
     add_to_cart(&mut h, "pen");
@@ -226,15 +220,15 @@ fn shop_cart_removes_with_undo_by_button_and_swipe_and_persists() {
     h.toast_action("removed");
     assert_eq!(h.text_of("line-total-0"), "$36.00");
 
-    // A short swipe springs back; a long one leaves Remove showing.
-    pan(&mut h, "line-1", "began", 0.0);
-    pan(&mut h, "line-1", "changed", -20.0);
-    pan(&mut h, "line-1", "ended", -20.0);
-    assert_eq!(h.text_of("subtitle"), "2 items");
-    pan(&mut h, "line-1", "began", 0.0);
-    pan(&mut h, "line-1", "changed", -120.0);
-    pan(&mut h, "line-1", "ended", -120.0);
-    h.tap("swipe-remove-1");
+    // A long press offers the same Remove, and the way to the product.
+    h.long_press("line-1");
+    assert!(h.find("line-menu").is_some(), "{}", h.dump());
+    h.tap("line-menu-view");
+    assert_eq!(h.surfaces().len(), 2);
+    h.tap("back");
+    h.long_press("line-1");
+    h.tap("line-menu-remove");
+    assert!(h.find("line-menu").is_none());
     assert!(last_toast(&h).contains("Removed Market Tote"));
     assert_eq!(h.text_of("subtitle"), "1 item");
 
