@@ -182,13 +182,13 @@ fn settings_back() {
         assert_eq!(a.heading().as_deref(), Some("Discard changes?"));
         shot_alert(&a, "settings-discard-alert", dark);
         // Keep editing: the alert goes, the page stays.
-        choose(&a, "Keep editing");
+        choose(&a, "Keep Editing");
         f.settle();
         assert_eq!(visible_title(&f), title);
         // Back again, discard: the page pops.
         assert!(f.surface.go_back());
         f.settle();
-        choose(&alert().expect("the discard alert again"), "Discard changes");
+        choose(&alert().expect("the discard alert again"), "Discard Changes");
         f.settle();
         assert_eq!(visible_title(&f), "Home");
     }
