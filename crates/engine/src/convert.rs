@@ -108,6 +108,7 @@ fn prop_spec(name: &str) -> Option<(Prop, Kind)> {
         "refreshing" => (Prop::Refreshing, Bool),
         "refresh_enabled" => (Prop::RefreshEnabled, Bool),
         "paging" => (Prop::Paging, Bool),
+        "shows_indicators" => (Prop::ShowsIndicators, Bool),
         "host_props" => (Prop::HostProps, Json),
         "selectable" => (Prop::Selectable, Bool),
         _ => return None,

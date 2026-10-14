@@ -233,6 +233,8 @@ export class CarouselContent extends Element {
     this._rid = s._ref;
     const p = this._P();
     p.paging = true;
+    // The page dots say where the reader is; a scroll indicator flashing under the slides would repeat it.
+    p.shows_indicators = false;
     this.on_scroll((e, cx) => s._scrolled(e, cx));
     s._follow();
   }

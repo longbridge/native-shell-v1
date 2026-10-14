@@ -602,6 +602,7 @@ fn carousel_is_a_paged_horizontal_scroll() {
     assert_eq!(h.view_type("content"), ViewType::Scroll);
     assert_eq!(h.prop("content", Prop::Horizontal), Some(PropValue::Bool(true)));
     assert_eq!(h.prop("content", Prop::Paging), Some(PropValue::Bool(true)));
+    assert_eq!(h.prop("content", Prop::ShowsIndicators), Some(PropValue::Bool(false)), "the dots say where the reader is");
     assert!(scrolls(&h, "content").is_empty(), "the first slide needs no scroll");
 
     // A swipe: the slide nearest the offset becomes the selection.
