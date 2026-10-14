@@ -1,9 +1,9 @@
-//! One module per view type. Types not implemented yet mount as plain
-//! containers, so a program still shows everything else.
+//! One module per view type.
 
 mod control;
 mod date_picker;
 mod host_component;
+mod image;
 mod input;
 mod list;
 pub mod modal;
@@ -15,6 +15,7 @@ mod progress;
 mod scroll;
 mod segmented;
 mod select;
+mod shape;
 mod slider;
 mod text;
 mod toggle;
@@ -45,7 +46,8 @@ pub fn create(view_type: ViewType, cx: &NodeCx) -> Box<dyn Component> {
         ViewType::Sheet => modal::create(cx, modal::ModalKind::Sheet),
         ViewType::Dialog => modal::create(cx, modal::ModalKind::Dialog),
         ViewType::TextInput => input::create(cx),
-        _ => Box::new(Plain),
+        ViewType::Image => Box::new(image::Image::new(cx)),
+        ViewType::Shape => Box::new(shape::Shape::new(cx)),
     }
 }
 

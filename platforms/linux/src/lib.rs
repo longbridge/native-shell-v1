@@ -8,12 +8,16 @@
 //! (background, border, corner radii, shadow). Native GTK controls (entries,
 //! switches, scrolled windows, drop-downs…) live inside a node as its content.
 
+mod a11y;
+mod animator;
 mod clipboard;
 mod component;
 mod components;
+mod gestures;
 #[cfg(test)]
 mod gtk_test;
 mod instance;
+mod keys;
 mod mount;
 mod node_view;
 mod runtime;

@@ -1046,9 +1046,12 @@ dependencies = [
  "native-shell-core",
  "native-shell-services",
  "pangocairo",
+ "rustls",
  "serde",
  "serde_json",
  "tempfile",
+ "ureq",
+ "webpki-roots 0.26.11",
 ]
 
 [[package]]
