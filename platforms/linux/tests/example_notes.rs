@@ -8,7 +8,6 @@ use std::path::Path;
 use std::process::ExitCode;
 use std::time::Duration;
 
-use gtk::prelude::*;
 use native_shell_gtk::InstanceOptions;
 use support::*;
 
