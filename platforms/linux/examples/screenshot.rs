@@ -21,15 +21,17 @@ fn main() -> ExitCode {
     // The point of this tool: write the committed images.
     std::env::set_var("NSH_SCREENSHOTS", "1");
     let _display = support::init();
-    common::host_demo::register(Runtime::shared());
     let out = Path::new(env!("CARGO_MANIFEST_DIR")).join("screenshots");
     let mut failed = false;
     for example in common::examples().filter(|e| wanted.is_empty() || wanted.iter().any(|w| w == e.name)) {
         let dir = common::examples_dir().join(example.name);
         for dark in [false, true] {
             support::set_dark(dark);
-            let f = Fixture::start_with(Runtime::shared(), InstanceOptions::default(), |instance| instance.load_dir(&dir));
-            // Host answers and first ticks arrive on timers.
+            // A fresh host each time: the quote feed starts from the same prices.
+            let runtime = Runtime::new();
+            common::host_demo::register(&runtime);
+            let f = Fixture::start_with(&runtime, InstanceOptions::default(), |instance| instance.load_dir(&dir));
+            // Host answers arrive on timers, before the feed's first tick.
             pump_for(Duration::from_millis(800));
             f.settle();
             let path = out.join(format!("example-{}-{}.png", example.name, if dark { "dark" } else { "light" }));

@@ -111,6 +111,8 @@ pub struct InstanceOptions {
     pub capabilities: Option<Capabilities>,
     /// Script limits; `None` keeps the core's defaults.
     pub limits: Option<Limits>,
+    /// Pins `Date` (Unix ms) for tests and screenshots; `None` reads the system clock.
+    pub wall_clock: Option<f64>,
 }
 
 type ErrorHandler = Box<dyn Fn(&str)>;
@@ -151,6 +153,7 @@ impl Instance {
         config.dev = options.dev;
         config.capabilities = options.capabilities;
         config.limits = options.limits.unwrap_or_default();
+        config.wall_clock = options.wall_clock;
         config.registry = runtime.registry();
         config.theme = runtime.theme();
         config.environment = crate::surface::initial_environment();

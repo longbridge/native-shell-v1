@@ -69,19 +69,32 @@ pub const MANIFEST: &str = r#"{
 pub mod display;
 
 /// Starts GTK and libadwaita headless: on a private Broadway display unless
-/// one was chosen, with temporary files kept off the small /tmp. Keep the
+/// one was chosen, with temporary files kept off the small /tmp, and with a
+/// fixed time zone, language and text size. Keep the
 /// guard alive while GTK runs.
 pub fn init() -> Option<display::Display> {
     if std::env::var_os("TMPDIR").is_none() {
         let dir = option_env!("CARGO_TARGET_TMPDIR")
             .map(PathBuf::from)
             .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("target/tmp"));
-        let _ = std::fs::create_dir_all(&dir);
         std::env::set_var("TMPDIR", dir);
     }
+    if let Some(dir) = std::env::var_os("TMPDIR") {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    // The same time zone, language and text size on every machine, so dates,
+    // formats and text metrics (and the screenshots of them) do not vary.
+    std::env::set_var("TZ", "UTC");
+    for var in ["LANG", "LC_ALL"] {
+        std::env::set_var(var, "en_US.UTF-8");
+    }
+    std::env::set_var("LANGUAGE", "en_US");
     let display = display::start().expect("no Broadway display could start (is gtk4-broadwayd installed?)");
     gtk::init().expect("GTK cannot start");
     adw::init().expect("libadwaita cannot start");
+    if let Some(settings) = gtk::Settings::default() {
+        settings.set_gtk_xft_dpi(96 * 1024);
+    }
     display
 }
 
@@ -221,10 +234,15 @@ impl Fixture {
     }
 
     /// The general constructor: a runtime, instance options (the data
-    /// directory defaults to a fresh temporary one) and how to load the program.
+    /// directory defaults to a fresh temporary one, the wall clock to
+    /// `native_shell::testing::WALL_CLOCK`, 2026-10-14 09:41 UTC) and how to
+    /// load the program.
     pub fn start_with(runtime: &Runtime, mut options: InstanceOptions, load: impl FnOnce(&Instance) -> Result<(), String>) -> Fixture {
         let data_dir = tempfile::tempdir().expect("temporary data directory");
         options.data_dir.get_or_insert_with(|| data_dir.path().to_path_buf());
+        // Every run sees the same "now" (with `init`'s time zone and language),
+        // so dates on screen and in screenshots repeat.
+        options.wall_clock.get_or_insert(native_shell::testing::WALL_CLOCK);
         let surface = SurfaceView::new();
         let window = gtk::Window::builder().decorated(false).default_width(WIDTH).default_height(HEIGHT).child(&surface).build();
         window.present();
@@ -367,21 +385,33 @@ impl Fixture {
     /// Renders the surface offscreen into a PNG at `path` (relative paths are
     /// relative to `platforms/linux`), creating its directory.
     pub fn screenshot(&self, path: impl AsRef<Path>) -> PathBuf {
-        self.before_render();
-        screenshot(self.surface.upcast_ref(), path.as_ref())
+        self.still(|| screenshot(self.surface.upcast_ref(), path.as_ref()))
     }
 
     /// One pixel of the surface, `0xAARRGGBB`.
     pub fn pixel(&self, x: i32, y: i32) -> u32 {
-        self.before_render();
-        pixel(self.surface.upcast_ref(), x, y)
+        self.still(|| pixel(self.surface.upcast_ref(), x, y))
     }
 
-    /// A frame restyles widgets (appearance changes reach CSS then); the
-    /// layout after it pins the surface at the fixture's size.
-    fn before_render(&self) {
+    /// Runs `capture` on a still, current picture: animations off (spinners
+    /// and indeterminate bars hold a fixed frame, so screenshots repeat byte
+    /// for byte), everything redrawn in a fresh frame (which also restyles
+    /// widgets after an appearance change), and the surface laid out at the
+    /// fixture's size.
+    fn still<T>(&self, capture: impl FnOnce() -> T) -> T {
+        let settings = gtk::Settings::default();
+        let animations = settings.as_ref().map(|s| s.is_gtk_enable_animations());
+        if let Some(s) = &settings {
+            s.set_gtk_enable_animations(false);
+        }
+        queue_draw_all(self.window.upcast_ref());
         next_frame(self.window.upcast_ref());
         self.layout();
+        let result = capture();
+        if let (Some(s), Some(on)) = (&settings, animations) {
+            s.set_gtk_enable_animations(on);
+        }
+        result
     }
 }
 
@@ -524,6 +554,16 @@ pub fn screenshot_path(path: &Path) -> PathBuf {
     match path.strip_prefix("screenshots") {
         Ok(rest) if std::env::var("NSH_SCREENSHOTS").as_deref() != Ok("1") => root.join("target/screenshots").join(rest),
         _ => root.join(path),
+    }
+}
+
+/// Drops every cached drawing under `widget`, so the next frame paints it anew.
+pub fn queue_draw_all(widget: &gtk::Widget) {
+    widget.queue_draw();
+    let mut child = widget.first_child();
+    while let Some(w) = child {
+        queue_draw_all(&w);
+        child = w.next_sibling();
     }
 }
 

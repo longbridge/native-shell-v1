@@ -180,6 +180,12 @@ screenshots. The crate's own GTK unit tests use `src/gtk_test.rs`.
   #2563eb light, #60a5fa dark, as the iOS, Android and Linux example apps set
   it); tests that screenshot example screens use it, so their images compare
   with the other platforms'.
+* Runs repeat: `support::init` pins the time zone (UTC), the language
+  (`en_US`) and the text size, every fixture pins the wall clock
+  (`InstanceOptions::wall_clock`, `native_shell::testing::WALL_CLOCK`,
+  2026-10-14 09:41 UTC; `Date` then advances with the engine's time), and
+  screenshots are taken with animations held still, so two runs give
+  byte-identical images (`tests/examples.rs` checks it).
 * Screenshots written under `screenshots/` go to `target/screenshots/` unless
   `NSH_SCREENSHOTS=1` is set, so a test run never rewrites the committed
   images. `cargo run --example screenshot` renders every example to
