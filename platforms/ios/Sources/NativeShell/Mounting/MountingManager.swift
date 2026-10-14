@@ -20,6 +20,7 @@ protocol SurfacePresenter: AnyObject {
 
 /// Root-level services the renderer offers on node 0.
 protocol RootCommandHandler: AnyObject {
+    func themeDidChange()
     func showToast(_ payload: [String: Any])
     /// `{"id"}` retracts one toast (visible or queued), `{}` every toast.
     func dismissToast(_ payload: [String: Any])
@@ -30,6 +31,7 @@ final class MountingManager: ComponentContext {
     /// The view node 0 maps to.
     let rootView: NSHComponentView
     weak var presenter: SurfacePresenter?
+    let theme = ThemeState()
     weak var rootCommands: RootCommandHandler?
     /// Delivers events to the instance: node, type, JSON payload, seq of the last applied batch.
     var eventSink: ((UInt32, EventType, String, UInt32) -> Void)?
@@ -164,7 +166,12 @@ final class MountingManager: ComponentContext {
             touched[parentId] = parent
         case let .setProp(id, prop, value):
             guard let view = node(id, "SetProp") else { return }
-            if prop == .hostComponent, let host = view as? NSHHostComponentView {
+            if prop == .themeTokens {
+                if let o = value.jsonObject { theme.update(o) } else { theme.reset() }
+                for (_, n) in nodes { n.themeDidChange() }
+                rootCommands?.themeDidChange()
+                (presenter as? RootCommandHandler)?.themeDidChange()
+            } else if prop == .hostComponent, let host = view as? NSHHostComponentView {
                 attachHostComponent(host, name: value.string)
             } else if prop == .opacity, batchAnimated, let anim = view.animation?["opacity"] as? [String: Any] {
                 Animator.run(anim) { _ = view.setProp(prop, value) }

@@ -13,4 +13,30 @@
         <item name="android:backgroundDimEnabled">true</item>
         <item name="android:backgroundDimAmount">0.4</item>
     </style>
+
+    <!-- Edge-to-edge bottom sheets: the sheet surface runs under the navigation bar;
+         the shell pads its content and draws its own grabber and corners. -->
+    <style name="NativeShell.BottomSheet" parent="ThemeOverlay.Material3.BottomSheetDialog">
+        <item name="enableEdgeToEdge">true</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="bottomSheetStyle">@style/NativeShell.BottomSheet.Modal</item>
+    </style>
+
+    <style name="NativeShell.BottomSheet.Modal" parent="Widget.Material3.BottomSheet.Modal">
+        <item name="paddingBottomSystemWindowInsets">false</item>
+        <item name="paddingLeftSystemWindowInsets">false</item>
+        <item name="paddingRightSystemWindowInsets">false</item>
+        <!-- 16 dp top corners that stay when the sheet is fully expanded. -->
+        <item name="shapeAppearance">@style/NativeShell.BottomSheet.Shape</item>
+        <item name="shouldRemoveExpandedCorners">false</item>
+    </style>
+
+    <style name="NativeShell.BottomSheet.Shape" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSizeTopLeft">16dp</item>
+        <item name="cornerSizeTopRight">16dp</item>
+        <item name="cornerSizeBottomLeft">0dp</item>
+        <item name="cornerSizeBottomRight">0dp</item>
+    </style>
 </resources>

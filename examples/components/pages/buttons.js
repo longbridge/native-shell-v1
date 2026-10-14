@@ -5,6 +5,13 @@
 import { View, div, h_flex, v_flex, Button, Textarea, TextareaState } from "native-shell";
 import { button, card, heading, icon, page } from "../ui.js";
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function today() {
+  const d = new Date();
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+}
+
 export default class ButtonsPage extends View {
   init(_props, cx) {
     this.post = TextareaState.new({ placeholder: "What’s new with the garden?", rows: 4, auto_capitalize: "sentences" });
@@ -113,19 +120,27 @@ export default class ButtonsPage extends View {
           : null,
         v_flex()
           .gap_3()
-          .child(heading(cx, "Icon buttons", "A familiar symbol, a 44 pt target and an accessible name."))
+          .child(
+            heading(
+              cx,
+              "Icon buttons",
+              "Shortcuts into the post: a familiar symbol, a 44 pt target and an accessible name. Attaching a photo stays unavailable until photo access is allowed.",
+            ),
+          )
           .child(
             h_flex()
               .gap_2()
               .children(
                 [
-                  ["share", "share", "Share post"],
-                  ["link", "link", "Copy link"],
-                  ["edit", "pencil", "Edit post"],
-                ].map(([id, name, label]) =>
-                  Button.new(`icon-${id}`)
+                  ["date", "calendar", "Insert today’s date", today()],
+                  ["link", "link", "Insert a link", "https://example.org/garden"],
+                  ["photo", "upload", "Attach a photo", null],
+                ].map(([id, name, label, text]) => {
+                  const disabled = text === null || busy;
+                  return Button.new(`icon-${id}`)
                     .test_id(`icon-${id}`)
                     .accessibility_label(label)
+                    .disabled(disabled)
                     .size_11()
                     .flex()
                     .items_center()
@@ -133,10 +148,19 @@ export default class ButtonsPage extends View {
                     .rounded_lg()
                     .border_1()
                     .border_color(t.border)
-                    .active((s) => s.bg(t.muted))
-                    .on_click((_e, cx) => cx.push_toast({ title: label, timeout: 1500 }))
-                    .child(icon(name, t.foreground)),
-                ),
+                    .when(disabled, (el) => el.opacity(0.4))
+                    .when(!disabled, (el) =>
+                      el
+                        .active((s) => s.bg(t.muted))
+                        .on_click((_e, cx) => {
+                          const value = this.post.value();
+                          this.post.set_value(value === "" || value.endsWith(" ") ? value + text : `${value} ${text}`);
+                          this.state = "draft";
+                          cx.notify();
+                        }),
+                    )
+                    .child(icon(name, disabled ? t.muted_foreground : t.foreground));
+                }),
               ),
           ),
         v_flex()

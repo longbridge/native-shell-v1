@@ -13,7 +13,7 @@ import SelectionPage from "./pages/selection.js";
 import ProgressPage from "./pages/progress.js";
 import PickersPage from "./pages/pickers.js";
 import OverlaysPage from "./pages/overlays.js";
-import { largeTitle, row, section } from "./ui.js";
+import { largeTitle, row, section, statusBar } from "./ui.js";
 
 const SECTIONS = [
   {
@@ -42,6 +42,7 @@ export default class Components extends View {
       .size_full()
       .bg(t.background)
       .line_height(1.375)
+      .child(statusBar(cx))
       .child(
         v_flex()
           .test_id("index")

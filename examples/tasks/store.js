@@ -66,7 +66,7 @@ function parse(iso) {
 }
 
 /** Days from today to `iso`: negative when it has passed. */
-export function daysUntil(iso) {
+function daysUntil(iso) {
   const today = parse(isoDate(0));
   return Math.round((parse(iso).getTime() - today.getTime()) / 86400000);
 }

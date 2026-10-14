@@ -1,4 +1,4 @@
-//! `native-shell dev`: serves a program to devices on the LAN, with hot reload
+//! `nshell dev`: serves a program to devices on the LAN, with hot reload
 //! and remote logs.
 //!
 //! Plain HTTP/1.1 over `std::net`, one thread per connection: a dev server

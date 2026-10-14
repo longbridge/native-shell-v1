@@ -744,6 +744,91 @@ final class MountingTests: XCTestCase {
         XCTAssertNil(h.view(3, as: NSHImageView.self).imageView.image, "relative paths are not resolved against the cwd")
     }
 
+    func testControlsUsePrimaryTintButSwitchStaysGreen() {
+        h.apply { b in
+            b.create(1, .slider, parent: 0, frame: CGRect(x: 0, y: 0, width: 200, height: 44))
+            b.create(2, .progress, parent: 0, frame: CGRect(x: 0, y: 0, width: 200, height: 8))
+            b.create(3, .spinner, parent: 0, frame: CGRect(x: 0, y: 0, width: 20, height: 20))
+            b.create(4, .segmented, parent: 0, frame: CGRect(x: 0, y: 0, width: 200, height: 32), props: [(.items, .json(#"["A","B"]"#))])
+            b.create(5, .switchView, parent: 0, frame: CGRect(x: 0, y: 0, width: 60, height: 40), props: [(.tintColor, .color(0xFFFF_0000))])
+            b.create(6, .select, parent: 0, frame: CGRect(x: 0, y: 0, width: 200, height: 44))
+        }
+        func primary(_ c: UIColor?, _ style: UIUserInterfaceStyle) -> Bool {
+            c?.resolvedColor(with: UITraitCollection(userInterfaceStyle: style)) == Colors.hex(style == .dark ? "#fafafa" : "#171717")
+        }
+        for style in [UIUserInterfaceStyle.light, .dark] {
+            XCTAssertTrue(primary(h.view(1, as: NSHSliderView.self).control.minimumTrackTintColor, style), "slider")
+            XCTAssertTrue(primary(h.view(2, as: NSHProgressView.self).control.progressTintColor, style), "progress")
+            XCTAssertTrue(primary(h.view(3, as: NSHSpinnerView.self).control.color, style), "spinner")
+            XCTAssertTrue(primary(h.view(4, as: NSHSegmentedView.self).control.selectedSegmentTintColor, style), "segmented")
+            XCTAssertTrue(primary(h.view(6, as: NSHSelectView.self).subviews.compactMap { $0 as? UIImageView }.first?.tintColor, style), "select chevron")
+        }
+        XCTAssertNil(h.view(5, as: NSHSwitchView.self).control.onTintColor, "switch keeps the system green")
+        // An explicit TintColor overrides the theme; resetting it brings primary back.
+        h.apply { $0.prop(1, .tintColor, .color(0xFF00_FF00)) }
+        XCTAssertEqual(h.view(1, as: NSHSliderView.self).control.minimumTrackTintColor, Colors.argb(0xFF00_FF00))
+        h.apply { $0.prop(1, .tintColor, .null) }
+        XCTAssertTrue(primary(h.view(1, as: NSHSliderView.self).control.minimumTrackTintColor, .light))
+        // The theme provider maps primary for the host app.
+        let rt = NSHRuntime()
+        rt.themeProvider = { _ in ["primary": .systemPurple] }
+        XCTAssertEqual(ThemeTokens.color("primary", runtime: rt).resolvedColor(with: UITraitCollection(userInterfaceStyle: .light)),
+                       UIColor.systemPurple.resolvedColor(with: UITraitCollection(userInterfaceStyle: .light)))
+    }
+
+    func testThemeTokensPropDrivesRendererDrawnColors() {
+        func tokens(primary: UInt32, background: UInt32) -> PropValue {
+            .json(JSON.string(["appearance": "light", "primary": primary, "primary_foreground": 0xFFFF_FFFF, "background": background,
+                               "foreground": 0xFF00_0000, "muted_foreground": 0xFF77_7777, "border": 0xFFDD_DDDD, "destructive": 0xFFEF_4444]))
+        }
+        h.apply { b in
+            b.prop(0, .themeTokens, tokens(primary: 0xFF25_63EB, background: 0xFF11_2233))
+            b.create(1, .slider, parent: 0, frame: CGRect(x: 0, y: 0, width: 200, height: 44))
+            b.create(2, .checkbox, parent: 0, frame: CGRect(x: 0, y: 0, width: 24, height: 24), props: [(.checked, .bool(true))])
+            b.command(0, .showToast, ["id": "t", "title": "Hi", "duration": 0])
+        }
+        let slider = h.view(1, as: NSHSliderView.self)
+        XCTAssertEqual(slider.control.minimumTrackTintColor, Colors.argb(0xFF25_63EB), "set_theme primary reaches the control")
+        let toast = h.surface.toasts.visible.first!
+        XCTAssertEqual(toast.backgroundColor, Colors.argb(0xFF11_2233))
+        // A theme change re-resolves what is already on screen.
+        h.apply { $0.prop(0, .themeTokens, tokens(primary: 0xFFDC_2626, background: 0xFF00_0000)) }
+        XCTAssertEqual(slider.control.minimumTrackTintColor, Colors.argb(0xFFDC_2626))
+        XCTAssertEqual(toast.backgroundColor, Colors.argb(0xFF00_0000))
+        let box = h.view(2)!.layer.sublayers!.compactMap { $0 as? CAShapeLayer }.first!
+        XCTAssertEqual(box.fillColor.map { UIColor(cgColor: $0) }, Colors.argb(0xFFDC_2626), "drawn checkbox")
+        // Explicit TintColor still wins over the theme.
+        h.apply { $0.prop(1, .tintColor, .color(0xFF00_FF00)) }
+        XCTAssertEqual(slider.control.minimumTrackTintColor, Colors.argb(0xFF00_FF00))
+        // Before any ThemeTokens, defaults/provider stand in.
+        XCTAssertEqual(ThemeTokens.color("primary", runtime: NSHRuntime(), theme: ThemeState()).resolvedColor(with: UITraitCollection(userInterfaceStyle: .light)), Colors.hex("#171717"))
+    }
+
+    /// Renderer-drawn glyphs follow the frame the core gives (it grows with the font scale).
+    func testDrawnGlyphsScaleWithTheirFrame() {
+        h.apply { b in
+            b.create(1, .checkbox, parent: 0, frame: CGRect(x: 0, y: 0, width: 22, height: 22), props: [(.checked, .bool(true))])
+            b.create(2, .checkbox, parent: 0, frame: CGRect(x: 0, y: 0, width: 35, height: 35), props: [(.checked, .bool(true))])
+            b.create(3, .shape, parent: 0, frame: CGRect(x: 0, y: 0, width: 35, height: 35), props: [
+                (.pathData, .str("M2 2H22V22H2Z")), (.viewBox, .f32Array([0, 0, 24, 24])), (.strokeWidth, .f32(2)), (.strokeColor, .color(0xFF00_0000)),
+            ])
+        }
+        func box(_ n: UInt32) -> CAShapeLayer {
+            let v = h.view(n)!
+            v.layoutIfNeeded()
+            return v.layer.sublayers!.compactMap { $0 as? CAShapeLayer }.first!
+        }
+        let small = box(1), large = box(2)
+        XCTAssertEqual(large.path!.boundingBoxOfPath.width / small.path!.boundingBoxOfPath.width, 35.0 / 22.0, accuracy: 0.05)
+        XCTAssertEqual(large.lineWidth / small.lineWidth, 35.0 / 22.0, accuracy: 0.05)
+        // Shapes map their view box onto the frame, strokes included.
+        let shape = h.view(3, as: NSHShapeView.self)
+        shape.layoutIfNeeded()
+        let layer = shape.layer.sublayers!.compactMap { $0 as? CAShapeLayer }.first!
+        XCTAssertEqual(shape.renderedPath!.boundingBoxOfPath.width, 20 * 35.0 / 24.0, accuracy: 0.1)
+        XCTAssertEqual(layer.lineWidth, 2 * 35.0 / 24.0, accuracy: 0.01)
+    }
+
     func testHardwareKeysRouteToNearestListenerOrRoot() {
         h.apply { b in
             b.create(1, .view, parent: 0, frame: CGRect(x: 0, y: 0, width: 100, height: 100))

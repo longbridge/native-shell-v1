@@ -180,16 +180,18 @@ object Prop {
 
     const val HOST_COMPONENT = 150
     const val HOST_PROPS = 151
+    /** JSON on ROOT_NODE: every resolved color token (ARGB ints) plus `appearance`. */
+    const val THEME_TOKENS = 152
 
     /** Highest prop id. */
-    const val LAST = 151
+    const val LAST = 152
 
     private val known: BooleanArray = BooleanArray(LAST + 1).also { k ->
         intArrayOf(
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 20, 21, 22, 30, 31, 32, 40, 41, 42, 43, 44,
             50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 70, 71, 72, 80, 81, 82, 83, 84,
             90, 91, 92, 93, 100, 101, 102, 103, 104, 105, 110, 111, 112, 113, 114,
-            120, 121, 122, 123, 124, 125, 130, 131, 132, 133, 134, 135, 136, 140, 141, 142, 143, 150, 151,
+            120, 121, 122, 123, 124, 125, 130, 131, 132, 133, 134, 135, 136, 140, 141, 142, 143, 150, 151, 152,
         ).forEach { k[it] = true }
     }
 

@@ -227,6 +227,7 @@ impl Tree {
     fn text_env(&self) -> TextEnv {
         TextEnv {
             color: self.default_text_color,
+            rem: self.rem_size(),
         }
     }
 
@@ -778,7 +779,8 @@ impl Tree {
         let n = self.nodes.get(&id).expect("reconciled node");
         let (kind, native, root, tnode) = (n.kind.clone(), n.native, n.layout_root, n.taffy);
 
-        let mut style = desc.style.layout.clone();
+        // Rem lengths at the effective rem: they scale with the user's text size.
+        let mut style = desc.style.scaled_layout(self.rem_size());
         let (dw, dh) = default_size(&kind, desc, &n.text);
         if let Some(w) = dw.filter(|_| style.size.width.is_auto()) {
             style.size.width = length(w);

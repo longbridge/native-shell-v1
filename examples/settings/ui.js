@@ -34,14 +34,22 @@ export function icon(name, color, size = 20) {
     .flex_none();
 }
 
-/** The root page's title block. */
+/**
+ * The status bar's backdrop: content scrolls beneath it rather than under the
+ * system's clock and indicators.
+ */
+export function statusBar(cx) {
+  return div().h(cx.window().safe_area.top).flex_none().bg(cx.theme().background);
+}
+
+/** The root page's title block, at the top of its scrolling content. */
 export function largeTitle(cx, title) {
   const t = cx.theme();
   return div()
     .px_4()
-    .pt(cx.window().safe_area.top + 12)
+    .pt_3()
     .pb_2()
-    .child(div().role("header").text_3xl().font_bold().line_height(1.15).text_color(t.foreground).child(title));
+    .child(div().role("header").text_size(titleSize(cx)).font_bold().line_height(1.15).text_color(t.foreground).child(title));
 }
 
 /**
@@ -171,7 +179,8 @@ export function avatar(cx, name, size = 48) {
     .join("");
   return div()
     .flex_none()
-    .size(size)
+    // The initials scale with the user's text size, so the circle does too.
+    .size(size * Math.min(cx.window().font_scale, 2))
     .rounded_full()
     .bg(t.primary)
     .flex()
@@ -181,4 +190,13 @@ export function avatar(cx, name, size = 48) {
     .font_semibold()
     .text_lg()
     .child(initials);
+}
+
+/**
+ * A large title's size: 30 pt, growing with the user's text size only up to
+ * 1.6×, as native large titles do, so a long word never breaks mid-word.
+ */
+function titleSize(cx) {
+  const scale = cx.window().font_scale;
+  return (30 * Math.min(scale, 1.6)) / scale;
 }

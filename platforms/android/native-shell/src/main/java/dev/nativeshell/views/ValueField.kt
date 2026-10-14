@@ -31,7 +31,7 @@ internal class ValueField(context: Context) : View(context) {
         set(v) { field = v; if (value == null) contentDescription = v; requestLayout(); invalidate() }
 
     private val m = ValueFieldMetrics(context)
-    private val tokens = ThemeTokens.of(context)
+    private var tokens = ThemeTokens.of(context)
     private val textPaint = m.textPaint()
     private val chevronPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -45,9 +45,20 @@ internal class ValueField(context: Context) : View(context) {
     init {
         isClickable = true
         isFocusable = true
+        applyTokens()
+    }
+
+    /** (Re)applies the surface's theme tokens: fill, ripple and text colors. */
+    fun applyTokens() {
+        tokens = ThemeTokens.of(context)
+        chevronPaint.color = tokens.mutedForeground
         val shape = GradientDrawable().apply { setColor(tokens.muted); cornerRadius = ValueFieldMetrics.RADIUS * m.dp }
         val mask = GradientDrawable().apply { setColor(0xFF000000.toInt()); cornerRadius = ValueFieldMetrics.RADIUS * m.dp }
-        background = RippleDrawable(ColorStateList.valueOf(tokens.foreground and 0x1FFFFFFF), shape, mask)
+        // Keep a script-set decoration (BoxDrawable) in place.
+        if (background == null || background is RippleDrawable) {
+            background = RippleDrawable(ColorStateList.valueOf(tokens.foreground and 0x1FFFFFFF), shape, mask)
+        }
+        invalidate()
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {

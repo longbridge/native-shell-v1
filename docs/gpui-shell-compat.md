@@ -8,7 +8,8 @@ gpui-kit's `examples/js_todolist` copied byte for byte and runs unchanged.
 
 Modules: `"gpui-kit"`, `"gpui"`, `"gpui-base"` and `"native-shell"` resolve to
 one module carrying both name sets; `"gpui-component"` exports `TitleBar`
-only; `"fs/promises"` is available under the `fs` capability.
+only; `"gpui-shell"` exists and exports nothing, as in gpui-shell;
+`"fs/promises"` is available under the `fs` capability.
 
 ## Same
 

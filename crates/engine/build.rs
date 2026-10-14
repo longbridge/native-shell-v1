@@ -24,6 +24,7 @@ const MODULES: &[(&str, &str)] = &[
     ("nsh:index", "js/index.js"),
     ("nsh:fs", "js/fs.js"),
     ("nsh:component", "js/component.js"),
+    ("nsh:shell", "js/shell.js"),
     ("nsh:boot", "js/boot.js"),
 ];
 

@@ -1,0 +1,132 @@
+// The binary mutation stream of the core, mirrored from
+// `crates/core/src/protocol.rs`. The numeric values are the wire format: they
+// must never drift from the Rust definitions.
+
+import Foundation
+
+enum Wire {
+    static let magic: UInt32 = 0x3142_534E // "NSB1" little-endian
+    static let protocolVersion: UInt32 = 1
+    static let headerWords = 5
+    static let extendedNode: UInt8 = 0x80
+    static let nodeMask: UInt32 = 0x00FF_FFFF
+    static let rootNode: UInt32 = 0
+}
+
+enum Op: UInt8 {
+    case beginBatch = 1, endBatch, create, insert, remove, delete, move, setProp, setFrame, setEventMask, command
+}
+
+enum BatchFlags {
+    static let animated: UInt32 = 1
+    static let initial: UInt32 = 2
+}
+
+@objc public enum NSHViewType: UInt32 {
+    case view = 1, text, image, scroll, textInput, switchView, checkbox, slider, progress, list, listRow, page,
+         sheet, dialog, segmented, datePicker, select, shape, spinner, hostComponent
+}
+
+enum ValueKind: UInt8 {
+    case null = 0, bool, i32, f32, color, str, json, f32Array
+}
+
+enum Prop: UInt16 {
+    case backgroundColor = 1, cornerRadii, borderWidths, borderColor, opacity, shadow, gradient, clipsToBounds, hidden,
+         transform, animation
+    case attributedText = 20, selectable, linksEnabled
+    case imageSource = 30, contentMode, tintColor
+    case horizontal = 40, contentSize, refreshing, showsIndicators, refreshEnabled
+    case textValue = 50, placeholder, multiline, secure, keyboardType, maxLength, allowedChars, editable, returnKey,
+         textStyle, contentType, placeholderColor, autoCapitalize, contentInsets
+    case checked = 70, enabled, checkStyle
+    case value = 80, min, max, step, indeterminate
+    case itemCount = 90, rowOffsets, rowIndex, prefetch
+    case title = 100, canGoBack, navBarHidden, detents, dismissable, alertSpec
+    case items = 110, selectedIndex, date, dateMode, menu
+    case pathData = 120, fillColor, strokeColor, strokeWidth, viewBox, fillRule
+    case a11yLabel = 130, a11yRole, a11yHint, a11yValue, a11yState, testId, a11yHidden
+    case activeOpacity = 140, activeBackground, hitSlop, focusable
+    case hostComponent = 150, hostProps, themeTokens
+}
+
+enum A11yRole: Int32 {
+    case none = 0, button, link, header, image, text, textField, switchRole, checkbox, radio, slider, progressBar, tab,
+         tabList, list, listItem, menu, alert, search
+}
+
+enum Command: UInt32 {
+    case focus = 1, blur, scrollTo, scrollToIndex, showToast, openUrl, setClipboard, presentPage, dismissPage, haptic, dismissToast
+}
+
+enum EventMask {
+    static let click: UInt32 = 1 << 0
+    static let doubleClick: UInt32 = 1 << 1
+    static let longPress: UInt32 = 1 << 2
+    static let change: UInt32 = 1 << 3
+    static let submit: UInt32 = 1 << 4
+    static let focus: UInt32 = 1 << 5
+    static let blur: UInt32 = 1 << 6
+    static let scroll: UInt32 = 1 << 7
+    static let refresh: UInt32 = 1 << 8
+    static let pan: UInt32 = 1 << 9
+    static let pinch: UInt32 = 1 << 10
+    static let link: UInt32 = 1 << 11
+    static let key: UInt32 = 1 << 12
+    static let dismiss: UInt32 = 1 << 13
+    static let action: UInt32 = 1 << 14
+    static let pressIn: UInt32 = 1 << 15
+    static let pressOut: UInt32 = 1 << 16
+    static let hostEvent: UInt32 = 1 << 17
+}
+
+enum EventType: UInt32 {
+    case click = 1, doubleClick, longPress, change, submit, focus, blur, scroll, refresh, pan, pinch, link, key,
+         dismiss, action, rangeChange, rowHeight, backPressed, pressIn, pressOut, hostEvent, toastAction
+}
+
+enum PropValue: Equatable {
+    case null
+    case bool(Bool)
+    case i32(Int32)
+    case f32(Float)
+    case color(UInt32)
+    case str(String)
+    case json(String)
+    case f32Array([Float])
+
+    var kind: ValueKind {
+        switch self {
+        case .null: return .null
+        case .bool: return .bool
+        case .i32: return .i32
+        case .f32: return .f32
+        case .color: return .color
+        case .str: return .str
+        case .json: return .json
+        case .f32Array: return .f32Array
+        }
+    }
+}
+
+struct Frame: Equatable {
+    var x: Float, y: Float, width: Float, height: Float
+
+    var cgRect: CGRect {
+        CGRect(x: CGFloat(x), y: CGFloat(y), width: CGFloat(width), height: CGFloat(height))
+    }
+}
+
+enum Mutation: Equatable {
+    case beginBatch(seq: UInt32, flags: UInt32)
+    case endBatch
+    case create(node: UInt32, type: NSHViewType)
+    case insert(node: UInt32, parent: UInt32, index: UInt32)
+    case remove(node: UInt32, parent: UInt32, index: UInt32)
+    case delete(node: UInt32)
+    case move(node: UInt32, parent: UInt32, from: UInt32, to: UInt32)
+    case setProp(node: UInt32, prop: Prop, value: PropValue)
+    case setFrame(node: UInt32, frame: Frame)
+    case setEventMask(node: UInt32, mask: UInt32)
+    case command(node: UInt32, command: Command, payload: String)
+}

@@ -224,3 +224,25 @@ fn reserved_module_names() {
     let h = Harness::with_registry(&[("main.js", "export default 1;")], registry);
     assert!(h.load_error().unwrap().to_string().contains("reserved"), "{:?}", h.load_error());
 }
+
+#[test]
+fn the_gpui_shell_specifier_loads_and_exports_nothing() {
+    // As in gpui-shell: the module exists, its names live in "gpui-kit".
+    let h = app(r#"
+import {} from "gpui-shell";
+import * as shell from "gpui-shell";
+import { View, div } from "gpui-kit";
+export default class S extends View {
+  render() { return div().test_id("n").child(String(Object.keys(shell).length)); }
+}
+"#);
+    assert_eq!(h.text_of("n"), "0");
+
+    let h = Harness::new(&[(
+        "main.js",
+        r#"import { View } from "gpui-shell";
+export default class S extends View { render() { return null; } }"#,
+    )]);
+    let e = h.load_error().expect("a name from gpui-shell does not link").to_string();
+    assert!(e.contains("View"), "{e}");
+}

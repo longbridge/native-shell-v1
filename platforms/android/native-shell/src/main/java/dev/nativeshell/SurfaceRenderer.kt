@@ -42,6 +42,11 @@ internal class SurfaceRenderer(
 
     val mounting = MountingManager(this, rootView)
 
+    override fun setThemeTokens(json: String?) {
+        (context as? dev.nativeshell.render.ShellThemeContext)?.tokens = dev.nativeshell.render.ThemeTokens.parse(json)
+        mounting.retintControls()
+    }
+
     /** True until the first batch is applied; the surface holds its first draw meanwhile. */
     var awaitingFirstBatch = true
         private set

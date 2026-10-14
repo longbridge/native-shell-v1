@@ -65,8 +65,10 @@ final class ToastCenter {
 
     init(host: NSHSurfaceView) { self.host = host }
 
+    func themeDidChange() { (visible + queued).forEach { $0.applyColors() } }
+
     func show(_ payload: [String: Any]) {
-        let t = ToastView(payload, runtime: host?.manager.runtime ?? .shared)
+        let t = ToastView(payload, runtime: host?.manager.runtime ?? .shared, theme: host?.manager.theme)
         if visible.count < Self.maxVisible { present(t) } else { queued.append(t) }
     }
 
@@ -141,18 +143,20 @@ final class ToastView: UIView {
 
     static let symbols = ["info": "info.circle", "success": "checkmark.circle", "warning": "exclamationmark.triangle", "error": "xmark.octagon"]
 
-    init(_ payload: [String: Any], runtime: NSHRuntime = .shared) {
+    private let runtime: NSHRuntime
+    private weak var theme: ThemeState?
+
+    init(_ payload: [String: Any], runtime: NSHRuntime = .shared, theme: ThemeState? = nil) {
+        self.runtime = runtime
+        self.theme = theme
         id = payload["id"].map { "\($0)" } ?? UUID().uuidString
         let ms = payload.double("duration") ?? 3000
         duration = ms <= 0 ? 0 : max(0.5, ms / 1000)
         let lvl = payload.string("level") ?? "info"
         level = Self.symbols[lvl] == nil ? "info" : lvl
         super.init(frame: .zero)
-        let token = { ThemeTokens.color($0, runtime: runtime) }
-        backgroundColor = token("background")
         layer.cornerRadius = ThemeTokens.radius
         layer.borderWidth = 1
-        layer.borderColor = token("border").resolvedColor(with: traitCollection).cgColor
         layer.shadowColor = UIColor.black.cgColor
         layer.shadowOpacity = 0.08
         layer.shadowRadius = 8
@@ -160,26 +164,17 @@ final class ToastView: UIView {
 
         let scale = FontScale.value
         iconView.image = UIImage(systemName: Self.symbols[level]!, withConfiguration: UIImage.SymbolConfiguration(pointSize: 17 * scale, weight: .medium))
-        switch level {
-        case "error": iconView.tintColor = token("destructive")
-        case "success": iconView.tintColor = .systemGreen
-        case "warning": iconView.tintColor = .systemOrange
-        default: iconView.tintColor = .systemBlue
-        }
         iconView.contentMode = .center
         titleLabel.text = payload.string("title")
         titleLabel.font = .systemFont(ofSize: 15 * scale, weight: .medium)
-        titleLabel.textColor = token("foreground")
         titleLabel.numberOfLines = 2
         descriptionLabel.text = payload.string("description")
         descriptionLabel.font = .systemFont(ofSize: 13 * scale)
-        descriptionLabel.textColor = token("muted_foreground")
         descriptionLabel.numberOfLines = 3
         [iconView, titleLabel, descriptionLabel].forEach(addSubview)
         if let label = (payload["action"] as? [String: Any])?.string("label"), !label.isEmpty {
             let b = UIButton(type: .system)
             b.setTitle(label, for: .normal)
-            b.setTitleColor(token("foreground"), for: .normal)
             b.titleLabel?.font = .systemFont(ofSize: 15 * scale, weight: .medium)
             b.addTarget(self, action: #selector(actionTapped), for: .touchUpInside)
             b.accessibilityIdentifier = "nsh-toast-action"
@@ -189,15 +184,32 @@ final class ToastView: UIView {
             isAccessibilityElement = false
             accessibilityElements = [AccessibleSummary(self), b]
         }
-        isAccessibilityElement = true
+        if actionButton == nil { isAccessibilityElement = true }
         let levelName = ["info": "Info", "success": "Success", "warning": "Warning", "error": "Error"][level]!
         accessibilityLabel = ([levelName] + [payload.string("title"), payload.string("description")].compactMap { $0 }).joined(separator: ". ")
         accessibilityTraits = .staticText
         accessibilityIdentifier = "nsh-toast"
-        borderColorToken = token("border")
+        applyColors()
     }
 
     private var borderColorToken: UIColor = .separator
+
+    /// Colors from the theme tokens; redone when the theme changes.
+    func applyColors() {
+        let token = { ThemeTokens.color($0, runtime: self.runtime, theme: self.theme) }
+        backgroundColor = token("background")
+        borderColorToken = token("border")
+        layer.borderColor = borderColorToken.resolvedColor(with: traitCollection).cgColor
+        switch level {
+        case "error": iconView.tintColor = token("destructive")
+        case "success": iconView.tintColor = .systemGreen
+        case "warning": iconView.tintColor = .systemOrange
+        default: iconView.tintColor = .systemBlue
+        }
+        titleLabel.textColor = token("foreground")
+        descriptionLabel.textColor = token("muted_foreground")
+        actionButton?.setTitleColor(token("foreground"), for: .normal)
+    }
 
     @objc func actionTapped() { onAction?() }
 

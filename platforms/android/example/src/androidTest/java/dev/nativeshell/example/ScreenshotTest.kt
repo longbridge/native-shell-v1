@@ -55,6 +55,7 @@ class ScreenshotTest {
         for (mode in listOf("light", "dark")) {
             appearance = mode
             device.executeShellCommand("cmd uimode night ${if (mode == "dark") "yes" else "no"}")
+            device.executeShellCommand("cmd statusbar collapse")
             val intent = Intent(instrumentation.targetContext, ProgramActivity::class.java)
                 .putExtra(ProgramActivity.EXTRA_PROGRAM, program)
                 .putExtra(ProgramActivity.EXTRA_RESET, true)
@@ -75,6 +76,7 @@ class ScreenshotTest {
                 view(id)?.let { return it }
                 SystemClock.sleep(100)
             }
+            save("failed-$id-$appearance")
             throw AssertionError("$id did not appear")
         }
 
@@ -87,11 +89,44 @@ class ScreenshotTest {
             instrumentation.waitForIdleSync()
         }
 
+        /**
+         * Taps the element whose accessible name contains [description]. List rows are recycled,
+         * so inside lists the accessible name is the stable handle.
+         */
+        fun tapDescription(description: String) {
+            val target = device.wait(Until.findObject(By.descContains(description)), 10_000)
+            assertNotNull("element described as $description", target)
+            target.click()
+            instrumentation.waitForIdleSync()
+        }
+
         fun type(id: String, text: String) {
             tap(id)
             SystemClock.sleep(400)
             instrumentation.sendStringSync(text)
             instrumentation.waitForIdleSync()
+        }
+
+        /** Closes the soft keyboard if it is up (back would otherwise pop the page). */
+        fun hideKeyboard() {
+            if (device.executeShellCommand("dumpsys input_method").contains("mInputShown=true")) {
+                device.pressBack()
+                SystemClock.sleep(500)
+            }
+        }
+
+        /** Taps a row that pushes a page and lets the push transition finish. */
+        fun push(id: String) {
+            tap(id)
+            SystemClock.sleep(800)
+        }
+
+        /** Returns to the previous page with the page's own back button. */
+        fun back() {
+            hideKeyboard()
+            tap("back")
+            // Let the pop transition finish before the next tap lands on the page below.
+            SystemClock.sleep(800)
         }
 
         fun alertButton(label: String) {
@@ -127,7 +162,7 @@ class ScreenshotTest {
         wait("task-1")
         tap("toggle-completed")
         snap("tasks")
-        tap("task-3")
+        tapDescription("Edit “Book a dentist appointment”")
         wait("editor")
         snap("tasks-edit")
         tap("editor-delete")
@@ -142,12 +177,12 @@ class ScreenshotTest {
     fun settings() = inBothAppearances("settings") {
         wait("account")
         snap("settings")
-        tap("account")
-        type("email", ".invalid")
+        push("account")
+        type("email", "@")
         tap("save")
         wait("email-error")
         snap("settings-account-error")
-        device.pressBack()
+        back()
         alertButton("Discard changes")
         wait("settings")
         device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 4, device.displayWidth / 2, device.displayHeight / 4, 20)
@@ -162,13 +197,13 @@ class ScreenshotTest {
     fun chat() = inBothAppearances("chat") {
         wait("bubble-m8")
         snap("chat")
-        tap("bubble-m7")
+        tapDescription("8:15 works.")
         wait("actions")
         snap("chat-actions")
-        tap("action-copy")
+        device.pressBack()
         type("draft", "Great, see you at the station")
         snap("chat-compose")
-        device.pressEnter()
+        tap("send")
         wait("delivery")
     }
 
@@ -177,7 +212,7 @@ class ScreenshotTest {
         wait("cell-HALO.US")
         SystemClock.sleep(2_000)
         snap("watchlist")
-        tap("cell-KITE.US")
+        tapDescription("KITE.US")
         wait("detail")
         snap("watchlist-detail")
         device.pressBack()
@@ -191,37 +226,37 @@ class ScreenshotTest {
         wait("open-buttons")
         snap("components")
 
-        tap("open-buttons")
+        push("open-buttons")
         type("post", "The tomatoes finally came in.")
         tap("publish")
         snap("components-buttons")
-        tap("back")
+        back()
 
-        tap("open-fields")
+        push("open-fields")
         for ((id, text) in listOf("name" to "Ada Lovelace", "street" to "12 Harbour Street", "city" to "Springfield", "postal" to "123")) type(id, text)
         tap("save-address")
         wait("postal-error")
         snap("components-fields")
-        tap("back")
+        back()
 
-        tap("open-selection")
+        push("open-selection")
         tap("email-digest")
         tap("speed-express")
         snap("components-selection")
-        tap("back")
+        back()
 
-        tap("open-progress")
+        push("open-progress")
         tap("upload-start")
         SystemClock.sleep(2_000)
         snap("components-progress")
-        tap("back")
+        back()
 
-        tap("open-pickers")
+        push("open-pickers")
         wait("summary")
         snap("components-pickers")
-        tap("back")
+        back()
 
-        tap("open-overlays")
+        push("open-overlays")
         snap("components-overlays")
         tap("share")
         wait("share-sheet")

@@ -270,6 +270,10 @@ closed_enum! {
         HostComponent = 150,
         /// JSON object of the component's props, as the script passed them.
         HostProps = 151,
+        /// On ROOT_NODE: JSON object of every resolved theme color token (`{"primary": 0xAARRGGBB, …}`),
+        /// plus `"appearance"`. Sent in the first batch and whenever the resolved theme changes, so
+        /// renderer-drawn chrome (control tints, toasts, sheets, pickers) follows `set_theme`.
+        ThemeTokens = 152,
     }
 }
 

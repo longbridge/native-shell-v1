@@ -148,6 +148,13 @@ Measurement and rendering must use the same engine and configuration.
   again.
 * Verification: a golden matrix of fonts × CJK × emoji × line heights × font
   scale (1.0 / 1.3 / 2.0); error ≤ 1 px.
+* Text size (Dynamic Type, Android font scale) is split in two, as in GPUI
+  where the rem is the zoom axis. Text scales fully, inside the renderer's
+  measurer and drawing; the core keeps text sizes unscaled. Layout lengths
+  given in rems scale with the effective rem, `16 × clamp(font_scale, 1.0,
+  1.6)` (`style::rem_size`, `MAX_LAYOUT_SCALE`): the style resolver records
+  which lengths were rems (`Resolved::rems`) and the tree lays them out at the
+  current rem, so a font scale change re-lays out without re-resolving styles.
 
 ## Inputs (IME)
 

@@ -15,10 +15,12 @@ use crate::DEFAULT_PREFETCH;
 
 pub(crate) const DEFAULT_WEIGHT: u16 = 400;
 
-/// What text JSON depends on besides the description. Sizes are never multiplied by the
-/// user's font scale: renderers apply it the same way when measuring and drawing.
+/// What derived props depend on besides the description. Text sizes are never multiplied
+/// by the user's font scale (renderers apply it the same way when measuring and drawing);
+/// rem lengths (radii, borders) are laid out at the effective rem `rem`.
 pub(crate) struct TextEnv {
     pub color: u32,
+    pub rem: f32,
 }
 
 pub(crate) fn derive(
@@ -34,13 +36,14 @@ pub(crate) fn derive(
     if let Some(c) = v.background {
         out.push((Prop::BackgroundColor, PropValue::Color(c)));
     }
-    if v.radii != [0.0; 4] {
-        out.push((Prop::CornerRadii, PropValue::F32Array(v.radii.to_vec())));
+    let radii = s.scaled_radii(env.rem);
+    if radii != [0.0; 4] {
+        out.push((Prop::CornerRadii, PropValue::F32Array(radii.to_vec())));
     }
     if s.has_border() {
         out.push((
             Prop::BorderWidths,
-            PropValue::F32Array(s.border_widths.to_vec()),
+            PropValue::F32Array(s.scaled_border_widths(env.rem).to_vec()),
         ));
     }
     if let Some(c) = v.border_color {

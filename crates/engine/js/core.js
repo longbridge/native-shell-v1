@@ -770,8 +770,10 @@ export const windowObject = {
   get sessionStorage() {
     return globalThis.sessionStorage;
   },
-  rem_size: () => 16,
-  line_height: () => 16 * 1.618,
+  // rem is what layout scales rem lengths by (font scale, clamped); a line of
+  // default text grows with the full font scale, as renderers draw it.
+  rem_size: () => N.rem_size(),
+  line_height: () => 16 * 1.618 * windowInfo().font_scale,
   viewport_size: () => ({ width: windowInfo().width, height: windowInfo().height }),
   bounds: () => ({ x: 0, y: 0, width: windowInfo().width, height: windowInfo().height }),
   mouse_position: () => ({ x: 0, y: 0 }),

@@ -9,7 +9,7 @@
 import UIKit
 
 @objcMembers
-open class NSHViewController: UIViewController, SurfacePresenter, SurfaceObserver, UINavigationControllerDelegate,
+open class NSHViewController: UIViewController, SurfacePresenter, SurfaceObserver, RootCommandHandler, UINavigationControllerDelegate,
     UIGestureRecognizerDelegate, UIAdaptivePresentationControllerDelegate {
     public let surfaceView: NSHSurfaceView
     public let navigation: UINavigationController
@@ -191,7 +191,7 @@ open class NSHViewController: UIViewController, SurfacePresenter, SurfaceObserve
     private func presentModal(for view: NSHComponentView) {
         let id = ObjectIdentifier(view)
         guard modals[id] == nil else { return }
-        let vc = ModalController(surface: view, runtime: surfaceView.manager.runtime)
+        let vc = ModalController(surface: view, runtime: surfaceView.manager.runtime, theme: surfaceView.manager.theme)
         vc.onUserDismiss = { [weak self, weak view] in
             guard let view = view else { return }
             self?.modals[ObjectIdentifier(view)] = nil
@@ -202,6 +202,15 @@ open class NSHViewController: UIViewController, SurfacePresenter, SurfaceObserve
         let presenter = AlertPresenter.topViewController(from: self.view) ?? self
         presenter.present(vc, animated: self.view.window != nil) { [weak self] in self?.surfaceView.updateKeyboard() }
     }
+
+    // MARK: Theme (RootCommandHandler: only the theme hook is used here)
+
+    func themeDidChange() {
+        for (_, m) in modals { (m as? ModalController)?.applyTheme() }
+    }
+
+    func showToast(_ payload: [String: Any]) { surfaceView.showToast(payload) }
+    func dismissToast(_ payload: [String: Any]) { surfaceView.dismissToast(payload) }
 
     /// The modal controller showing a sheet or dialog node (tests).
     func modalController(for view: NSHComponentView) -> UIViewController? { modals[ObjectIdentifier(view)] }
@@ -257,9 +266,12 @@ final class ModalController: UIViewController, UIAdaptivePresentationControllerD
     /// Behind a custom (iOS 14) sheet's content.
     private let sheetBackground = UIView()
 
-    init(surface: NSHComponentView, runtime: NSHRuntime = .shared) {
+    private weak var theme: ThemeState?
+
+    init(surface: NSHComponentView, runtime: NSHRuntime = .shared, theme: ThemeState? = nil) {
         self.surface = surface
         self.runtime = runtime
+        self.theme = theme
         isSheet = surface is NSHSheetView
         if #available(iOS 15.0, *) { nativeSheet = surface is NSHSheetView } else { nativeSheet = false }
         super.init(nibName: nil, bundle: nil)
@@ -300,12 +312,9 @@ final class ModalController: UIViewController, UIAdaptivePresentationControllerD
         super.viewDidLoad()
         // Sheets get the opaque theme background (the system sheet material is
         // translucent); content may still paint over it.
-        let background = ThemeTokens.color("background", runtime: runtime)
-        if nativeSheet {
-            view.backgroundColor = background
-        } else {
+        applyTheme()
+        if !nativeSheet {
             if isSheet {
-                sheetBackground.backgroundColor = background
                 sheetBackground.layer.cornerRadius = 12
                 sheetBackground.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
             }
@@ -315,6 +324,12 @@ final class ModalController: UIViewController, UIAdaptivePresentationControllerD
             if isSheet { view.addSubview(sheetBackground) }
         }
         view.addSubview(surface)
+    }
+
+    /// The opaque theme background behind sheet content.
+    func applyTheme() {
+        let background = ThemeTokens.color("background", runtime: runtime, theme: theme)
+        if nativeSheet { view.backgroundColor = background } else { sheetBackground.backgroundColor = background }
     }
 
     override func viewDidLayoutSubviews() {

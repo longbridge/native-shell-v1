@@ -17,6 +17,8 @@ protocol ComponentContext: AnyObject {
     func component(_ node: UInt32) -> NSHComponentView?
     /// Asks for `batchDidEnd` on `view` at the end of the current batch.
     func needsBatchEnd(_ view: NSHComponentView)
+    /// The instance's resolved theme tokens.
+    var theme: ThemeState { get }
 }
 
 @objc(NSHComponentView)
@@ -99,6 +101,14 @@ open class NSHComponentView: UIView, UIGestureRecognizerDelegate {
         if bounds.size != size { bounds = CGRect(origin: bounds.origin, size: size) }
         center = CGPoint(x: rect.midX, y: rect.midY)
     }
+
+    /// A theme token as a dynamic color (defaults, overridden by the host's theme provider).
+    func themeColor(_ token: String) -> UIColor {
+        ThemeTokens.color(token, runtime: context?.runtime ?? .shared, theme: context?.theme)
+    }
+
+    /// The theme tokens changed: views that draw with them refresh.
+    func themeDidChange() {}
 
     /// Called after a batch touched this node, once per batch.
     func batchDidEnd() {}

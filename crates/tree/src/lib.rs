@@ -314,11 +314,18 @@ impl Tree {
         self.env = env.clone();
         self.layout_all = true;
         if font_scale_changed {
-            // Sizes stay unscaled logical points (renderers apply the user's font scale), but
-            // measured sizes change: nothing measured under the old scale may be reused.
+            // Text sizes stay unscaled logical points (renderers apply the user's font scale),
+            // but measured sizes and the effective rem change: every node re-derives its
+            // layout lengths, and nothing measured under the old scale may be reused.
             self.epoch += 1;
             self.clear_measure_cache();
         }
+    }
+
+    /// The effective rem size: rem lengths are laid out at it (see
+    /// `native_shell_core::style::rem_size`); text sizes are not.
+    pub fn rem_size(&self) -> f32 {
+        native_shell_core::style::rem_size(self.env.font_scale)
     }
 
     /// Color of text whose style chain sets none (the theme's `foreground`).

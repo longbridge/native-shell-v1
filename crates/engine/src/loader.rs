@@ -33,6 +33,7 @@ const PRELUDE: &[(&str, &str)] = &[
     ("nsh:index", include_str!("../js/index.js")),
     ("nsh:fs", include_str!("../js/fs.js")),
     ("nsh:component", include_str!("../js/component.js")),
+    ("nsh:shell", include_str!("../js/shell.js")),
     ("nsh:boot", include_str!("../js/boot.js")),
 ];
 
@@ -208,6 +209,9 @@ impl Resolver for ShellResolver {
         if name == "gpui-component" {
             return Ok("nsh:component".into());
         }
+        if name == "gpui-shell" {
+            return Ok("nsh:shell".into());
+        }
         if name.starts_with(RESERVED_PREFIX) {
             return Err(JsError::new_resolving_message(base, name, "reserved module name"));
         }
@@ -234,7 +238,8 @@ impl Resolver for ShellResolver {
         } else if base.is_empty() {
             normalize(name)
         } else {
-            let mut known: Vec<&str> = vec!["native-shell", "gpui-kit", "gpui-base", "gpui-component", "fs/promises"];
+            let mut known: Vec<&str> =
+                vec!["native-shell", "gpui-kit", "gpui-base", "gpui-component", "gpui-shell", "fs/promises"];
             known.extend(program.registry.modules.iter().map(|m| m.name.as_str()));
             return Err(JsError::new_resolving_message(
                 base,

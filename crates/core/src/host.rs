@@ -188,11 +188,15 @@ pub struct Environment {
     pub keyboard_height: f32,
     #[serde(default)]
     pub appearance: crate::theme::Appearance,
-    /// `"ios"` or `"android"` (`"test"` in headless runs).
+    /// `"ios"`, `"android"` or `"macos"` (`"test"` in headless runs).
     #[serde(default = "test_platform")]
     pub platform: String,
     #[serde(default = "en")]
     pub locale: String,
+    /// The platform shows its own confirmation when an app writes to the
+    /// clipboard (Android 13+), so programs should not show another one.
+    #[serde(default)]
+    pub clipboard_feedback: bool,
 }
 
 fn one() -> f32 {
@@ -217,6 +221,7 @@ impl Default for Environment {
             appearance: Default::default(),
             platform: test_platform(),
             locale: en(),
+            clipboard_feedback: false,
         }
     }
 }

@@ -22,6 +22,7 @@ const ICONS = {
   calendar: "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z",
   layers: "m12 2 10 5-10 5L2 7ZM2 17l10 5 10-5M2 12l10 5 10-5",
   share: "M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13",
+  download: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3",
   link: "M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7",
   pencil: "M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z",
   trash: "M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6",
@@ -42,15 +43,23 @@ export function icon(name, color, size = 20) {
     .flex_none();
 }
 
-/** The root page's title block. */
+/**
+ * The status bar's backdrop: content scrolls beneath it rather than under the
+ * system's clock and indicators.
+ */
+export function statusBar(cx) {
+  return div().h(cx.window().safe_area.top).flex_none().bg(cx.theme().background);
+}
+
+/** The root page's title block, at the top of its scrolling content. */
 export function largeTitle(cx, title, subtitle) {
   const t = cx.theme();
   return v_flex()
     .gap_1()
     .px_4()
-    .pt(cx.window().safe_area.top + 12)
+    .pt_3()
     .pb_2()
-    .child(div().role("header").text_3xl().font_bold().line_height(1.15).text_color(t.foreground).child(title))
+    .child(div().role("header").text_size(titleSize(cx)).font_bold().line_height(1.15).text_color(t.foreground).child(title))
     .when(Boolean(subtitle), (el) => el.child(div().text_sm().text_color(t.muted_foreground).child(subtitle)));
 }
 
@@ -59,7 +68,7 @@ export function largeTitle(cx, title, subtitle) {
  * the title and labels the back button with the previous page; Android leads
  * with an arrow and the title.
  */
-export function navBar(cx, { title, back, trailing }) {
+function navBar(cx, { title, back, trailing }) {
   const t = cx.theme();
   const ios = cx.window().platform === "ios";
   const backButton = Button.new("back")
@@ -276,4 +285,13 @@ export function field(cx, { id, label, state, help, error, multiline = false, in
     .child(control)
     .when(Boolean(error), (el) => el.child(div().test_id(`${id}-error`).role("alert").text_sm().text_color(t.destructive).child(error)))
     .when(!error && Boolean(help), (el) => el.child(div().text_sm().text_color(t.muted_foreground).child(help)));
+}
+
+/**
+ * A large title's size: 30 pt, growing with the user's text size only up to
+ * 1.6×, as native large titles do, so a long word never breaks mid-word.
+ */
+function titleSize(cx) {
+  const scale = cx.window().font_scale;
+  return (30 * Math.min(scale, 1.6)) / scale;
 }

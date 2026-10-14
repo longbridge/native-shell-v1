@@ -34,7 +34,8 @@ export function avatar(cx, name, size = 40) {
     .join("");
   return div()
     .flex_none()
-    .size(size)
+    // The initials scale with the user's text size, so the circle does too.
+    .size(size * Math.min(cx.window().font_scale, 2))
     .rounded_full()
     .bg(t.secondary)
     .flex()

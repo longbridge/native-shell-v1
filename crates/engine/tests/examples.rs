@@ -400,6 +400,9 @@ fn components_pages_show_their_states() {
     assert_eq!(h.surfaces().len(), 2);
     assert!(disabled(&h, "publish"));
     h.type_text("post", "The tomatoes finally came in.");
+    assert!(disabled(&h, "icon-photo"));
+    h.tap("icon-link");
+    assert_eq!(h.native_input("post").text, "The tomatoes finally came in. https://example.org/garden");
     h.tap("publish");
     assert!(h.texts().contains(&"Publishing…".to_string()));
     h.advance(1300.0);
@@ -467,11 +470,11 @@ fn components_pages_show_their_states() {
     h.tap("rename-save");
     assert_eq!(h.text_of("doc-name"), "Coast trip plan.pdf");
     h.clear_commands();
-    h.tap("copy-link");
+    h.tap("offline");
     assert!(h
         .commands()
         .iter()
-        .any(|(n, c, p)| *n == ROOT_NODE && *c == Command::ShowToast && p.contains("Link copied")));
+        .any(|(n, c, p)| *n == ROOT_NODE && *c == Command::ShowToast && p.contains("Available offline")));
     h.tap("delete");
     assert_eq!(h.alert().unwrap()["title"], "Delete “Coast trip plan.pdf”?");
     h.alert_action(1);

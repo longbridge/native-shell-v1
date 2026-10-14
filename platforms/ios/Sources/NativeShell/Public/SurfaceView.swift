@@ -222,6 +222,7 @@ public class NSHSurfaceView: UIView, SurfacePresenter, RootCommandHandler {
     private(set) lazy var toasts = ToastCenter(host: self)
 
     func showToast(_ payload: [String: Any]) { toasts.show(payload) }
+    func themeDidChange() { toasts.themeDidChange() }
     func dismissToast(_ payload: [String: Any]) { toasts.dismiss(id: payload["id"].map { "\($0)" }) }
 
     /// Bottom inset toasts keep clear of (safe area and keyboard).

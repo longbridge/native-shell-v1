@@ -10,7 +10,6 @@ import android.widget.FrameLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.OnBackPressedDispatcher
 import androidx.activity.findViewTreeOnBackPressedDispatcherOwner
-import androidx.appcompat.view.ContextThemeWrapper
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import dev.nativeshell.nav.Presenter
@@ -34,7 +33,7 @@ open class ShellSurfaceView @JvmOverloads constructor(
     attrs: AttributeSet? = null,
 ) : FrameLayout(context, attrs) {
 
-    private val themed: Context = ContextThemeWrapper(context, R.style.NativeShell_Theme)
+    private val themed = dev.nativeshell.render.ShellThemeContext(context, R.style.NativeShell_Theme)
     private val rootGroup = ShellViewGroup(themed).apply { isRootContainer = true }
     private val pageLayer = FrameLayout(themed)
     internal val toastStack = dev.nativeshell.render.ToastStack(themed)
@@ -160,6 +159,7 @@ open class ShellSurfaceView @JvmOverloads constructor(
     override fun onConfigurationChanged(newConfig: Configuration?) {
         super.onConfigurationChanged(newConfig)
         TextLayouts.onConfigurationChanged(context)
+        renderer?.mounting?.retintControls()
         sendEnvironment()
     }
 
@@ -210,6 +210,8 @@ open class ShellSurfaceView @JvmOverloads constructor(
             .put("appearance", if (dark) "dark" else "light")
             .put("platform", "android")
             .put("locale", (if (android.os.Build.VERSION.SDK_INT >= 24) cfg.locales[0] else Locale.getDefault()).toLanguageTag())
+            // Android 13+ confirms clipboard writes itself; programs should not add their own toast.
+            .put("clipboard_feedback", android.os.Build.VERSION.SDK_INT >= 33)
     }
 
     private val loc = IntArray(2)

@@ -124,6 +124,15 @@ The button shows the label of the item whose `value` equals the node's
 
 `{"disabled": true, "selected": true, "checked": true, "expanded": true, "busy": true}` — present keys only.
 
+### `ThemeTokens` (152), on `ROOT_NODE`
+
+`{"appearance": "light", "background": 4294967295, "foreground": 4278848010, "primary": …}` — every
+resolved color token (defaults, host theme provider, then the program's
+`set_theme`) as integers. Sent in the first batch and whenever the resolved
+theme or appearance changes. Renderers use it for everything they draw
+themselves: native control tints, toasts, picker fields, sheet and dialog
+backgrounds.
+
 ### `HostProps` (151)
 
 The script's props object, verbatim.
@@ -212,6 +221,20 @@ the device scale/density). Font sizes on Android are scaled by the user's font
 scale the same way in measurement and rendering (`TypedValue.applyDimension`
 with `COMPLEX_UNIT_SP`), and iOS applies `UIFontMetrics` likewise; the core
 never sees font-scaled sizes.
+
+The user's text size changes two things, differently:
+
+* **Text** scales fully. Font sizes, line heights and letter spacing in
+  `AttributedText` and `TextStyle` stay unscaled; renderers apply the whole
+  font scale when measuring and drawing.
+* **Layout** scales through the rem. Lengths a program gives in rems (the
+  spacing scale `p_4`, `gap_2`, `size_10`, `rounded_md`, `"1.5rem"` …) are laid
+  out at the effective rem size `16 × clamp(font_scale, 1.0, 1.6)`, so padding,
+  gaps, controls and icons grow with their labels; the clamp keeps layouts
+  usable at accessibility sizes. Pixel lengths (`w(40)`, `"8px"`, `border_1`)
+  and fractions (`w_1_2`) do not scale. Frames, radii and border widths the
+  core sends already include this; renderers do not scale them again. Programs
+  read the effective value as `window.rem_size`.
 
 ## Instance config (C ABI / JNI `create`)
 

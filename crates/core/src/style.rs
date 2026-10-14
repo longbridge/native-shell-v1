@@ -40,6 +40,47 @@ mod table;
 
 pub const REM: f32 = 16.0;
 
+/// Upper bound of the layout scale: how far rem lengths grow with the user's text size
+/// (Dynamic Type on iOS, font scale on Android). Rem is the zoom axis, as in GPUI: padding,
+/// gaps, control and icon sizes given in rems grow with their labels so a layout keeps its
+/// proportions. Text itself scales fully (renderers apply the whole font scale); layout is
+/// damped at 1.6 so screens still fit at the accessibility sizes, which reach 3×.
+pub const MAX_LAYOUT_SCALE: f32 = 1.6;
+
+/// The effective rem size for a font scale: [`REM`] × the font scale clamped to
+/// `1.0 ..= MAX_LAYOUT_SCALE` (layouts never shrink below their designed size).
+pub fn rem_size(font_scale: f32) -> f32 {
+    let scale = if font_scale.is_finite() { font_scale.clamp(1.0, MAX_LAYOUT_SCALE) } else { 1.0 };
+    REM * scale
+}
+
+/// The layout lengths a chain gave in rems (their value in rems, by field), so the tree can
+/// lay them out at the effective rem size: `layout` and `visual` hold them at [`REM`].
+/// Text sizes are not here: they always resolve at [`REM`] and renderers scale them.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct RemLengths {
+    /// `[top, right, bottom, left]`, as the `border_widths` order.
+    pub padding: [Option<f32>; 4],
+    pub margin: [Option<f32>; 4],
+    pub inset: [Option<f32>; 4],
+    pub border: [Option<f32>; 4],
+    /// `[top-left, top-right, bottom-right, bottom-left]`, as [`Visual::radii`].
+    pub radii: [Option<f32>; 4],
+    /// `[width, height]`.
+    pub gap: [Option<f32>; 2],
+    pub size: [Option<f32>; 2],
+    pub min_size: [Option<f32>; 2],
+    pub max_size: [Option<f32>; 2],
+    pub flex_basis: Option<f32>,
+    pub scrollbar_width: Option<f32>,
+}
+
+impl RemLengths {
+    pub fn is_empty(&self) -> bool {
+        *self == RemLengths::default()
+    }
+}
+
 /// GPUI's default font size (`rems(1.)`), which gpui-shell's root view also sets.
 pub const DEFAULT_TEXT_SIZE: f32 = 16.0;
 
@@ -264,9 +305,71 @@ pub struct Resolved {
     pub active_opacity: Option<f32>,
     pub active_background: Option<u32>,
     pub border_widths: [f32; 4],
+    /// Which of the lengths above were given in rems.
+    pub rems: RemLengths,
 }
 
 impl Resolved {
+    /// The layout style with rem lengths at `rem_size` (see [`rem_size`]) instead of [`REM`].
+    pub fn scaled_layout(&self, rem_size: f32) -> Style {
+        let mut l = self.layout.clone();
+        let r = &self.rems;
+        if r.is_empty() || rem_size == REM {
+            return l;
+        }
+        let len = |v: f32| v * rem_size;
+        let edges = |rect: &mut taffy::geometry::Rect<LengthPercentage>, rems: &[Option<f32>; 4]| {
+            for (i, v) in rems.iter().enumerate() {
+                if let Some(v) = v {
+                    *edge_mut(rect, i) = LengthPercentage::length(len(*v));
+                }
+            }
+        };
+        edges(&mut l.padding, &r.padding);
+        edges(&mut l.border, &r.border);
+        for (i, v) in r.margin.iter().enumerate() {
+            if let Some(v) = v {
+                *edge_mut(&mut l.margin, i) = LengthPercentageAuto::length(len(*v));
+            }
+        }
+        for (i, v) in r.inset.iter().enumerate() {
+            if let Some(v) = v {
+                *edge_mut(&mut l.inset, i) = LengthPercentageAuto::length(len(*v));
+            }
+        }
+        for (size, rems) in [(&mut l.size, &r.size), (&mut l.min_size, &r.min_size), (&mut l.max_size, &r.max_size)] {
+            if let Some(v) = rems[0] {
+                size.width = Dimension::length(len(v));
+            }
+            if let Some(v) = rems[1] {
+                size.height = Dimension::length(len(v));
+            }
+        }
+        if let Some(v) = r.gap[0] {
+            l.gap.width = LengthPercentage::length(len(v));
+        }
+        if let Some(v) = r.gap[1] {
+            l.gap.height = LengthPercentage::length(len(v));
+        }
+        if let Some(v) = r.flex_basis {
+            l.flex_basis = Dimension::length(len(v));
+        }
+        if let Some(v) = r.scrollbar_width {
+            l.scrollbar_width = len(v);
+        }
+        l
+    }
+
+    /// Corner radii with rem radii at `rem_size`.
+    pub fn scaled_radii(&self, rem_size: f32) -> [f32; 4] {
+        scale4(self.visual.radii, &self.rems.radii, rem_size)
+    }
+
+    /// Border widths with rem widths at `rem_size`.
+    pub fn scaled_border_widths(&self, rem_size: f32) -> [f32; 4] {
+        scale4(self.border_widths, &self.rems.border, rem_size)
+    }
+
     /// GPUI's default `Style`, as GPUI hands it to taffy: block display, a row
     /// once `flex` is set, items that shrink (1) but do not grow, auto basis.
     pub fn base() -> Resolved {
@@ -516,6 +619,14 @@ impl Len {
         }
     }
 
+    /// The value in rems, when the length was given in rems.
+    fn rems(self) -> Option<f32> {
+        match self {
+            Len::Rems(v) => Some(v),
+            _ => None,
+        }
+    }
+
     /// Only reached with an `AbsoluteLength`.
     fn px(self) -> f32 {
         match self {
@@ -681,12 +792,39 @@ pub enum Effect {
     DebugOnly(&'static [Effect]),
 }
 
+fn axis_index(a: Axis) -> usize {
+    match a {
+        Axis::Width => 0,
+        Axis::Height => 1,
+    }
+}
+
 fn edge_index(e: Edge) -> usize {
     match e {
         Edge::Top => 0,
         Edge::Right => 1,
         Edge::Bottom => 2,
         Edge::Left => 3,
+    }
+}
+
+fn scale4(base: [f32; 4], rems: &[Option<f32>; 4], rem_size: f32) -> [f32; 4] {
+    let mut out = base;
+    for (o, r) in out.iter_mut().zip(rems) {
+        if let Some(r) = r {
+            *o = r * rem_size;
+        }
+    }
+    out
+}
+
+/// The edge of a rect at a `[top, right, bottom, left]` index.
+fn edge_mut<T>(rect: &mut taffy::geometry::Rect<T>, i: usize) -> &mut T {
+    match i {
+        0 => &mut rect.top,
+        1 => &mut rect.right,
+        2 => &mut rect.bottom,
+        _ => &mut rect.left,
     }
 }
 
@@ -738,16 +876,38 @@ fn apply_effect(r: &mut Resolved, e: Effect) {
         Effect::Visible(v) => r.visual.invisible = !v,
         Effect::OverflowX(o) => r.layout.overflow.x = o,
         Effect::OverflowY(o) => r.layout.overflow.y = o,
-        Effect::ScrollbarWidth(w) => r.layout.scrollbar_width = w.px(),
+        Effect::ScrollbarWidth(w) => {
+            r.rems.scrollbar_width = w.rems();
+            r.layout.scrollbar_width = w.px()
+        }
         Effect::Position(p) => r.layout.position = p,
-        Effect::Inset(edge, v) => set_edge(&mut r.layout.inset, edge, v.lpa()),
-        Effect::Size(a, v) => set_axis(&mut r.layout.size, a, v.dimension()),
-        Effect::MinSize(a, v) => set_axis(&mut r.layout.min_size, a, v.dimension()),
-        Effect::MaxSize(a, v) => set_axis(&mut r.layout.max_size, a, v.dimension()),
+        Effect::Inset(edge, v) => {
+            r.rems.inset[edge_index(edge)] = v.rems();
+            set_edge(&mut r.layout.inset, edge, v.lpa())
+        }
+        Effect::Size(a, v) => {
+            r.rems.size[axis_index(a)] = v.rems();
+            set_axis(&mut r.layout.size, a, v.dimension())
+        }
+        Effect::MinSize(a, v) => {
+            r.rems.min_size[axis_index(a)] = v.rems();
+            set_axis(&mut r.layout.min_size, a, v.dimension())
+        }
+        Effect::MaxSize(a, v) => {
+            r.rems.max_size[axis_index(a)] = v.rems();
+            set_axis(&mut r.layout.max_size, a, v.dimension())
+        }
         Effect::AspectRatio(v) => r.layout.aspect_ratio = Some(v),
-        Effect::Margin(edge, v) => set_edge(&mut r.layout.margin, edge, v.lpa()),
-        Effect::Padding(edge, v) => set_edge(&mut r.layout.padding, edge, v.lp()),
+        Effect::Margin(edge, v) => {
+            r.rems.margin[edge_index(edge)] = v.rems();
+            set_edge(&mut r.layout.margin, edge, v.lpa())
+        }
+        Effect::Padding(edge, v) => {
+            r.rems.padding[edge_index(edge)] = v.rems();
+            set_edge(&mut r.layout.padding, edge, v.lp())
+        }
         Effect::BorderWidth(edge, v) => {
+            r.rems.border[edge_index(edge)] = v.rems();
             r.border_widths[edge_index(edge)] = v.px();
             set_edge(&mut r.layout.border, edge, LengthPercentage::length(v.px()));
         }
@@ -755,10 +915,16 @@ fn apply_effect(r: &mut Resolved, e: Effect) {
         Effect::AlignSelf(v) => r.layout.align_self = v,
         Effect::AlignContent(v) => r.layout.align_content = v,
         Effect::JustifyContent(v) => r.layout.justify_content = v,
-        Effect::Gap(a, v) => set_axis(&mut r.layout.gap, a, v.lp()),
+        Effect::Gap(a, v) => {
+            r.rems.gap[axis_index(a)] = v.rems();
+            set_axis(&mut r.layout.gap, a, v.lp())
+        }
         Effect::FlexDirection(v) => r.layout.flex_direction = v,
         Effect::FlexWrap(v) => r.layout.flex_wrap = v,
-        Effect::FlexBasis(v) => r.layout.flex_basis = v.dimension(),
+        Effect::FlexBasis(v) => {
+            r.rems.flex_basis = v.rems();
+            r.layout.flex_basis = v.dimension()
+        }
         Effect::FlexGrow(v) => r.layout.flex_grow = v,
         Effect::FlexShrink(v) => r.layout.flex_shrink = v,
         Effect::Background(c) => r.visual.background = c,
@@ -771,6 +937,7 @@ fn apply_effect(r: &mut Resolved, e: Effect) {
                 Corner::BottomRight => 2,
                 Corner::BottomLeft => 3,
             };
+            r.rems.radii[i] = v.rems();
             r.visual.radii[i] = v.px();
         }
         Effect::BoxShadow(layers) => {
@@ -1476,5 +1643,46 @@ mod tests {
         .unwrap();
         assert_eq!(r.visual.shadows.len(), 1);
         assert_eq!(r.visual.shadow.map(|s| (s.y, s.blur)), Some((2.0, 4.0)));
+    }
+
+    #[test]
+    fn rem_size_clamps_the_font_scale() {
+        assert_eq!(rem_size(1.0), 16.0);
+        assert_eq!(rem_size(1.3), 16.0 * 1.3);
+        assert_eq!(rem_size(2.0), 16.0 * MAX_LAYOUT_SCALE);
+        assert_eq!(rem_size(0.85), 16.0);
+        assert_eq!(rem_size(f32::NAN), 16.0);
+    }
+
+    #[test]
+    fn rem_lengths_scale_and_px_lengths_do_not() {
+        let r = resolve(
+            &[
+                op("p_4"),
+                opa("w", vec![Arg::Str("2.5rem".into())]),
+                opa("h", vec![Arg::Num(40.0)]),
+                op("w_1_2"),
+                op("gap_2"),
+                op("rounded_md"),
+                op("border_1"),
+                op("text_sm"),
+            ],
+            &theme(),
+        )
+        .unwrap();
+        // `w_1_2` came after the rem width: the fraction wins and is not scaled.
+        assert_eq!(r.rems.size, [None, None]);
+        let l = r.scaled_layout(20.0);
+        assert_eq!(l.padding.top, LengthPercentage::length(20.0));
+        assert_eq!(l.gap.width, LengthPercentage::length(10.0));
+        assert_eq!(l.size.width, Dimension::percent(0.5));
+        assert_eq!(l.size.height, Dimension::length(40.0));
+        assert_eq!(l.border.top, LengthPercentage::length(1.0));
+        assert_eq!(r.scaled_radii(20.0), [7.5; 4]);
+        assert_eq!(r.scaled_border_widths(20.0), [1.0; 4]);
+        // Text resolves at the base rem; renderers apply the font scale.
+        assert_eq!(r.text.size, Some(14.0));
+        // At the base rem nothing changes.
+        assert_eq!(r.scaled_layout(REM), r.layout);
     }
 }

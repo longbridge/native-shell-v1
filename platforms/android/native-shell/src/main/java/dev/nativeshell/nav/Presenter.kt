@@ -198,22 +198,66 @@ internal class Presenter(
 
     private fun showSheet(node: Node) {
         val ctx = host.context
-        val d = BottomSheetDialog(ctx)
+        val d = BottomSheetDialog(ctx, R.style.NativeShell_BottomSheet)
+        val tokens = ThemeTokens.of(ctx)
+        val dp = ctx.resources.displayMetrics.density
         val holder = FrameLayout(ctx)
         (node.view.parent as? ViewGroup)?.removeView(node.view)
         holder.addView(node.view, FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             if (node.hasFrame) node.height else ViewGroup.LayoutParams.WRAP_CONTENT,
         ))
+        holder.addView(Grabber(ctx, tokens.mutedForeground), FrameLayout.LayoutParams(
+            (GRABBER_W * dp).toInt(), (GRABBER_H * dp).toInt(), android.view.Gravity.TOP or android.view.Gravity.CENTER_HORIZONTAL,
+        ).apply { topMargin = (GRABBER_TOP * dp).toInt() })
+        // The sheet runs under the navigation bar; its content stays above it. Scripts already
+        // pad by safe_area.bottom (the same inset when the surface reaches the window bottom),
+        // so only the part the environment does not report is padded here.
+        // The keyboard belongs to the sheet's window: the sheet rises above it (content padded by the IME).
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(holder) { v, insets ->
+            val nav = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars()).bottom
+            val ime = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime()).bottom
+            val reported = sheetSafeBottomPx()
+            v.setPadding(0, 0, 0, maxOf((nav - reported).coerceAtLeast(0), ime))
+            if (ime > 0) d.behavior.state = BottomSheetBehavior.STATE_EXPANDED
+            insets
+        }
         d.setContentView(holder)
-        // An opaque sheet in the theme's background (Material's default is its own surface color).
-        val tokens = ThemeTokens.of(host.context)
+        @Suppress("DEPRECATION")
+        d.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        // Opaque theme background (the behavior's 16 dp top-cornered shape), under the navigation bar too.
         d.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)?.backgroundTintList =
             android.content.res.ColorStateList.valueOf(tokens.background)
+        d.window?.let { w ->
+            val c = androidx.core.view.WindowCompat.getInsetsController(w, w.decorView)
+            c.isAppearanceLightNavigationBars = !tokens.dark
+            c.isAppearanceLightStatusBars = !tokens.dark
+        }
+        // Reduced motion: the sheet fades in and out instead of sliding.
+        if (Motion.reduced(ctx)) d.window?.setWindowAnimations(android.R.style.Animation_Toast)
         configureSheet(d, node)
         trackUserDismiss(d, node)
         dialogs[node] = d
         d.show()
+    }
+
+    /** `safe_area.bottom` the script was told, in px (the surface's own bottom inset). */
+    private fun sheetSafeBottomPx(): Int {
+        val surface = host.anchor as? dev.nativeshell.ShellSurfaceView ?: return 0
+        val d = surface.resources.displayMetrics.density
+        return (surface.environmentJson().getJSONArray("safe_area").getDouble(2) * d).toInt()
+    }
+
+    /** The sheet's drag handle. */
+    @android.annotation.SuppressLint("ViewConstructor")
+    private class Grabber(context: Context, color: Int) : View(context) {
+        init {
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor((color and 0x00FFFFFF) or 0x66000000) // 40% alpha
+                cornerRadius = 100f
+            }
+            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
     }
 
     private fun configureSheet(d: BottomSheetDialog, node: Node) {
@@ -222,8 +266,6 @@ internal class Presenter(
         d.setCanceledOnTouchOutside(p.dismissable)
         val b = d.behavior
         b.isHideable = p.dismissable
-        // Reduced motion: the sheet fades in and out instead of sliding.
-        if (Motion.reduced(host.context)) d.window?.setWindowAnimations(android.R.style.Animation_Toast)
         b.isDraggable = p.dismissable
         val screen = host.context.resources.displayMetrics.heightPixels
         val custom = p.detentHeight
@@ -268,8 +310,15 @@ internal class Presenter(
         defaultSurfaceBackground(node, DIALOG_RADIUS)
         node.view.isClickable = true // taps on the card never reach the backdrop
         holder.setOnClickListener { if (node.surfaceProps.dismissable) d.cancel() }
+        // The card stays centered in the space above the keyboard.
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(holder) { v, insets ->
+            v.setPadding(0, 0, 0, insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime()).bottom)
+            insets
+        }
         d.setContentView(holder)
         d.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        @Suppress("DEPRECATION")
+        d.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         d.setCancelable(p.dismissable)
         d.setCanceledOnTouchOutside(p.dismissable)
         if (node.hasFrame) FrameApplier.layoutNow(node)
@@ -348,5 +397,8 @@ internal class Presenter(
         const val PAGE_MS = 300L
         /** The theme's `xl` radius. */
         const val DIALOG_RADIUS = 12f
+        const val GRABBER_W = 36f
+        const val GRABBER_H = 5f
+        const val GRABBER_TOP = 6f
     }
 }

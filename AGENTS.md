@@ -17,7 +17,7 @@ gpui-shell and GPUI. See `README.md`, `docs/architecture.md`,
 | `crates/tree` | Keyed diff, flattening, taffy layout, measurement, lists |
 | `crates/services` | Storage, fs, fetch, WebSocket, crypto, signed bundles |
 | `crates/engine` | The `native-shell` runtime: QuickJS, JS prelude, scheduler, events |
-| `crates/ffi`, `crates/cli` | C ABI + JNI; the `native-shell` command |
+| `crates/ffi`, `crates/cli` | C ABI + JNI; the `nshell` command |
 | `platforms/ios`, `platforms/android` | UIKit and Android View renderers, example apps |
 | `examples/` | Example programs |
 | `tools/style-gen` | Regenerates `crates/core/src/style_table.rs` from GPUI |

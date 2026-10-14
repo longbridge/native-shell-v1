@@ -18,6 +18,9 @@ const PLUS = "M12 5v14M5 12h14";
 const ALERT = "M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0ZM12 8v4M12 16h.01";
 const LIST = "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01";
 
+/** A large title's size: 30 pt, growing with the user's text size only up to 1.6×, as native large titles do. */
+const titleSize = (cx) => (30 * Math.min(cx.window().font_scale, 1.6)) / cx.window().font_scale;
+
 const icon = (d, color, size = 20) =>
   shape(d, { view_box: [0, 0, 24, 24] })
     .stroke(color, 2)
@@ -151,7 +154,7 @@ export default class Watchlist extends View {
               .flex_1()
               .min_w_0()
               .gap_1()
-              .child(div().role("header").text_3xl().font_bold().line_height(1.15).text_color(t.foreground).child("Watchlist"))
+              .child(div().role("header").text_size(titleSize(cx)).font_bold().line_height(1.15).text_color(t.foreground).child("Watchlist"))
               .child(
                 div()
                   .test_id("subtitle")

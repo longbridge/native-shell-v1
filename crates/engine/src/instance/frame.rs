@@ -105,8 +105,9 @@ impl Instance {
             changed |= self.update_surfaces();
         }
 
+        let theme_tokens = self.theme_tokens();
         let has_commands = !self.shared.borrow().commands.is_empty();
-        if !changed && !has_commands {
+        if !changed && !has_commands && theme_tokens.is_none() {
             return;
         }
         let surfaces = self.build_surfaces();
@@ -132,7 +133,14 @@ impl Instance {
             self.metrics.native_nodes = self.tree.native_count();
         }
         self.refresh_list_windows();
-        let commands = self.commands();
+        let mut commands = self.commands();
+        if let Some(json) = theme_tokens {
+            // Before the commands: a toast in this batch already draws in the new colors.
+            commands.insert(
+                0,
+                Mutation::SetProp { node: ROOT_NODE, prop: Prop::ThemeTokens, value: PropValue::Json(json) },
+            );
+        }
         if mutations.is_empty() && commands.is_empty() && dismissals.is_empty() {
             return;
         }
@@ -153,6 +161,25 @@ impl Instance {
         }
         self.metrics.encode_ns += started.elapsed().as_nanos() as u64;
         self.metrics.batches += 1;
+    }
+
+    /// The resolved theme as `ThemeTokens` JSON (every color as an ARGB integer,
+    /// plus `appearance`) when it differs from what the renderer last got; it
+    /// is then recorded as sent.
+    fn theme_tokens(&mut self) -> Option<String> {
+        let json = {
+            let s = self.shared.borrow();
+            let mut o: serde_json::Map<String, serde_json::Value> =
+                s.theme.colors.iter().map(|(k, v)| (k.clone(), serde_json::Value::from(*v))).collect();
+            let appearance = if s.theme.is_dark() { "dark" } else { "light" };
+            o.insert("appearance".into(), appearance.into());
+            serde_json::Value::Object(o).to_string()
+        };
+        if self.sent_theme_tokens.as_deref() == Some(json.as_str()) {
+            return None;
+        }
+        self.sent_theme_tokens = Some(json.clone());
+        Some(json)
     }
 
     /// Converts what `scope` (a view, or an overlay's key) rendered.

@@ -1,4 +1,4 @@
-//! A headless instance for tests and `native-shell check`.
+//! A headless instance for tests and `nshell check`.
 //!
 //! [`Harness`] wires an [`Instance`] to a recording [`FakeHost`] (deterministic
 //! text metrics from `native_shell_tree::testing::FakeMeasurer`, scripted
@@ -271,6 +271,7 @@ impl HarnessBuilder {
             now,
             last_seq: 0,
             batches: 0,
+            theme_tokens: Vec::new(),
             load_error: None,
             commands: Vec::new(),
             inputs: HashMap::new(),
@@ -320,6 +321,8 @@ pub struct Harness {
     now: Arc<AtomicU64>,
     last_seq: u32,
     batches: usize,
+    /// Every `ThemeTokens` the renderer received, oldest first.
+    theme_tokens: Vec<serde_json::Value>,
     load_error: Option<Error>,
     commands: Vec<(u32, Command, String)>,
     inputs: HashMap<u32, NativeInput>,
@@ -434,6 +437,12 @@ impl Harness {
         &self.mutations
     }
 
+    /// Every `ThemeTokens` sent on the root, oldest first (the current one is
+    /// also in `native().root_props()`).
+    pub fn theme_tokens(&self) -> &[serde_json::Value] {
+        &self.theme_tokens
+    }
+
     pub fn clear_mutations(&mut self) {
         self.mutations.clear();
     }
@@ -511,6 +520,11 @@ impl Harness {
                 self.last_seq = *seq;
             }
             _ => panic!("a batch must start with BeginBatch and end with EndBatch: {batch:?}"),
+        }
+        for m in &batch {
+            if let Mutation::SetProp { node: ROOT_NODE, prop: Prop::ThemeTokens, value: PropValue::Json(json) } = m {
+                self.theme_tokens.push(serde_json::from_str(json).expect("ThemeTokens is JSON"));
+            }
         }
         if let Err(e) = self.native.apply(&batch) {
             panic!("the renderer could not apply batch {}: {e}\n{batch:#?}", self.last_seq);

@@ -123,6 +123,9 @@ final class NavigationTests: XCTestCase {
             bg?.getRed(nil, green: nil, blue: nil, alpha: &a)
             XCTAssertEqual(a, 1)
         }
+        // ThemeTokens from the core re-color an open sheet.
+        apply { $0.prop(0, .themeTokens, .json(JSON.string(["appearance": "dark", "background": 0xFF10_1010]))) }
+        XCTAssertEqual(modal.view.backgroundColor, Colors.argb(0xFF10_1010))
         // With the sheet on top, the keyboard is measured against it.
         XCTAssertTrue(vc.topSurfaceView === modal.view)
         keyboard(300)

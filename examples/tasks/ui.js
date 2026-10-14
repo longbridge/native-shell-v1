@@ -45,7 +45,7 @@ export function largeTitle(cx, title, subtitle, trailing) {
         .flex_1()
         .min_w_0()
         .gap_1()
-        .child(div().role("header").text_3xl().font_bold().line_height(1.15).text_color(t.foreground).child(title))
+        .child(div().role("header").text_size(titleSize(cx)).font_bold().line_height(1.15).text_color(t.foreground).child(title))
         .when(Boolean(subtitle), (el) => el.child(div().test_id("subtitle").text_sm().text_color(t.muted_foreground).child(subtitle))),
     )
     .when(Boolean(trailing), (el) => el.child(trailing));
@@ -91,4 +91,13 @@ export function emptyState(cx, name, title, body) {
     )
     .child(div().text_lg().font_semibold().text_color(t.foreground).text_center().child(title))
     .child(div().text_sm().text_color(t.muted_foreground).text_center().child(body));
+}
+
+/**
+ * A large title's size: 30 pt, growing with the user's text size only up to
+ * 1.6×, as native large titles do, so a long word never breaks mid-word.
+ */
+function titleSize(cx) {
+  const scale = cx.window().font_scale;
+  return (30 * Math.min(scale, 1.6)) / scale;
 }

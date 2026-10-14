@@ -344,6 +344,7 @@ class ShellInstance internal constructor(
                 .put("appearance", if (dark) "dark" else "light")
                 .put("platform", "android")
                 .put("locale", java.util.Locale.getDefault().toLanguageTag())
+                .put("clipboard_feedback", android.os.Build.VERSION.SDK_INT >= 33)
         }
     }
 }

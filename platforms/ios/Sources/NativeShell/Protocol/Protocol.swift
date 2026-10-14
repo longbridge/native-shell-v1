@@ -47,7 +47,7 @@ enum Prop: UInt16 {
     case pathData = 120, fillColor, strokeColor, strokeWidth, viewBox, fillRule
     case a11yLabel = 130, a11yRole, a11yHint, a11yValue, a11yState, testId, a11yHidden
     case activeOpacity = 140, activeBackground, hitSlop, focusable
-    case hostComponent = 150, hostProps
+    case hostComponent = 150, hostProps, themeTokens
 }
 
 enum A11yRole: Int32 {

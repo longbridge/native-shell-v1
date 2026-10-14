@@ -2,7 +2,10 @@ package dev.nativeshell.views
 
 import android.view.View
 import dev.nativeshell.protocol.ViewType
+import dev.nativeshell.protocol.Prop
+import dev.nativeshell.protocol.PropValue
 import dev.nativeshell.render.MountHost
+import dev.nativeshell.render.Node
 import dev.nativeshell.render.ShellViewGroup
 import dev.nativeshell.render.ViewManager
 
@@ -10,6 +13,11 @@ import dev.nativeshell.render.ViewManager
 internal class ViewManagers {
     val root: ViewManager = object : ViewManager(ViewType.VIEW) {
         override fun createView(host: MountHost): View = error("the root view is created by the surface")
+        override fun setProp(node: Node, prop: Int, value: PropValue, host: MountHost): Boolean {
+            if (prop != Prop.THEME_TOKENS) return false
+            host.setThemeTokens(if (value.isNull) null else value.string)
+            return true
+        }
         override val poolable get() = false
     }
 

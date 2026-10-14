@@ -31,7 +31,7 @@ export default class Counter extends View {
   (sync, async, event push) and native components scripts can lay out.
 * **Capabilities and signed bundles**: programs declare what they may use;
   bundles are Ed25519-signed with key rotation and revocation.
-* **Tooling**: `native-shell new | check | types | bundle | keygen | verify | dev`.
+* **Tooling**: `nshell new | check | types | bundle | keygen | verify | dev`.
 
 ## Layout
 
@@ -42,7 +42,7 @@ export default class Counter extends View {
 | `crates/services` | Storage, fs, fetch, WebSocket, crypto, signed bundles |
 | `crates/engine` | The `native-shell` runtime crate (QuickJS, prelude, scheduler, events) |
 | `crates/ffi` | C ABI and JNI |
-| `crates/cli` | The `native-shell` command |
+| `crates/cli` | The `nshell` command |
 | `platforms/ios/` | Swift Package / CocoaPods: UIKit renderer |
 | `platforms/android/` | Gradle: AAR with the View renderer, Compose wrapper, example app |
 | `examples/` | Example programs |

@@ -6,4 +6,5 @@
     <item name="nsh_frame_animator" type="id" />
     <item name="nsh_image_source" type="id" />
     <item name="nsh_native_background" type="id" />
+    <item name="nsh_tint" type="id" />
 </resources>

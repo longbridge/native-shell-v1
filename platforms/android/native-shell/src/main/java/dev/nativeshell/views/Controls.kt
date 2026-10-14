@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
-import android.content.res.ColorStateList
 import android.os.SystemClock
 import android.text.format.DateFormat
 import android.view.Gravity
@@ -69,7 +68,7 @@ internal class SwitchManager : ControlManager(ViewType.SWITCH) {
         when (prop) {
             Prop.CHECKED -> v.setCheckedSilently(!value.isNull && value.bool)
             Prop.ENABLED -> setEnabled(v, value)
-            Prop.TINT_COLOR -> (v as MaterialSwitch).trackTintList = if (value.kind == ValueKind.COLOR) checkedTint(value.int) else null
+            Prop.TINT_COLOR -> ControlTint.setOverride(v, if (value.kind == ValueKind.COLOR) value.int else null)
             else -> return false
         }
         return true
@@ -90,10 +89,6 @@ private fun CompoundButton.setCheckedSilently(checked: Boolean) {
     tag = null
 }
 
-private fun checkedTint(color: Int) = ColorStateList(
-    arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-    intArrayOf(color, 0x33000000),
-)
 
 // ---- Checkbox / radio ---------------------------------------------------------------------
 
@@ -114,6 +109,7 @@ internal class CheckContainer(context: Context) : FrameLayout(context) {
             }
             addView(button, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
             listener?.let { button.setOnCheckedChangeListener(it) }
+            ControlTint.apply(this)
         }
     var listener: CompoundButton.OnCheckedChangeListener? = null
         set(value) {
@@ -151,7 +147,7 @@ internal class CheckboxManager : ControlManager(ViewType.CHECKBOX) {
             Prop.CHECKED -> v.button.setCheckedSilently(!value.isNull && value.bool)
             Prop.ENABLED -> setEnabled(v.button, value)
             Prop.CHECK_STYLE -> v.style = if (value.isNull) 0 else value.intValue().coerceIn(0, 1)
-            Prop.TINT_COLOR -> v.button.buttonTintList = if (value.kind == ValueKind.COLOR) checkedTint(value.int) else null
+            Prop.TINT_COLOR -> ControlTint.setOverride(v, if (value.kind == ValueKind.COLOR) value.int else null)
             else -> return false
         }
         return true
@@ -214,9 +210,7 @@ internal class SliderManager : ControlManager(ViewType.SLIDER) {
             Prop.STEP -> st.step = if (value.isNull) 0f else value.number()
             Prop.ENABLED -> { setEnabled(s, value); return true }
             Prop.TINT_COLOR -> {
-                val t = if (value.kind == ValueKind.COLOR) ColorStateList.valueOf(value.int) else null
-                s.trackActiveTintList = t ?: defaultTint(s)
-                s.thumbTintList = t ?: defaultTint(s)
+                ControlTint.setOverride(s, if (value.kind == ValueKind.COLOR) value.int else null)
                 return true
             }
             else -> return false
@@ -225,11 +219,6 @@ internal class SliderManager : ControlManager(ViewType.SLIDER) {
         return true
     }
 
-    private fun defaultTint(s: Slider): ColorStateList {
-        val tv = android.util.TypedValue()
-        s.context.theme.resolveAttribute(androidx.appcompat.R.attr.colorPrimary, tv, true)
-        return ColorStateList.valueOf(tv.data)
-    }
 
     /** Material's slider throws on inconsistent ranges; sanitize before handing values over. */
     private fun apply(s: Slider, st: State) {
@@ -277,7 +266,7 @@ internal class ProgressManager : ControlManager(ViewType.PROGRESS) {
         when (prop) {
             Prop.VALUE -> p.setProgressCompat(((if (value.isNull) 0f else value.number()).coerceIn(0f, 1f) * 1000).roundToInt(), false)
             Prop.INDETERMINATE -> setIndeterminate(p, !value.isNull && value.bool)
-            Prop.TINT_COLOR -> p.setIndicatorColor(if (value.kind == ValueKind.COLOR) value.int else primary(p.context))
+            Prop.TINT_COLOR -> ControlTint.setOverride(p, if (value.kind == ValueKind.COLOR) value.int else null)
             else -> return false
         }
         return true
@@ -293,11 +282,6 @@ private fun setIndeterminate(p: com.google.android.material.progressindicator.Ba
     p.visibility = vis
 }
 
-private fun primary(context: Context): Int {
-    val tv = android.util.TypedValue()
-    context.theme.resolveAttribute(androidx.appcompat.R.attr.colorPrimary, tv, true)
-    return tv.data
-}
 
 internal class SpinnerManager : ControlManager(ViewType.SPINNER) {
     override fun createView(host: MountHost): View = CircularProgressIndicator(host.context).apply {
@@ -316,7 +300,7 @@ internal class SpinnerManager : ControlManager(ViewType.SPINNER) {
     override fun setProp(node: Node, prop: Int, value: PropValue, host: MountHost): Boolean {
         val p = node.view as CircularProgressIndicator
         when (prop) {
-            Prop.TINT_COLOR -> p.setIndicatorColor(if (value.kind == ValueKind.COLOR) value.int else primary(p.context))
+            Prop.TINT_COLOR -> ControlTint.setOverride(p, if (value.kind == ValueKind.COLOR) value.int else null)
             Prop.VALUE -> {
                 if (value.isNull) setIndeterminate(p, true) else {
                     setIndeterminate(p, false)
@@ -404,6 +388,7 @@ internal class SegmentedManager : ControlManager(ViewType.SEGMENTED) {
         } finally {
             st.muted = false
         }
+        ControlTint.apply(g)
         select(g, st)
     }
 

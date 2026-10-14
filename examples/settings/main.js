@@ -10,7 +10,7 @@
 import { View, div, v_flex, Button, Switch, Select, DatePicker } from "native-shell";
 import AccountPage from "./account.js";
 import { load, save, formatBytes, formatTime } from "./store.js";
-import { avatar, icon, largeTitle, row, section } from "./ui.js";
+import { avatar, icon, largeTitle, row, section, statusBar } from "./ui.js";
 
 const THEMES = [
   { label: "System", value: "system" },
@@ -98,6 +98,7 @@ export default class Settings extends View {
       .size_full()
       .bg(t.background)
       .line_height(1.375)
+      .child(statusBar(cx))
       .child(
         v_flex()
           .test_id("settings")

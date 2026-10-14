@@ -199,6 +199,7 @@ pub struct ReplayNode {
 pub struct Replayer {
     pub nodes: HashMap<u32, ReplayNode>,
     pub root_children: Vec<u32>,
+    root_props: HashMap<Prop, PropValue>,
     deleted: HashSet<u32>,
 }
 
@@ -215,6 +216,11 @@ impl Replayer {
             .get(&parent)
             .map(|n| n.children.as_slice())
             .unwrap_or(&[])
+    }
+
+    /// Properties of the platform surface (`ROOT_NODE`), such as `ThemeTokens`.
+    pub fn root_props(&self) -> &HashMap<Prop, PropValue> {
+        &self.root_props
     }
 
     pub fn prop(&self, node: u32, prop: Prop) -> Option<&PropValue> {
@@ -329,12 +335,18 @@ impl Replayer {
                     self.destroy(*node);
                 }
                 Mutation::SetProp { node, prop, value } => {
-                    self.live(*node, op)?;
-                    let n = self.nodes.get_mut(node).expect("live");
-                    if *value == PropValue::Null {
-                        n.props.remove(prop);
+                    // The platform surface takes instance-wide props; every other op on it is
+                    // rejected below as an op on an unknown node.
+                    let props = if *node == ROOT_NODE {
+                        &mut self.root_props
                     } else {
-                        n.props.insert(*prop, value.clone());
+                        self.live(*node, op)?;
+                        &mut self.nodes.get_mut(node).expect("live").props
+                    };
+                    if *value == PropValue::Null {
+                        props.remove(prop);
+                    } else {
+                        props.insert(*prop, value.clone());
                     }
                 }
                 Mutation::SetFrame { node, frame } => {
@@ -367,5 +379,70 @@ impl Replayer {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn root_takes_props_and_nothing_else() {
+        let mut r = Replayer::new();
+        let tokens = PropValue::Json("{\"primary\":4278190080}".into());
+        r.apply(&[Mutation::SetProp {
+            node: ROOT_NODE,
+            prop: Prop::ThemeTokens,
+            value: tokens.clone(),
+        }])
+        .unwrap();
+        assert_eq!(r.root_props().get(&Prop::ThemeTokens), Some(&tokens));
+        r.apply(&[Mutation::SetProp {
+            node: ROOT_NODE,
+            prop: Prop::ThemeTokens,
+            value: PropValue::Null,
+        }])
+        .unwrap();
+        assert!(r.root_props().is_empty());
+
+        let frame = Frame {
+            x: 0.0,
+            y: 0.0,
+            width: 1.0,
+            height: 1.0,
+        };
+        for bad in [
+            Mutation::Create {
+                node: ROOT_NODE,
+                view_type: ViewType::View,
+            },
+            Mutation::Delete { node: ROOT_NODE },
+            Mutation::SetFrame {
+                node: ROOT_NODE,
+                frame,
+            },
+            Mutation::SetEventMask {
+                node: ROOT_NODE,
+                mask: 1,
+            },
+            Mutation::Insert {
+                node: ROOT_NODE,
+                parent: ROOT_NODE,
+                index: 0,
+            },
+        ] {
+            assert!(
+                Replayer::new().apply(std::slice::from_ref(&bad)).is_err(),
+                "{bad:?} accepted"
+            );
+        }
+        // Other nodes stay strict.
+        assert!(Replayer::new()
+            .apply(&[Mutation::SetProp {
+                node: 9,
+                prop: Prop::Opacity,
+                value: PropValue::F32(0.5)
+            }])
+            .is_err());
     }
 }

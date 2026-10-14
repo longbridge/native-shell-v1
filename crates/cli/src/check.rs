@@ -1,4 +1,4 @@
-//! `native-shell check`: load a program headlessly, render it once, report.
+//! `nshell check`: load a program headlessly, render it once, report.
 //!
 //! Runs the real engine with the deterministic test measurer, so what fails
 //! here fails on a device: syntax and import errors, capability violations,

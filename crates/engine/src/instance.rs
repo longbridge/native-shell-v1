@@ -223,6 +223,8 @@ pub struct Instance {
     presented: HashSet<String>,
     native_dismissed: HashSet<String>,
     force_commit: bool,
+    /// The `ThemeTokens` JSON last sent on the root, so an unchanged theme is not sent again.
+    sent_theme_tokens: Option<String>,
 
     continuous: Vec<(u32, EventType, String)>,
     animated: HashSet<u32>,
@@ -318,6 +320,7 @@ impl Instance {
             presented: HashSet::new(),
             native_dismissed: HashSet::new(),
             force_commit: true,
+            sent_theme_tokens: None,
             continuous: Vec::new(),
             animated: HashSet::new(),
             batches: VecDeque::new(),

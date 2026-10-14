@@ -1,4 +1,4 @@
-//! End-to-end tests of the `native-shell` binary.
+//! End-to-end tests of the `nshell` binary.
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpStream;
@@ -7,11 +7,11 @@ use std::process::{Child, Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
 fn bin() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_native-shell"))
+    Command::new(env!("CARGO_BIN_EXE_nshell"))
 }
 
 fn run(args: &[&str], cwd: &Path) -> Output {
-    bin().args(args).current_dir(cwd).output().expect("run native-shell")
+    bin().args(args).current_dir(cwd).output().expect("run nshell")
 }
 
 fn stdout(o: &Output) -> String {

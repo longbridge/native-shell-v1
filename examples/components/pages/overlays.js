@@ -208,14 +208,11 @@ export default class OverlaysPage extends View {
                   .child(div().h(1).ml(48).bg(t.border))
                   .child(
                     row(cx, {
-                      id: "copy-link",
-                      icon: "link",
-                      label: "Copy link",
+                      id: "offline",
+                      icon: "download",
+                      label: "Make available offline",
                       detail: "Toast: confirms a result you can’t see",
-                      on_click: (_e, cx) => {
-                        cx.write_to_clipboard("https://example.org/d/coast-trip");
-                        cx.push_toast({ title: "Link copied", level: "success", timeout: 2000 });
-                      },
+                      on_click: (_e, cx) => cx.push_toast({ title: "Available offline", level: "success", timeout: 2000 }),
                     }),
                   ),
               ),

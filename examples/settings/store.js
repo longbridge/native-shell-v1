@@ -3,7 +3,7 @@
 
 const KEY = "settings.v1";
 
-export const DEFAULTS = Object.freeze({
+const DEFAULTS = Object.freeze({
   account: { name: "Ada Lovelace", email: "ada@example.org" },
   notifications: true,
   summary: true,

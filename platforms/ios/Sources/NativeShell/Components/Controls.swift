@@ -22,6 +22,30 @@ class NSHControlView: NSHComponentView {
     }
 
     func layoutControl() { controlView.frame = bounds }
+
+    // MARK: Tint
+
+    /// `TintColor` from the core, overriding the theme's `primary`.
+    private var explicitTint: UIColor?
+
+    /// Applies the accent color to the control's parts (subclasses).
+    func applyTint(_ color: UIColor) {}
+
+    func refreshTint() { applyTint(explicitTint ?? themeColor("primary")) }
+
+    override func themeDidChange() { refreshTint() }
+
+    override func didMoveToSuperview() {
+        super.didMoveToSuperview()
+        refreshTint()
+    }
+
+    override func applyProp(_ prop: Prop, _ value: PropValue) -> Bool {
+        guard prop == .tintColor else { return super.applyProp(prop, value) }
+        explicitTint = value.uiColor
+        refreshTint()
+        return true
+    }
 }
 
 final class NSHSwitchView: NSHControlView {
@@ -43,7 +67,8 @@ final class NSHSwitchView: NSHControlView {
         switch prop {
         case .checked: control.setOn(value.bool ?? false, animated: window != nil)
         case .enabled: control.isEnabled = value.bool ?? true
-        case .tintColor: control.onTintColor = value.uiColor
+        // The on state keeps the system green (the iOS convention): TintColor is ignored.
+        case .tintColor: break
         default: return super.applyProp(prop, value)
         }
         return true
@@ -89,24 +114,34 @@ final class NSHCheckboxView: NSHComponentView {
         redraw()
     }
 
+    override func traitCollectionDidChange(_ previous: UITraitCollection?) {
+        super.traitCollectionDidChange(previous)
+        // Layer colors are resolved once; follow light/dark changes.
+        redraw()
+    }
+
+    override func themeDidChange() { redraw() }
+
     private func redraw() {
-        let side = max(0, min(min(bounds.width, bounds.height), 22))
+        // The glyph fills the frame the core laid out (which grows with the font scale).
+        let side = max(0, min(bounds.width, bounds.height))
+        let unit = side / 22
         let r = CGRect(x: (bounds.width - side) / 2, y: (bounds.height - side) / 2, width: side, height: side)
-        let tint = color ?? tintColor ?? .systemBlue
+        let tint = (color ?? themeColor("primary")).resolvedColor(with: traitCollection)
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         box.frame = bounds
         mark.frame = bounds
-        box.lineWidth = 1.5
+        box.lineWidth = 1.5 * unit
         if style == 1 {
-            box.path = UIBezierPath(ovalIn: r.insetBy(dx: 0.75, dy: 0.75)).cgPath
+            box.path = UIBezierPath(ovalIn: r.insetBy(dx: 0.75 * unit, dy: 0.75 * unit)).cgPath
             box.fillColor = UIColor.clear.cgColor
             box.strokeColor = (checked ? tint : UIColor.secondaryLabel).cgColor
             mark.path = UIBezierPath(ovalIn: r.insetBy(dx: side * 0.27, dy: side * 0.27)).cgPath
             mark.fillColor = tint.cgColor
             mark.strokeColor = nil
         } else {
-            box.path = UIBezierPath(roundedRect: r.insetBy(dx: 0.75, dy: 0.75), cornerRadius: side * 0.22).cgPath
+            box.path = UIBezierPath(roundedRect: r.insetBy(dx: 0.75 * unit, dy: 0.75 * unit), cornerRadius: side * 0.22).cgPath
             box.fillColor = (checked ? tint : UIColor.clear).cgColor
             box.strokeColor = (checked ? tint : UIColor.secondaryLabel).cgColor
             let p = UIBezierPath()
@@ -116,7 +151,7 @@ final class NSHCheckboxView: NSHComponentView {
             mark.path = p.cgPath
             mark.fillColor = nil
             mark.strokeColor = UIColor.white.cgColor
-            mark.lineWidth = 2
+            mark.lineWidth = 2 * unit
             mark.lineCap = .round
             mark.lineJoin = .round
         }
@@ -142,6 +177,7 @@ final class NSHCheckboxView: NSHComponentView {
 final class NSHSliderView: NSHControlView {
     var control: UISlider { controlView as! UISlider }
     override func makeControl() -> UIView { UISlider() }
+    override func applyTint(_ color: UIColor) { control.minimumTrackTintColor = color }
 
     private var step: Float = 0
     private var lastSent: TimeInterval = 0
@@ -161,7 +197,6 @@ final class NSHSliderView: NSHControlView {
         case .max: control.maximumValue = Float(value.number ?? 1)
         case .step: step = Float(value.number ?? 0)
         case .enabled: control.isEnabled = value.bool ?? true
-        case .tintColor: control.minimumTrackTintColor = value.uiColor
         default: return super.applyProp(prop, value)
         }
         return true
@@ -203,6 +238,7 @@ final class NSHSliderView: NSHControlView {
 final class NSHProgressView: NSHControlView {
     var control: UIProgressView { controlView as! UIProgressView }
     override func makeControl() -> UIView { UIProgressView(progressViewStyle: .default) }
+    override func applyTint(_ color: UIColor) { control.progressTintColor = color }
 
     override func layoutControl() {
         let h = control.sizeThatFits(bounds.size).height
@@ -212,7 +248,6 @@ final class NSHProgressView: NSHControlView {
     override func applyProp(_ prop: Prop, _ value: PropValue) -> Bool {
         switch prop {
         case .value: control.progress = Float(value.number ?? 0)
-        case .tintColor: control.progressTintColor = value.uiColor
         case .indeterminate: break
         default: return super.applyProp(prop, value)
         }
@@ -223,6 +258,7 @@ final class NSHProgressView: NSHControlView {
 final class NSHSpinnerView: NSHControlView {
     var control: UIActivityIndicatorView { controlView as! UIActivityIndicatorView }
     override func makeControl() -> UIView { UIActivityIndicatorView() }
+    override func applyTint(_ color: UIColor) { control.color = color }
 
     override func commonInit() {
         super.commonInit()
@@ -239,7 +275,6 @@ final class NSHSpinnerView: NSHControlView {
 
     override func applyProp(_ prop: Prop, _ value: PropValue) -> Bool {
         switch prop {
-        case .tintColor: control.color = value.uiColor
         case .indeterminate: break
         default: return super.applyProp(prop, value)
         }
@@ -255,6 +290,10 @@ final class NSHSpinnerView: NSHControlView {
 final class NSHSegmentedView: NSHControlView {
     var control: UISegmentedControl { controlView as! UISegmentedControl }
     override func makeControl() -> UIView { UISegmentedControl() }
+    override func applyTint(_ color: UIColor) {
+        control.selectedSegmentTintColor = color
+        control.setTitleTextAttributes([.foregroundColor: themeColor("primary_foreground")], for: .selected)
+    }
 
     private var items: [String] = []
 
@@ -357,6 +396,7 @@ enum DateFormats {
 final class NSHSelectView: NSHControlView {
     var control: UIButton { controlView as! UIButton }
     override func makeControl() -> UIView { UIButton(type: .system) }
+    override func applyTint(_ color: UIColor) { chevron.tintColor = color }
 
     private var items: [(label: String, value: Any, destructive: Bool, disabled: Bool)] = []
     private var menuTitle = ""
@@ -371,7 +411,7 @@ final class NSHSelectView: NSHControlView {
         control.contentHorizontalAlignment = .leading
         control.titleLabel?.font = SelectChrome.font()
         chevron.image = SelectChrome.chevron()
-        chevron.tintColor = .secondaryLabel
+
         chevron.contentMode = .center
         chevron.isUserInteractionEnabled = false
         addSubview(chevron)

@@ -29,6 +29,9 @@ internal interface MountHost {
     /** The surface view, for commands that need a window (haptics, IME). */
     val anchor: View?
 
+    /** The core's resolved theme (`ThemeTokens` on the root): native chrome re-tints from it. */
+    fun setThemeTokens(json: String?) {}
+
     /** The surface's toast stack, or null without a surface (a platform toast is used then). */
     val toasts: ToastStack? get() = null
 }

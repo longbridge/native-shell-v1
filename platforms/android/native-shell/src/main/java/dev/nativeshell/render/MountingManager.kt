@@ -119,7 +119,9 @@ internal class MountingManager(
         }
         val manager = managers.forType(type)
         val pooled = pools.get(type)?.removeLastOrNull()
-        val view = pooled?.first ?: manager.createView(host)
+        val view = pooled?.first ?: manager.createView(host).also {
+            if (dev.nativeshell.views.ControlTint.handles(it)) dev.nativeshell.views.ControlTint.apply(it)
+        }
         val node = Node(id, type, manager, view)
         node.state = pooled?.second
         view.setTag(R.id.nsh_node_id, id)
@@ -260,21 +262,37 @@ internal class MountingManager(
         host.dispatch(Protocol.ROOT_NODE, dev.nativeshell.protocol.EventType.KEY, payload)
     }
 
-    /** Finds a node's view by `TestId`. */
-    fun findByTestId(testId: String): View? {
+    /** Appearance or theme changed: re-tint native controls from the current tokens. */
+    fun retintControls() {
         for (i in 0 until nodes.size()) {
-            val n = nodes.valueAt(i)
-            if (n.testId == testId) return n.view
+            val v = nodes.valueAt(i).view
+            if (dev.nativeshell.views.ControlTint.handles(v)) dev.nativeshell.views.ControlTint.apply(v)
+            (v as? dev.nativeshell.views.ValueField)?.applyTokens()
         }
-        return null
     }
 
+    /**
+     * The view of the node carrying `TestId` [testId] that is actually on screen:
+     * attached to the window and reachable from the root (a list row parked
+     * outside the visible cells, or a node awaiting deletion, does not count).
+     */
+    fun findByTestId(testId: String): View? = nodeForTestId(testId)?.view
+
     fun nodeForTestId(testId: String): Node? {
+        var fallback: Node? = null
         for (i in 0 until nodes.size()) {
             val n = nodes.valueAt(i)
-            if (n.testId == testId) return n
+            if (n.testId != testId) continue
+            if (n.view.isAttachedToWindow && isMounted(n)) return n
+            // A surface not attached to a window (headless tests) resolves by tree membership alone.
+            if (fallback == null && !root.view.isAttachedToWindow && isMounted(n) && n.view.parent != null) fallback = n
         }
-        return null
+        return fallback
+    }
+
+    private fun isMounted(n: Node): Boolean {
+        var c: Node = n
+        while (true) c = c.parent ?: return c === root
     }
 
     /** The native tree: types, frames in points, test ids; detached nodes listed after. Debugging and tests. */

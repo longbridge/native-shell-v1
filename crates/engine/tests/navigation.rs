@@ -371,3 +371,81 @@ fn host_theme_tokens_apply_per_appearance_under_script_overrides() {
     let h = Harness::build(&[("main.js", APP)]).theme(bad).start();
     assert!(h.load_error().unwrap().to_string().contains("nope"));
 }
+
+#[test]
+fn the_root_carries_the_resolved_theme_tokens_when_they_change() {
+    let main = r##"
+import { View, div, v_flex, Button } from "native-shell";
+export default class T extends View {
+  render(cx) {
+    return v_flex()
+      .child(Button.new("brand").test_id("brand").label("brand").on_click((_e, cx) => cx.set_theme({ tokens: { colors: { primary: "#ff0000" } } })))
+      .child(Button.new("same").test_id("same").label("same").on_click((_e, cx) => cx.set_theme({ tokens: { colors: { primary: "#ff0000" } } })))
+      .child(Button.new("dark").test_id("dark").label("dark").on_click((_e, cx) => cx.set_theme({ appearance: "dark", tokens: { colors: { primary: "#ff0000" } } })));
+  }
+}
+"##;
+    let mut h = Harness::new(&[("main.js", main)]);
+    let first = h.theme_tokens().to_vec();
+    assert_eq!(first.len(), 1, "the first batch carries the theme");
+    assert_eq!(first[0]["appearance"], "light");
+    assert_eq!(first[0]["background"], 0xFFFF_FFFFu32);
+    assert_eq!(first[0].as_object().unwrap().len(), 18, "17 colors and the appearance");
+
+    h.tap("brand");
+    assert_eq!(h.theme_tokens().len(), 2);
+    assert_eq!(h.theme_tokens()[1]["primary"], 0xFFFF_0000u32);
+    h.tap("same");
+    assert_eq!(h.theme_tokens().len(), 2, "an unchanged theme is not sent again");
+    h.tap("dark");
+    let dark = h.theme_tokens().last().unwrap().clone();
+    assert_eq!(dark["appearance"], "dark");
+    assert_eq!(dark["primary"], 0xFFFF_0000u32);
+    assert_ne!(dark["background"], first[0]["background"]);
+    assert_eq!(
+        h.native().root_props().get(&Prop::ThemeTokens),
+        Some(&PropValue::Json(dark.to_string())),
+        "the renderer holds the latest tokens on the root"
+    );
+
+    // The system appearance changes under a script that does not pin one.
+    let mut h = Harness::new(&[("main.js", main)]);
+    h.set_environment(Environment { appearance: Appearance::Dark, ..Environment::default() });
+    assert_eq!(h.theme_tokens().last().unwrap()["appearance"], "dark");
+}
+
+#[test]
+fn the_window_says_whether_the_system_confirms_copies() {
+    let main = r#"
+import { View, div } from "native-shell";
+export default class C extends View {
+  render(cx) { return div().test_id("c").child(`${cx.window().clipboard_feedback}`); }
+}
+"#;
+    let mut h = Harness::new(&[("main.js", main)]);
+    assert_eq!(h.text_of("c"), "false");
+    h.set_environment(Environment { clipboard_feedback: true, ..Environment::default() });
+    assert_eq!(h.text_of("c"), "true", "a change re-renders with the new value");
+}
+
+#[test]
+fn rem_follows_the_clamped_font_scale_and_line_height_the_full_one() {
+    let main = r#"
+import { View, div, v_flex } from "native-shell";
+export default class R extends View {
+  render(cx) {
+    return v_flex().items_start()
+      .child(div().test_id("metrics").child(`${window.rem_size()} ${window.line_height().toFixed(2)} ${"rem_size" in cx.window()}`))
+      .child(div().test_id("padded").p_4().child(div().w(10).h(10)));
+  }
+}
+"#;
+    let mut h = Harness::new(&[("main.js", main)]);
+    assert_eq!(h.text_of("metrics"), "16 25.89 false", "window.rem_size() is the one way to read rem");
+    assert_eq!(h.frame("padded").width, 10.0 + 2.0 * 16.0);
+    h.set_environment(Environment { font_scale: 2.0, ..Environment::default() });
+    assert_eq!(h.text_of("metrics"), "25.6 51.78 false", "rem stops at 1.6×; text lines take the full 2×");
+    let width = h.frame("padded").width;
+    // Frames snap to device pixels.
+    assert!((width - (10.0 + 2.0 * 25.6)).abs() < 0.5, "p_4 is 1rem a side: {width}");
+}

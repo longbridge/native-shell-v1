@@ -169,7 +169,8 @@ export default class Chat extends View {
           .child(
             action("action-copy", "copy", "Copy text", t.foreground, (cx) => {
               cx.write_to_clipboard(message.text);
-              cx.push_toast({ title: "Copied", level: "success", timeout: 1500 });
+              // Android shows its own clipboard confirmation; a second one would repeat it.
+              if (cx.window().platform !== "android") cx.push_toast({ title: "Copied", level: "success", timeout: 1500 });
             }),
           )
           .child(action("action-delete", "trash", "Delete for me", t.destructive, (cx) => this.remove(message, cx))),
@@ -284,7 +285,7 @@ export default class Chat extends View {
     const failed = m.status === "failed";
     const bubble = Button.new(`bubble-${m.id}`)
       .test_id(`bubble-${m.id}`)
-      .accessibility_label(`${mine ? "You" : CONTACT.name}: ${m.text}. ${clock(m.at)}`)
+      .accessibility_label(`${mine ? "You" : CONTACT.name}, ${clock(m.at)}: ${m.text}`)
       .accessibility_hint("Shows actions")
       .max_w(Math.round(win.width * 0.78))
       .px_4()

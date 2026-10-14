@@ -1983,3 +1983,66 @@ fn unmeasurable_controls_fall_back_to_a_minimum_size() {
         assert_eq!((f.width, f.height), (96.0, 36.0), "{t:?}");
     }
 }
+
+#[test]
+fn rem_lengths_follow_the_clamped_font_scale() {
+    let mut h = H::new();
+    let s = root(view(
+        "",
+        vec![
+            keyed(
+                view("p_4 size_10 rounded_md border_1 bg=#ff0000", vec![]),
+                "rem",
+            ),
+            keyed(view("w=40 h=40 p=8px bg=#00ff00", vec![]), "px"),
+            text("text_sm", "Label"),
+        ],
+    ));
+    h.commit(&s);
+    let surface = h.tree.surface_node("root").unwrap();
+    let kids = h.rep.children(surface).to_vec();
+    let (rem_box, px_box, label) = (kids[0], kids[1], kids[2]);
+    let label_json = h.prop(label, Prop::AttributedText).cloned();
+    for (font_scale, layout_scale) in [(1.0, 1.0), (1.3, 1.3), (2.0, 1.6), (0.85, 1.0), (1.0, 1.0)]
+    {
+        h.tree.set_environment(&Environment {
+            font_scale,
+            ..Default::default()
+        });
+        let batch = h.commit(&s);
+        assert_eq!(h.tree.rem_size(), 16.0 * layout_scale);
+        // size_10 is 2.5 rem; p_4 is 1 rem (padding sits inside the border box).
+        let f = h.frame(rem_box);
+        assert!(
+            approx(f.width, 40.0 * layout_scale) && approx(f.height, 40.0 * layout_scale),
+            "{font_scale}: {f:?}"
+        );
+        let Some(PropValue::F32Array(radii)) = h.prop(rem_box, Prop::CornerRadii) else {
+            panic!()
+        };
+        assert!(approx(radii[0], 6.0 * layout_scale), "{radii:?}");
+        assert_eq!(
+            h.prop(rem_box, Prop::BorderWidths),
+            Some(&PropValue::F32Array(vec![1.0; 4])),
+            "px border unchanged"
+        );
+        let p = h.frame(px_box);
+        assert_eq!((p.width, p.height), (40.0, 40.0), "px lengths unchanged");
+        assert!(
+            approx(p.y, 40.0 * layout_scale),
+            "stacked below the rem box: {p:?}"
+        );
+        // Text keeps its unscaled size: renderers apply the font scale, so it is never resent.
+        assert_eq!(h.prop(label, Prop::AttributedText).cloned(), label_json);
+        assert!(
+            batch.iter().all(|m| !matches!(
+                m,
+                Mutation::SetProp {
+                    prop: Prop::AttributedText,
+                    ..
+                }
+            )),
+            "{batch:#?}"
+        );
+    }
+}

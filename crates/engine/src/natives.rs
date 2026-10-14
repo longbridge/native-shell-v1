@@ -275,12 +275,19 @@ impl Shared {
             "appearance": e.appearance,
             "platform": e.platform,
             "locale": e.locale,
+            "clipboard_feedback": e.clipboard_feedback,
         })
         .to_string()
     }
 }
 
 pub(crate) type SharedRef = Rc<RefCell<Shared>>;
+
+/// An `f32` as the `f64` with the same shortest decimal form, so scripts see
+/// `25.6` rather than `25.600000381469727`.
+fn shortest_f64(v: f32) -> f64 {
+    v.to_string().parse().unwrap_or(f64::from(v))
+}
 
 fn borrow<'a, 'js>(ctx: &Ctx<'js>, shared: &'a SharedRef) -> rquickjs::Result<std::cell::RefMut<'a, Shared>> {
     shared.try_borrow_mut().map_err(|_| Exception::throw_internal(ctx, "native-shell: re-entrant native call"))
@@ -459,6 +466,15 @@ pub(crate) fn install<'js>(ctx: &Ctx<'js>, shared: &SharedRef) -> rquickjs::Resu
         "window",
         Function::new(ctx.clone(), move |ctx: Ctx<'_>| -> rquickjs::Result<String> {
             Ok(borrow(&ctx, &s)?.window_json())
+        })?,
+    )?;
+
+    // `window.rem_size()`: layout's rem (the zoom axis: the font scale, clamped).
+    let s = shared.clone();
+    n.set(
+        "rem_size",
+        Function::new(ctx.clone(), move |ctx: Ctx<'_>| -> rquickjs::Result<f64> {
+            Ok(shortest_f64(native_shell_core::style::rem_size(borrow(&ctx, &s)?.env.font_scale)))
         })?,
     )?;
 
