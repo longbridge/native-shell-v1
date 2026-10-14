@@ -53,6 +53,7 @@ fn main() -> ExitCode {
             images_load_off_the_main_thread,
         ),
         ("shapes fill their paths", shapes_fill_their_paths),
+        ("example screenshots", example_screenshots),
     ])
 }
 
@@ -541,4 +542,53 @@ export default class App extends View {
     // Stroked diagonals cross in the middle.
     assert_eq!(f.pixel(20, 40), 0xffff0000);
     assert_eq!(f.pixel(20, 25), 0xffffffff);
+}
+
+/// The accent the iOS and Android example apps give the shell, so example
+/// screenshots compare with theirs.
+fn example_runtime() -> native_shell_gtk::Runtime {
+    let tokens = |c: &str| std::iter::once(("primary".to_string(), c.to_string())).collect();
+    let theme = native_shell_gtk::ThemeConfig { light: tokens("#2563eb"), dark: tokens("#60a5fa") };
+    let runtime = native_shell_gtk::Runtime::new();
+    runtime.set_theme(Some(theme)).expect("theme");
+    runtime
+}
+
+fn open_example(name: &str) -> Fixture {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples").join(name);
+    let data = std::env::temp_dir().join(format!("native-shell-visual-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&data);
+    let options = native_shell_gtk::InstanceOptions { data_dir: Some(data), ..Default::default() };
+    Fixture::start_with(&example_runtime(), options, |i| i.load_dir(&dir))
+}
+
+fn screenshots(f: &Fixture, name: &str) {
+    f.set_dark(false);
+    f.screenshot(format!("screenshots/{name}-light.png"));
+    f.set_dark(true);
+    f.screenshot(format!("screenshots/{name}-dark.png"));
+    f.set_dark(false);
+}
+
+fn example_screenshots() {
+    gtk::Settings::default().expect("settings").set_gtk_enable_animations(false);
+    let f = open_example("components");
+    f.expect("index");
+    screenshots(&f, "components");
+    f.click("open-buttons");
+    pump_for(Duration::from_millis(100));
+    f.settle();
+    screenshots(&f, "components-buttons");
+    drop(f);
+
+    let f = open_example("gpui-todolist");
+    screenshots(&f, "gpui-todolist-empty");
+    let entry = f.find_where(|w| w.is::<gtk::Text>()).and_downcast::<gtk::Text>().expect("the draft field");
+    for todo in ["Buy oat milk", "Renew passport before the trip in March", "Call the dentist"] {
+        entry.set_text(todo);
+        f.settle();
+        entry.emit_by_name::<()>("activate", &[]);
+        f.settle();
+    }
+    screenshots(&f, "gpui-todolist");
 }
