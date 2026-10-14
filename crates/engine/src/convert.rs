@@ -99,6 +99,7 @@ fn prop_spec(name: &str) -> Option<(Prop, Kind)> {
         "fill" => (Prop::FillColor, Color),
         "stroke" => (Prop::StrokeColor, Color),
         "stroke_width" => (Prop::StrokeWidth, F32),
+        "tooltip" => (Prop::Tooltip, Str),
         "fill_rule" => (Prop::FillRule, I32),
         "src" => (Prop::ImageSource, Str),
         "content_mode" => (Prop::ContentMode, I32),
@@ -197,12 +198,14 @@ const FS: char = '\u{1c}';
 
 /// Decodes a style chain as `js/elements.js` records it: each op is `RS name`
 /// followed by `US type value` per argument (`n` number, `s` string, `b`
-/// boolean); `.active(...)` is `RS @active GS inner FS`.
+/// boolean); `.active(...)` is `RS @active GS inner FS`, `.hover(...)` likewise.
 fn parse_chain(key: &str) -> Result<Vec<StyleOp>> {
     let mut ops = Vec::new();
     let mut rest = key;
     while let Some(after) = rest.strip_prefix(RS) {
-        if let Some(inner) = after.strip_prefix("@active").and_then(|r| r.strip_prefix(GS)) {
+        // `.active(...)` / `.hover(...)`: `@state GS inner FS`.
+        let state = after.strip_prefix('@').and_then(|r| r.split_once(GS));
+        if let Some((state, inner)) = state {
             // Find the matching FS, counting nested states.
             let mut depth = 1;
             let mut end = None;
@@ -219,9 +222,9 @@ fn parse_chain(key: &str) -> Result<Vec<StyleOp>> {
                     _ => {}
                 }
             }
-            let end = end.ok_or("malformed `.active(...)` style chain")?;
-            let mut op = StyleOp::new("active", Vec::new());
-            op.nested = Some(("active".into(), parse_chain(&inner[..end])?));
+            let end = end.ok_or_else(|| format!("malformed `.{state}(...)` style chain"))?;
+            let mut op = StyleOp::new(state, Vec::new());
+            op.nested = Some((state.into(), parse_chain(&inner[..end])?));
             ops.push(op);
             rest = &inner[end + FS.len_utf8()..];
             continue;

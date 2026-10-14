@@ -49,7 +49,8 @@ fn svgs_become_shapes_and_images_files_on_disk() {
         Some(PropValue::Str("M1 0L1 0A1 1 0 0 1 2 1L2 1A1 1 0 0 1 1 2L1 2A1 1 0 0 1 0 1L0 1A1 1 0 0 1 1 0Z".into()))
     );
     assert_eq!(h.prop("dot", Prop::ViewBox), Some(PropValue::F32Array(vec![0.0, 0.0, 2.0, 2.0])));
-    assert_eq!(h.prop("dot", Prop::FillColor), Some(PropValue::Color(0xFF0A_0A0A)));
+    let foreground = h.theme_tokens()[0]["foreground"].as_u64().expect("foreground token") as u32;
+    assert_eq!(h.prop("dot", Prop::FillColor), Some(PropValue::Color(foreground)));
     assert_eq!(h.prop("dot", Prop::StrokeColor), None);
 
     // Two paints: a box holding a filled and a stroked shape, both in the text color.

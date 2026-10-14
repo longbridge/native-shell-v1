@@ -268,3 +268,37 @@ export default class M extends View {
     h.dispatch(node, EventType::Click, r#"{"x":1,"y":1,"count":1}"#);
     assert_eq!(h.text_of("t"), "1 false false false false false", "a touch reports none held");
 }
+
+#[test]
+fn pointer_hover_cursor_and_tooltip() {
+    let mut h = app(r#"
+import { View, div } from "gpui-kit";
+export default class P extends View {
+  init() { this.log = []; }
+  render() {
+    return div()
+      .child(div().test_id("log").child(this.log.join(",")))
+      .child(
+        div().test_id("card").size_10().tooltip("Archive").cursor_pointer()
+          .hover((s) => s.bg("muted").opacity(0.9))
+          .on_hover((hovered, cx) => { this.log.push(String(hovered)); cx.notify(); }),
+      );
+  }
+}
+"#);
+    assert_eq!(h.prop("card", Prop::Tooltip), Some(PropValue::Str("Archive".into())));
+    let card = h.find("card").unwrap();
+    assert_ne!(h.native().nodes[&card].mask & native_shell::core::protocol::event_mask::HOVER, 0);
+    h.dispatch(card, EventType::Hover, r#"{"entered":true,"x":3,"y":4}"#);
+    h.dispatch(card, EventType::Hover, r#"{"entered":false,"x":0,"y":0}"#);
+    assert_eq!(h.text_of("log"), "true,false");
+    assert!(h.error_logs().is_empty(), "{:?}", h.error_logs());
+
+    let h = Harness::new(&[(
+        "main.js",
+        r#"import { View, div } from "gpui-kit";
+export default class T extends View { render() { return div().tooltip(div()); } }"#,
+    )]);
+    let e = h.load_error().map(|e| e.to_string()).unwrap_or_default();
+    assert!(e.contains("tooltip(text) expects a string"), "{e}");
+}

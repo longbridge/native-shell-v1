@@ -111,8 +111,8 @@ const EVENTS = {
  * screen does not have. Accepted and ignored, so desktop render code runs.
  */
 const DESKTOP_ONLY = [
-  "on_hover", "on_mouse_move", "on_mouse_down", "on_mouse_up", "on_mouse_down_out", "on_scroll_wheel",
-  "on_modifiers_changed", "tooltip", "tab_index", "tab_stop", "aria_level", "aria_active_descendant",
+  "on_mouse_move", "on_mouse_down", "on_mouse_up", "on_mouse_down_out", "on_scroll_wheel",
+  "on_modifiers_changed", "tab_index", "tab_stop", "aria_level", "aria_active_descendant",
   "window_control_area", "content_focus_handle", "with_item_to_measure_index", "mode", "axis_scrollbar",
 ];
 
@@ -187,18 +187,41 @@ export class Element {
   // State styles ------------------------------------------------------------
 
   active(fn) {
+    return this._stateStyle("active", fn);
+  }
+
+  /** Styles while a pointer is over the element (pointer platforms; touch screens have none). */
+  hover(fn) {
+    return this._stateStyle("hover", fn);
+  }
+
+  _stateStyle(name, fn) {
     const s = new Element("style");
     fn(s);
-    this._sk += RS + "@active" + GS + s._sk + FS;
+    this._sk += RS + "@" + name + GS + s._sk + FS;
     return this;
   }
 
-  // Touch screens have no hover, and focus rings are drawn natively: accepted
-  // (and still checked) so desktop code keeps working, then ignored.
-  hover(fn) {
-    fn(new Element("style"));
+  /** `(hovered, cx)` when a pointer enters (`true`) or leaves the element, as gpui-shell's. */
+  on_hover(fn) {
+    if (typeof fn !== "function") throw new TypeError(".on_hover(handler) expects a function");
+    return this._on("hover", (e, cx) => fn(!!e?.entered, cx), ".on_hover(handler)");
+  }
+
+  /**
+   * Text the platform shows after a pointer rests on the element (macOS,
+   * Android, Linux); a string only, as in gpui-shell.
+   */
+  tooltip(text) {
+    if (typeof text !== "string") {
+      throw new TypeError("tooltip(text) expects a string; a tooltip built from an element is not bound yet");
+    }
+    this._P().tooltip = text;
     return this;
   }
+
+  // Focus rings are drawn natively: accepted (and still checked) so desktop
+  // code keeps working, then ignored.
 
   focus(fn) {
     fn(new Element("style"));
