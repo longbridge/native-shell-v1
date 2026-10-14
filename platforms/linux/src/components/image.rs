@@ -81,6 +81,14 @@ struct State {
     loading: Cell<bool>,
 }
 
+thread_local!(static IN_FLIGHT: Cell<usize> = const { Cell::new(0) });
+
+/// Image loads started on this thread and not finished yet (decoded or
+/// failed), so tests and screenshots can wait for images instead of sleeping.
+pub fn loads_in_flight() -> usize {
+    IN_FLIGHT.with(Cell::get)
+}
+
 pub struct Image {
     state: Rc<State>,
 }
@@ -115,11 +123,13 @@ impl Image {
         let token = s.token.get() + 1;
         s.token.set(token);
         s.loading.set(true);
+        IN_FLIGHT.with(|n| n.set(n.get() + 1));
         let (state, weak) = (Rc::downgrade(s), view.downgrade());
         glib::spawn_future_local(async move {
             let result =
                 gio::spawn_blocking(move || read(&source).and_then(|bytes| decode(&bytes, max_px)))
                     .await;
+            IN_FLIGHT.with(|n| n.set(n.get().saturating_sub(1)));
             let Some(state) = state.upgrade() else { return };
             if state.token.get() != token {
                 return;

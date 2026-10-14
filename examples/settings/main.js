@@ -1,16 +1,19 @@
-// Settings: the preferences screen of a typical app.
+// Settings: the preferences screen of a typical app, laid out as iOS Settings.
 //
-// Rows are grouped by what they affect, each group says in one line what its
-// switches do, and every change applies at once (no Save on this page).
-// Dependent settings stay visible but disabled, with the reason beneath them,
-// rather than disappearing. The account opens as a pushed page; clearing the
-// cache asks first because the files have to be downloaded again. See
-// README.md for the design notes.
+// A large title that collapses as the list scrolls, the account first, then
+// inset grouped sections ordered by how often they are visited. Rows carry a
+// colored icon tile, every switch and picker applies at once (no Save here),
+// and a footer says in one sentence what a group's switches do. Dependent
+// settings stay visible but disabled, with the reason beneath them. The
+// account opens as a pushed page; clearing the cache asks first because the
+// files have to be downloaded again. See README.md for the design notes.
 
-import { View, div, v_flex, Button, Switch, Select, DatePicker } from "native-shell";
+import { View, div, Switch, Select, DatePicker } from "native-shell";
 import AccountPage from "./account.js";
 import { load, save, formatBytes, formatTime } from "./store.js";
-import { avatar, icon, largeTitle, row, section, statusBar } from "./ui.js";
+import { avatar, icon, row, scrollScreen, section, tile } from "./ui.js";
+/** @import { Context } from "native-shell" */
+/** @import { Settings as Prefs } from "./store.js" */
 
 const THEMES = [
   { label: "System", value: "system" },
@@ -24,25 +27,29 @@ export default class Settings extends View {
   init(_props, cx) {
     this.settings = load();
     this.applyTheme(cx);
-    /** Bytes in the cache, or null while it is being measured. */
+    this.collapsed = false;
+    /** Bytes in the cache, or null while it is being measured. @type {number | null} */
     this.cacheBytes = null;
     this.measureCache(cx);
   }
 
+  /** @param {Partial<Prefs>} patch @param {Context} cx */
   set(patch, cx) {
     this.settings = { ...this.settings, ...patch };
     save(this.settings);
     cx.notify();
   }
 
+  /** @param {Context} cx */
   applyTheme(cx) {
     const theme = this.settings.theme;
     // "System" hands the appearance back to the device.
-    cx.set_theme(theme === "system" ? {} : { appearance: theme });
+    cx.set_theme(theme === "system" ? {} : { appearance: theme === "dark" ? "dark" : "light" });
   }
 
   // Measuring a cache directory is real I/O in an app; here a short task
   // stands in for it, so the row shows its measuring state honestly.
+  /** @param {Context} cx */
   measureCache(cx) {
     cx.spawn(async (cx) => {
       await cx.sleep(600);
@@ -51,18 +58,19 @@ export default class Settings extends View {
     });
   }
 
+  /** @param {Context} cx */
   confirmClearCache(cx) {
-    const size = formatBytes(this.cacheBytes);
     cx.alert({
-      title: `Clear ${size} of cached files?`,
+      title: `Clear ${formatBytes(this.cacheBytes ?? 0)} of cached files?`,
       message: "Photos and attachments will download again the next time you open them.",
       actions: [
         { label: "Cancel", style: "cancel" },
         {
-          label: "Clear cache",
+          label: "Clear Cache",
           style: "destructive",
           on_press: (cx) => {
             this.cacheBytes = 0;
+            cx.haptic("success");
             cx.notify();
           },
         },
@@ -70,23 +78,16 @@ export default class Settings extends View {
     });
   }
 
+  /** @param {Context} cx */
   openAccount(cx) {
     cx.navigator.push(
       AccountPage,
       {
         account: this.settings.account,
-        // The page's `cx` notifies the page, so the settings below it are
-        // redrawn explicitly to show the new account when it pops.
-        save: (account, cx) => {
-          this.set({ account }, cx);
-          window.refresh();
-        },
-        signOut: (cx) => {
-          this.set({ account: null }, cx);
-          window.refresh();
-        },
+        save: (/** @type {Prefs["account"]} */ account, /** @type {Context} */ cx) => this.set({ account }, cx),
+        signOut: (/** @type {Context} */ cx) => this.set({ account: null }, cx),
       },
-      { title: this.settings.account ? "Account" : "Sign in" },
+      { title: this.settings.account ? "Account" : "Sign In" },
     );
   }
 
@@ -94,212 +95,145 @@ export default class Settings extends View {
     const t = cx.theme();
     const s = this.settings;
     const summaryAvailable = s.notifications;
-    return v_flex()
-      .size_full()
-      .bg(t.background)
-      .line_height(1.375)
-      .child(statusBar(cx))
-      .child(
-        v_flex()
-          .test_id("settings")
-          .id("settings")
-          .flex_1()
-          .overflow_y_scroll()
-          .child(largeTitle(cx, "Settings"))
-          .child(
-            v_flex()
-              .px_4()
-              .pt_2()
-              .pb(cx.window().safe_area.bottom + 32)
-              .gap_6()
-              .child(this.accountCard(cx))
-              .child(
-                section(cx, {
-                  title: "Notifications",
-                  footer: summaryAvailable
-                    ? "The summary lists what changed since the day before."
-                    : "Allow notifications to receive the daily summary.",
-                  rows: [
-                    row(cx, {
-                      id: "notifications-row",
-                      icon: "bell",
-                      label: "Allow notifications",
-                      trailing: Switch.new("notifications")
-                        .test_id("notifications")
-                        .accessibility_label("Allow notifications")
-                        .checked(s.notifications)
-                        .on_change((on, cx) => this.set({ notifications: on }, cx)),
-                    }),
-                    row(cx, {
-                      id: "summary-row",
-                      icon: "clock",
-                      label: "Daily summary",
-                      disabled: !summaryAvailable,
-                      trailing: Switch.new("summary")
-                        .test_id("summary")
-                        .accessibility_label("Daily summary")
-                        .checked(summaryAvailable && s.summary)
-                        .disabled(!summaryAvailable)
-                        .on_change((on, cx) => this.set({ summary: on }, cx)),
-                    }),
-                    summaryAvailable && s.summary
-                      ? row(cx, {
-                          id: "summary-time-row",
-                          label: "Delivered at",
-                          trailing: DatePicker.new("summary-time")
-                            .test_id("summary-time")
-                            .accessibility_label(`Delivered at ${formatTime(s.summaryTime)}`)
-                            .min_w_32()
-                            .mode("time")
-                            .value(s.summaryTime)
-                            // Pickers report `HH:mm`, or a full timestamp; the time is the last five characters either way.
-                            .on_change((value, cx) => this.set({ summaryTime: value.slice(-5) }, cx)),
-                        })
-                      : null,
-                  ],
+    return scrollScreen(cx, {
+      id: "settings",
+      title: "Settings",
+      background: t.grouped_background,
+      collapsed: this.collapsed,
+      on_collapse: (collapsed, cx) => {
+        this.collapsed = collapsed;
+        cx.notify();
+      },
+      children: [
+        section(cx, { rows: [this.accountRow(cx)] }),
+        section(cx, {
+          inset: 60,
+          footer: summaryAvailable
+            ? "The summary lists what changed since the day before."
+            : "Allow notifications to receive the daily summary.",
+          rows: [
+            row(cx, {
+              id: "notifications-row",
+              leading: tile(cx, "bell", t.destructive),
+              label: "Notifications",
+              trailing: Switch.new("notifications")
+                .test_id("notifications")
+                .accessibility_label("Notifications")
+                .checked(s.notifications)
+                .on_change((on, cx) => this.set({ notifications: on }, cx)),
+            }),
+            row(cx, {
+              id: "summary-row",
+              leading: tile(cx, "clock", t.warning),
+              label: "Daily Summary",
+              disabled: !summaryAvailable,
+              trailing: Switch.new("summary")
+                .test_id("summary")
+                .accessibility_label("Daily summary")
+                .checked(summaryAvailable && s.summary)
+                .disabled(!summaryAvailable)
+                .on_change((on, cx) => this.set({ summary: on }, cx)),
+            }),
+            summaryAvailable &&
+              s.summary &&
+              row(cx, {
+                id: "summary-time-row",
+                leading: div().size_7().flex_none(),
+                label: "Delivered At",
+                trailing: DatePicker.new("summary-time")
+                  .test_id("summary-time")
+                  .accessibility_label(`Delivered at ${formatTime(s.summaryTime)}`)
+                  .mode("time")
+                  .value(s.summaryTime)
+                  .on_change((value, cx) => this.set({ summaryTime: value }, cx)),
+              }),
+          ],
+        }),
+        section(cx, {
+          inset: 60,
+          rows: [
+            row(cx, {
+              id: "theme-row",
+              leading: tile(cx, "moon", t.primary),
+              label: "Appearance",
+              trailing: Select.new("theme")
+                .test_id("theme")
+                .accessibility_label("Appearance")
+                .items(THEMES)
+                .value(s.theme)
+                .on_change((value, cx) => {
+                  this.set({ theme: /** @type {Prefs["theme"]} */ (value) }, cx);
+                  this.applyTheme(cx);
                 }),
-              )
-              .child(
-                section(cx, {
-                  title: "Appearance",
-                  rows: [
-                    row(cx, {
-                      id: "theme-row",
-                      icon: "moon",
-                      label: "Theme",
-                      trailing: Select.new("theme")
-                        .test_id("theme")
-                        .accessibility_label("Theme")
-                        .min_w_32()
-                        .items(THEMES)
-                        .value(s.theme)
-                        .on_change((value, cx) => {
-                          this.set({ theme: value }, cx);
-                          this.applyTheme(cx);
-                        }),
-                    }),
-                  ],
-                }),
-              )
-              .child(
-                section(cx, {
-                  title: "Privacy",
-                  footer: "Anonymous counts of which features are used. Your notes and contacts are never included.",
-                  rows: [
-                    row(cx, {
-                      id: "usage-row",
-                      icon: "chart",
-                      label: "Share usage data",
-                      trailing: Switch.new("usage")
-                        .test_id("usage")
-                        .accessibility_label("Share usage data")
-                        .checked(s.usageData)
-                        .on_change((on, cx) => this.set({ usageData: on }, cx)),
-                    }),
-                  ],
-                }),
-              )
-              .child(this.storageSection(cx))
-              .child(
-                section(cx, {
-                  title: "About",
-                  rows: [
-                    row(cx, { id: "version", icon: "info", label: "Version", value: VERSION }),
-                    row(cx, {
-                      id: "help",
-                      icon: "help",
-                      label: "Help center",
-                      trailing: icon("external", t.muted_foreground, 18),
-                      on_click: (_e, cx) => cx.open_url(HELP_URL),
-                    }),
-                  ],
-                }),
-              ),
-          ),
-      );
+            }),
+            row(cx, {
+              id: "usage-row",
+              leading: tile(cx, "hand", t.info),
+              label: "Share Usage Data",
+              trailing: Switch.new("usage")
+                .test_id("usage")
+                .accessibility_label("Share usage data")
+                .checked(s.usageData)
+                .on_change((on, cx) => this.set({ usageData: on }, cx)),
+            }),
+          ],
+          footer: "Anonymous counts of which features are used. Your notes and contacts are never included.",
+        }),
+        this.storageSection(cx),
+        section(cx, {
+          inset: 60,
+          rows: [
+            row(cx, { id: "version", leading: tile(cx, "info", t.muted_foreground), label: "Version", value: VERSION }),
+            row(cx, {
+              id: "help",
+              leading: tile(cx, "help", t.muted_foreground),
+              label: "Help Center",
+              trailing: icon("external", t.muted_foreground, 16),
+              on_click: (_e, cx) => cx.open_url(HELP_URL),
+            }),
+          ],
+        }),
+      ],
+    });
   }
 
-  accountCard(cx) {
+  /** The account row leads the screen: a photo-sized avatar, the name and email, and a chevron. @param {Context} cx */
+  accountRow(cx) {
     const t = cx.theme();
     const account = this.settings.account;
-    return Button.new("account")
-      .test_id("account")
-      .accessibility_label(account ? `Account, ${account.name}, ${account.email}` : "Sign in")
-      .flex()
-      .items_center()
-      .gap_3()
-      .p_4()
-      .rounded_xl()
-      .border_1()
-      .border_color(t.border)
-      .bg(t.surface)
-      .active((s) => s.bg(t.muted))
-      .on_click((_e, cx) => this.openAccount(cx))
-      .child(
-        account
-          ? avatar(cx, account.name)
-          : div()
-              .size_12()
-              .flex_none()
-              .rounded_full()
-              .bg(t.muted)
-              .flex()
-              .items_center()
-              .justify_center()
-              .child(icon("user", t.muted_foreground, 24)),
-      )
-      .child(
-        v_flex()
-          .flex_1()
-          .min_w_0()
-          .gap_0p5()
-          .child(
-            div()
-              .test_id("account-name")
-              .text_lg()
-              .font_semibold()
-              .text_color(t.foreground)
-              .truncate()
-              .child(account ? account.name : "Sign in"),
-          )
-          .child(
-            div()
-              .text_sm()
-              .text_color(t.muted_foreground)
-              .truncate()
-              .child(account ? account.email : "Keep your settings in sync across devices"),
-          ),
-      )
-      .child(icon("chevron_right", t.muted_foreground, 18));
+    return row(cx, {
+      id: "account",
+      leading: account ? avatar(cx, account.name, 60) : tile(cx, "user", t.muted_foreground),
+      label: account ? account.name : "Sign In",
+      detail: account ? account.email : "Keep your settings in sync across devices.",
+      chevron: true,
+      on_click: (_e, cx) => this.openAccount(cx),
+    });
   }
 
+  /** @param {Context} cx */
   storageSection(cx) {
     const t = cx.theme();
     const measuring = this.cacheBytes === null;
     const empty = this.cacheBytes === 0;
     return section(cx, {
-      title: "Storage",
+      inset: 60,
       footer: "Cached files make photos and attachments open faster. Your data is not affected.",
       rows: [
         row(cx, {
           id: "cache",
-          icon: "database",
-          label: "Cached files",
-          value: measuring ? "Measuring…" : formatBytes(this.cacheBytes),
+          leading: tile(cx, "database", t.success),
+          label: "Cached Files",
+          value: measuring ? "Measuring…" : formatBytes(this.cacheBytes ?? 0),
         }),
-        Button.new("clear-cache")
-          .test_id("clear-cache")
-          .disabled(measuring || empty)
-          .pl(48)
-          .pr_4()
-          .py_3()
-          .min_h_12()
-          .flex()
-          .items_center()
-          .text_base()
-          .text_color(measuring || empty ? t.muted_foreground : t.destructive)
-          .when(!measuring && !empty, (el) => el.active((s) => s.bg(t.muted)).on_click((_e, cx) => this.confirmClearCache(cx)))
-          .child("Clear cache…"),
+        row(cx, {
+          id: "clear-cache",
+          leading: div().size_7().flex_none(),
+          label: "Clear Cache…",
+          destructive: true,
+          disabled: measuring || empty,
+          on_click: (_e, cx) => this.confirmClearCache(cx),
+        }),
       ],
     });
   }
