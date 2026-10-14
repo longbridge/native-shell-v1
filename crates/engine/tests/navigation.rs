@@ -504,3 +504,38 @@ export default class T extends View {
     let h = Harness::new(&[("main.js", main)]);
     assert_eq!(h.text_of("t"), "system-ui 16/24/400 monospace 34/41/700 17/22/600 17/22/400 11/13/400");
 }
+
+#[test]
+fn the_settings_example_needs_no_window_refresh_after_its_account_page() {
+    // examples/settings with its `window.refresh()` calls removed: the page's
+    // pop redraws the settings below it (and `cx.notify(cx.entity())` captured
+    // before the push would too).
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/settings");
+    let mut files = Vec::new();
+    for entry in std::fs::read_dir(&dir).unwrap() {
+        let path = entry.unwrap().path();
+        let name = path.file_name().unwrap().to_string_lossy().into_owned();
+        if let Ok(text) = std::fs::read_to_string(&path) {
+            files.push((name, text.replace("window.refresh();", "")));
+        }
+    }
+    assert!(
+        files.iter().any(|(n, t)| n == "main.js" && t.contains("save: (account, cx)")),
+        "the scenario still exists"
+    );
+    let refs: Vec<(&str, &str)> = files.iter().map(|(n, t)| (n.as_str(), t.as_str())).collect();
+    let data = std::env::temp_dir().join(format!("nsh-refresh-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&data);
+    let mut h = Harness::build(&refs).data_dir(&data).start();
+    assert!(h.load_error().is_none(), "{:?}", h.load_error());
+    h.tap("account");
+    h.type_text("email", "ada@example.net");
+    h.tap("save");
+    assert_eq!(h.surfaces().len(), 1);
+    assert!(h.texts().contains(&"ada@example.net".to_string()), "{:?}", h.texts());
+    h.tap("account");
+    h.tap("sign-out");
+    h.alert_action(1);
+    assert_eq!(h.text_of("account-name"), "Sign in");
+    let _ = std::fs::remove_dir_all(&data);
+}
