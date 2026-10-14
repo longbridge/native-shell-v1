@@ -67,7 +67,7 @@ export default class Api extends View {
       .child(window.paint_path(path, Background.solid(cx.theme().colors.primary)))
       .child(v_virtual_list("rows", 100, 28, (i) => String(i), (range) =>
         Array.from({ length: range.end - range.start }, (_, i) => div().child(String(range.start + i))))
-        .track_scroll(this.scroll).on_item_click((key) => console.log(key)))
+        .track_scroll(this.scroll).on_item_click((key) => console.log(key)).alignment("bottom"))
       .child(OtpInput.new(this.code))
       .child(NumberInput.new(this.amount).on_step((action) => console.log(action)))
       .child(Table.new("t").row_count(1).child(TableRow.new("r", 1).child(TableCell.new("c", 1).child("x"))))
