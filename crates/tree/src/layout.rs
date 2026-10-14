@@ -44,11 +44,19 @@ impl Tree {
             let Some(Kind::Surface(tag)) = self.nodes.get(&s).map(|n| n.kind.clone()) else {
                 continue;
             };
-            let (w, h) = (self.env.width, self.env.height);
+            let (mut w, h) = (self.env.width, self.env.height);
             let height = match tag {
                 SurfaceTag::Alert => continue,
                 SurfaceTag::Root | SurfaceTag::Page => AvailableSpace::Definite(h),
-                SurfaceTag::Sheet | SurfaceTag::Dialog => AvailableSpace::MaxContent,
+                // A sheet the renderer reported a size for is laid out at that size.
+                SurfaceTag::Sheet => match self.surface_sizes.get(&s) {
+                    Some((sw, sh)) => {
+                        w = *sw;
+                        AvailableSpace::Definite(*sh)
+                    }
+                    None => AvailableSpace::MaxContent,
+                },
+                SurfaceTag::Dialog => AvailableSpace::MaxContent,
             };
             self.compute(
                 s,
