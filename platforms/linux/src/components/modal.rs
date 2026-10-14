@@ -201,6 +201,13 @@ impl ModalState {
         self.presenter.upgrade().map_or(0xFFFF_FFFF, |p| p.color("background", 0xFFFF_FFFF))
     }
 
+    /// The border color in the dark appearance, `None` in the light one.
+    fn dark_edge_color(&self) -> Option<u32> {
+        let p = self.presenter.upgrade()?;
+        let dark = p.shared.upgrade()?.theme.borrow().appearance == native_shell_core::theme::Appearance::Dark;
+        dark.then(|| p.color("border", 0xFF26_2626))
+    }
+
     fn grabber_color(&self) -> u32 {
         // The muted foreground at reduced opacity, like the system grabber.
         let c = self.presenter.upgrade().map_or(0xFF73_7373, |p| p.color("muted_foreground", 0xFF73_7373));
@@ -370,6 +377,10 @@ mod imp {
                     snapshot.append_color(&rgba(state.grabber_color()), &grabber);
                     snapshot.pop();
                     snapshot.pop();
+                    if let Some(edge) = state.dark_edge_color() {
+                        // Dimming does not show on a dark page: a hairline marks the sheet's edge.
+                        snapshot.append_border(&rounded, &[1.0, 0.0, 0.0, 0.0], &[rgba(edge); 4]);
+                    }
                 }
                 ModalKind::Dialog => obj.snapshot_child(&state.view, snapshot),
             }

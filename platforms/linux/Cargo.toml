@@ -63,3 +63,7 @@ harness = false
 [[test]]
 name = "base_view"
 harness = false
+
+[[test]]
+name = "overlays"
+harness = false

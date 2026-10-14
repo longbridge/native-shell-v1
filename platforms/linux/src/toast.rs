@@ -42,15 +42,6 @@ impl Level {
         }
     }
 
-    fn icon(self) -> &'static str {
-        match self {
-            Level::Info => "dialog-information-symbolic",
-            Level::Success => "emblem-ok-symbolic",
-            Level::Warning => "dialog-warning-symbolic",
-            Level::Error => "dialog-error-symbolic",
-        }
-    }
-
     fn name(self) -> &'static str {
         match self {
             Level::Info => "Info",
@@ -77,7 +68,7 @@ pub struct Toast {
     pub id: String,
     level: Level,
     card: ToastCard,
-    icon: TintedIcon,
+    icon: SymbolIcon,
     title: gtk::Label,
     description: gtk::Label,
     action: Option<gtk::Button>,
@@ -259,7 +250,7 @@ fn build(presenter: &Presenter, payload: &serde_json::Value) -> Toast {
     let duration = if ms <= 0.0 { 0 } else { ms.max(500.0) as u32 };
     let level = Level::parse(payload.get("level").and_then(|l| l.as_str()));
 
-    let icon = TintedIcon::new(level.icon(), 20);
+    let icon = SymbolIcon::new(level);
     icon.set_valign(gtk::Align::Start);
     icon.set_margin_top(1);
     let title = label(text("title"), 15.0, pango::Weight::Medium, 2);
@@ -491,58 +482,114 @@ impl ToastLayer {
 mod icon_imp {
     use super::*;
 
-    #[derive(Default)]
-    pub struct TintedIcon {
-        pub name: RefCell<String>,
-        pub size: Cell<i32>,
+    pub struct SymbolIcon {
+        pub level: Cell<Level>,
         pub color: Cell<u32>,
     }
 
+    impl Default for SymbolIcon {
+        fn default() -> Self {
+            SymbolIcon { level: Cell::new(Level::Info), color: Cell::new(0xFF00_0000) }
+        }
+    }
+
     #[glib::object_subclass]
-    impl ObjectSubclass for TintedIcon {
-        const NAME: &'static str = "NshTintedIcon";
-        type Type = super::TintedIcon;
+    impl ObjectSubclass for SymbolIcon {
+        const NAME: &'static str = "NshToastSymbol";
+        type Type = super::SymbolIcon;
         type ParentType = gtk::Widget;
     }
 
-    impl ObjectImpl for TintedIcon {}
+    impl ObjectImpl for SymbolIcon {}
 
-    impl WidgetImpl for TintedIcon {
+    impl WidgetImpl for SymbolIcon {
         fn measure(&self, _orientation: gtk::Orientation, _for_size: i32) -> (i32, i32, i32, i32) {
-            let s = self.size.get();
-            (s, s, -1, -1)
+            (ICON_SIZE as i32, ICON_SIZE as i32, -1, -1)
         }
 
         fn snapshot(&self, snapshot: &gtk::Snapshot) {
-            let obj = self.obj();
-            let size = self.size.get();
-            let theme = gtk::IconTheme::for_display(&obj.display());
-            let icon = theme.lookup_icon(
-                &self.name.borrow(),
-                &[],
-                size,
-                obj.scale_factor(),
-                obj.direction(),
-                gtk::IconLookupFlags::empty(),
-            );
-            icon.snapshot_symbolic(snapshot, size as f64, size as f64, &[rgba(self.color.get())]);
+            let color = rgba(self.color.get());
+            let (outline, mark, dot) = symbol(self.level.get());
+            let mut stroke = gsk::Stroke::new(1.6);
+            stroke.set_line_cap(gsk::LineCap::Round);
+            stroke.set_line_join(gsk::LineJoin::Round);
+            snapshot.append_stroke(&outline, &stroke, &color);
+            snapshot.append_stroke(&mark, &stroke, &color);
+            if let Some(dot) = dot {
+                snapshot.append_fill(&dot, gsk::FillRule::Winding, &color);
+            }
+        }
+    }
+}
+
+const ICON_SIZE: f32 = 20.0;
+
+/// The level's symbol, drawn like the SF Symbols the iOS renderer uses
+/// (info.circle, checkmark.circle, exclamationmark.triangle, xmark.octagon)
+/// in a 20 pt box: the outline, the inner mark, and a dot where it has one.
+fn symbol(level: Level) -> (gsk::Path, gsk::Path, Option<gsk::Path>) {
+    let p = graphene::Point::new;
+    let center = p(10.0, 10.0);
+    let circle = || {
+        let b = gsk::PathBuilder::new();
+        b.add_circle(&center, 8.4);
+        b.to_path()
+    };
+    let lines = |points: &[(f32, f32)], breaks: &[usize]| {
+        let b = gsk::PathBuilder::new();
+        for (i, (x, y)) in points.iter().enumerate() {
+            if i == 0 || breaks.contains(&i) {
+                b.move_to(*x, *y);
+            } else {
+                b.line_to(*x, *y);
+            }
+        }
+        b.to_path()
+    };
+    let dot = |x: f32, y: f32| {
+        let b = gsk::PathBuilder::new();
+        b.add_circle(&p(x, y), 1.1);
+        Some(b.to_path())
+    };
+    match level {
+        Level::Info => (circle(), lines(&[(10.0, 9.0), (10.0, 14.2)], &[]), dot(10.0, 6.3)),
+        Level::Success => (circle(), lines(&[(6.4, 10.3), (8.9, 12.8), (13.7, 7.4)], &[]), None),
+        Level::Warning => {
+            let b = gsk::PathBuilder::new();
+            b.move_to(10.0, 2.4);
+            b.line_to(18.4, 17.0);
+            b.line_to(1.6, 17.0);
+            b.close();
+            (b.to_path(), lines(&[(10.0, 7.6), (10.0, 11.4)], &[]), dot(10.0, 14.0))
+        }
+        Level::Error => {
+            let b = gsk::PathBuilder::new();
+            for i in 0..8 {
+                let angle = std::f32::consts::PI / 8.0 + i as f32 * std::f32::consts::PI / 4.0;
+                let (x, y) = (10.0 + 8.6 * angle.cos(), 10.0 + 8.6 * angle.sin());
+                if i == 0 {
+                    b.move_to(x, y);
+                } else {
+                    b.line_to(x, y);
+                }
+            }
+            b.close();
+            (b.to_path(), lines(&[(7.4, 7.4), (12.6, 12.6), (12.6, 7.4), (7.4, 12.6)], &[2]), None)
         }
     }
 }
 
 glib::wrapper! {
-    /// A symbolic icon in an arbitrary color (the theme tokens are not CSS).
-    pub struct TintedIcon(ObjectSubclass<icon_imp::TintedIcon>)
+    /// The toast's level symbol, in the level's tint.
+    pub struct SymbolIcon(ObjectSubclass<icon_imp::SymbolIcon>)
         @extends gtk::Widget,
         @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget;
 }
 
-impl TintedIcon {
-    fn new(name: &str, size: i32) -> TintedIcon {
-        let icon: TintedIcon = glib::Object::new();
-        icon.imp().name.replace(name.to_owned());
-        icon.imp().size.set(size);
-        icon.set_accessible_role(gtk::AccessibleRole::Presentation);
+impl SymbolIcon {
+    fn new(level: Level) -> SymbolIcon {
+        let icon: SymbolIcon = glib::Object::builder().property("accessible-role", gtk::AccessibleRole::Presentation).build();
+        icon.imp().level.set(level);
         icon
     }
 
