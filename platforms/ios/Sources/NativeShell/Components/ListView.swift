@@ -55,6 +55,7 @@ final class NSHListView: NSHComponentView, UICollectionViewDataSource, UICollect
             collectionView.layoutIfNeeded()
             // A shrinking viewport (the keyboard rising) keeps a pinned end in view.
             keepEndInView()
+            hostVisibleRows()
             reportRange()
         }
     }
@@ -117,11 +118,18 @@ final class NSHListView: NSHComponentView, UICollectionViewDataSource, UICollect
             offsetsChanged = false
             correctPendingScroll()
         }
+        hostVisibleRows()
+        reportRange()
+    }
+
+    /// Puts each rendered row in the visible cell for its index. A relayout can
+    /// briefly show two cells for one index; the one UIKit drops takes the row
+    /// with it when reused, so rows are re-hosted after every relayout.
+    private func hostVisibleRows() {
         for case let cell as RowCell in collectionView.visibleCells {
             guard let ip = collectionView.indexPath(for: cell) else { continue }
             cell.host(rowsByIndex[ip.item])
         }
-        reportRange()
     }
 
     // MARK: Data source
@@ -136,6 +144,8 @@ final class NSHListView: NSHComponentView, UICollectionViewDataSource, UICollect
 
     func collectionView(_ cv: UICollectionView, didEndDisplaying cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
         (cell as? RowCell)?.host(nil)
+        // Another cell may be showing this index now (see hostVisibleRows).
+        (cv.cellForItem(at: indexPath) as? RowCell)?.host(rowsByIndex[indexPath.item])
     }
 
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
