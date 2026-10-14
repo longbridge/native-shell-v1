@@ -429,7 +429,7 @@ impl Converter<'_> {
             "segmented" => ElementKind::Segmented,
             "select" => ElementKind::Select,
             "date" => ElementKind::DatePicker,
-            "shape" => ElementKind::Shape,
+            "shape" => ElementKind::Shape { stretch: field(obj, "_stretch")?.as_bool() == Some(true) },
             "host" => ElementKind::HostComponent(string_field(obj, "_hn")?.ok_or("host component without a name")?),
             "list" => return self.list(obj),
             "row" => return Err("list rows can only appear inside a list".into()),
@@ -547,13 +547,13 @@ impl Converter<'_> {
         match icon.layers.as_slice() {
             [] => {}
             [layer] => {
-                d.kind = ElementKind::Shape;
+                d.kind = ElementKind::Shape { stretch: false };
                 paint(layer, &mut d.props);
             }
             layers => {
                 let overlay = self.overlay_style()?;
                 for layer in layers {
-                    let mut shape = Desc::new(ElementKind::Shape, overlay.clone());
+                    let mut shape = Desc::new(ElementKind::Shape { stretch: false }, overlay.clone());
                     paint(layer, &mut shape.props);
                     d.children.push(shape);
                     self.nodes += 1;
@@ -783,12 +783,20 @@ impl Converter<'_> {
             Block::List { ordered, start, items } => {
                 let column = self.engine_style(&[("flex", None), ("flex_col", None), ("gap", Some(Arg::Num(4.0)))])?;
                 let row = self.engine_style(&[("flex", None), ("flex_row", None), ("gap", Some(Arg::Num(8.0)))])?;
-                let mut d = Desc::new(ElementKind::View, column.clone());
+                // The item's text takes what the marker leaves and wraps there, rather than overflowing the view.
+                let body_style = self.engine_style(&[
+                    ("flex", None),
+                    ("flex_col", None),
+                    ("gap", Some(Arg::Num(4.0))),
+                    ("flex_1", None),
+                    ("min_w", Some(Arg::Num(0.0))),
+                ])?;
+                let mut d = Desc::new(ElementKind::View, column);
                 for (i, item) in items.iter().enumerate() {
                     let marker = if *ordered { format!("{}.", start + i as u64) } else { "•".to_string() };
                     let mut r = Desc::new(ElementKind::View, row.clone());
                     r.children.push(Desc::new(ElementKind::Text(vec![run(marker)]), self.base.clone()));
-                    let mut body = Desc::new(ElementKind::View, column.clone());
+                    let mut body = Desc::new(ElementKind::View, body_style.clone());
                     for b in item {
                         body.children.push(self.block(b, leaf)?);
                     }

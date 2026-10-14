@@ -248,6 +248,23 @@ export default class T extends View {
 }
 
 #[test]
+fn text_view_list_items_wrap_inside_the_view() {
+    let h = app(r##"
+import { View } from "gpui-kit";
+import { v_flex, TextView } from "gpui-base";
+export default class T extends View {
+  render() {
+    return v_flex().w(200).child(TextView.markdown("md", "- An item long enough to need more than one line here").test_id("md"));
+  }
+}
+"##);
+    let item = h.find_text("An item long enough to need more than one line here").unwrap();
+    let frame = h.instance().tree().frame(item).unwrap();
+    assert!(frame.width <= 200.0, "the item's text is laid out within the view: {frame:?}");
+    assert!(frame.height > 30.0, "and wraps onto more lines: {frame:?}");
+}
+
+#[test]
 fn paths_paint_as_shapes() {
     let h = app(r##"
 import { View, div, PathBuilder, Background } from "gpui-kit";
@@ -288,6 +305,34 @@ export default class K extends View {
     h.dispatch(node, EventType::Key, r#"{"key":"a","key_char":"a","modifiers":{"shift":true},"phase":"down"}"#);
     h.dispatch(node, EventType::Key, r#"{"key":"a","modifiers":{},"phase":"up"}"#);
     assert_eq!(h.text_of("log"), "2 save,down:shift-a,up:a");
+}
+
+#[test]
+fn key_bindings_match_whatever_order_their_modifiers_are_written_in() {
+    let mut h = app(r#"
+import { View, div } from "gpui-kit";
+export default class K extends View {
+  init(_p, cx) {
+    this.log = [];
+    cx.bind_keys([{ keystroke: "cmd-shift-n", action: "folder" }, { keystroke: "Shift-Ctrl-N", action: "folder" },
+      { keystroke: "alt-cmd-k", action: "kill" }]);
+  }
+  render() {
+    return div().test_id("root")
+      .on_action("folder", (e, cx) => { this.log.push(e.action); cx.notify(); })
+      .on_action("kill", (e, cx) => { this.log.push(e.action); cx.notify(); })
+      .on_key_down((e, cx) => { this.log.push(e.keystroke); cx.notify(); })
+      .child(div().test_id("log").child(this.log.join(",")));
+  }
+}
+"#);
+    let node = h.find("root").unwrap();
+    h.dispatch(node, EventType::Key, r#"{"key":"n","modifiers":{"cmd":true,"shift":true},"phase":"down"}"#);
+    h.dispatch(node, EventType::Key, r#"{"key":"n","modifiers":{"ctrl":true,"shift":true},"phase":"down"}"#);
+    h.dispatch(node, EventType::Key, r#"{"key":"k","modifiers":{"cmd":true,"alt":true},"phase":"down"}"#);
+    // An event is spelled in gpui's order: cmd before shift.
+    h.dispatch(node, EventType::Key, r#"{"key":"x","modifiers":{"shift":true,"cmd":true},"phase":"down"}"#);
+    assert_eq!(h.text_of("log"), "folder,folder,kill,cmd-shift-x");
 }
 
 #[test]

@@ -299,8 +299,10 @@ export class Marker extends Slotted(Element) {
       ["text_size", 12], ["font_weight", 500], ["text_color", "muted_foreground"],
     ];
     if (v === "border") ops.push(["border_b_1"], ["border_color", "border"], ["pb_2"]);
-    if (this._loading && this._loadingStyle === "shimmer") ops.push(["opacity", 0.6]);
     this._preset(ops);
+    // Shimmer is ShimmerText's treatment: the secondary label, still, announced as busy.
+    if (this._loading) this._P().a11y_state = JSON.stringify({ busy: true });
+    else if (this._p) delete this._p.a11y_state;
 
     const content = [];
     if (this._loading && this._loadingStyle === "spinner") content.push(Spinner.new().flex_none());

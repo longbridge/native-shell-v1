@@ -536,14 +536,33 @@ function reconcilePopovers(rec, entries) {
 
 const keymap = [];
 
+// gpui's `Keystroke::unparse` order.
+const MODIFIER_ORDER = ["fn", "ctrl", "alt", "cmd", "shift"];
+const MODIFIER_ALIASES = { control: "ctrl", option: "alt", super: "cmd", win: "cmd", platform: "cmd", function: "fn" };
+
+/**
+ * A keystroke with its modifiers in gpui's order (fn, ctrl, alt, cmd, shift)
+ * and lowercase, so `cmd-shift-s` and `shift-cmd-s` are the same
+ * chord. A trailing `-` key (`cmd--`) is kept.
+ */
+export function normalizeKeystroke(keystroke) {
+  const s = String(keystroke).trim().toLowerCase();
+  const parts = s.endsWith("--") ? [...s.slice(0, -2).split("-"), "-"] : s.split("-");
+  const key = parts.pop() ?? "";
+  const mods = new Set(parts.filter(Boolean).map((m) => MODIFIER_ALIASES[m] ?? m));
+  const known = MODIFIER_ORDER.filter((m) => mods.has(m));
+  const other = [...mods].filter((m) => !MODIFIER_ORDER.includes(m)).sort();
+  return [...known, ...other, key].join("-");
+}
+
 /** gpui's keystroke spelling of a renderer Key event: `cmd-shift-s`, `escape`. */
 export function keystrokeOf(e) {
   const m = e?.modifiers ?? {};
   const parts = [];
   if (m.ctrl) parts.push("ctrl");
   if (m.alt) parts.push("alt");
-  if (m.shift) parts.push("shift");
   if (m.cmd) parts.push("cmd");
+  if (m.shift) parts.push("shift");
   parts.push(String(e?.key ?? "").toLowerCase());
   return parts.join("-");
 }
@@ -600,6 +619,7 @@ export function routeKey(target, e, cx) {
  * later binding wins.
  */
 export function actionFor(keystroke, contexts) {
+  keystroke = normalizeKeystroke(keystroke);
   for (const context of [...contexts, undefined]) {
     for (let i = keymap.length - 1; i >= 0; i--) {
       const b = keymap[i];
@@ -912,7 +932,7 @@ export class Cx {
         throw new TypeError("cx.bind_keys: every binding needs a `keystroke` and an `action` string");
       }
       if (/\s/.test(b.keystroke.trim())) throw new TypeError(`cx.bind_keys: chord sequences are not supported on mobile (\`${b.keystroke}\`)`);
-      return { keystroke: b.keystroke.trim().toLowerCase(), action: b.action, context: b.context };
+      return { keystroke: normalizeKeystroke(b.keystroke), action: b.action, context: b.context };
     });
     keymap.push(...parsed);
     return parsed.length;
@@ -1350,8 +1370,11 @@ export const engine = {
     if (!t || !t.action) return false;
     // The renderer dismissed the toast itself.
     dropToast(id);
-    if (t.action.owner.released) return false;
-    inEvent(t.action.owner, t.action.on_click);
+    // Toasts belong to the window, as in gpui-shell: a toast pushed by a page
+    // that has since closed (delete, then back) still runs its action, on the root view.
+    const owner = t.action.owner.released ? root : t.action.owner;
+    if (!owner || owner.released) return false;
+    inEvent(owner, t.action.on_click);
     return true;
   },
 

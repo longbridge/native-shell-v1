@@ -37,6 +37,16 @@ fn disabled(h: &Harness, test_id: &str) -> bool {
     }
 }
 
+/// The payload of the most recent toast.
+fn last_toast(h: &Harness) -> String {
+    h.commands()
+        .iter()
+        .rev()
+        .find(|(n, c, _)| *n == ROOT_NODE && *c == Command::ShowToast)
+        .map(|(_, _, p)| p.clone())
+        .unwrap_or_else(|| panic!("no toast in {:?}", h.commands()))
+}
+
 fn assert_clean(h: &Harness) {
     assert!(h.error_logs().is_empty(), "{:?}", h.error_logs());
 }
@@ -87,17 +97,17 @@ fn tasks_add_complete_edit_delete_undo_and_persist() {
     h.tap("editor-cancel");
     assert_eq!(h.text_of("title-3"), "Book the dentist for a cleaning");
 
-    // Delete from the sheet, then undo; the bar goes away on its own.
+    // Delete from the sheet, then undo from the toast.
     h.tap("task-4");
+    h.clear_commands();
     h.tap("editor-delete");
     assert!(h.find("task-4").is_none());
-    assert_eq!(h.text_of("undo-label"), "Deleted “Return the library books”");
-    h.tap("undo");
-    assert!(h.find("task-4").is_some() && h.find("undo-bar").is_none());
+    let toast = last_toast(&h);
+    assert!(toast.contains("Deleted “Return the library books”") && toast.contains("Undo"), "{toast}");
+    h.toast_action("undo");
+    assert!(h.find("task-4").is_some());
     h.tap("task-4");
     h.tap("editor-delete");
-    h.advance(5100.0);
-    assert!(h.find("undo-bar").is_none());
 
     // Clearing completed tasks names the count and asks first.
     h.tap("clear-completed");
@@ -154,7 +164,7 @@ fn settings_toggles_pickers_account_and_confirmations() {
     let dir = data_dir("settings");
     let mut h = started(build("settings").data_dir(&dir));
     assert_eq!(h.view_type("settings"), ViewType::Scroll);
-    assert_eq!(h.text_of("account-name"), "Ada Lovelace");
+    assert_eq!(h.text_of("account-label"), "Ada Lovelace");
 
     // The daily summary depends on notifications: disabled, not hidden.
     assert!(h.find("summary-time").is_some());
@@ -162,12 +172,16 @@ fn settings_toggles_pickers_account_and_confirmations() {
     assert!(disabled(&h, "summary"));
     assert!(h.find("summary-time").is_none());
     h.toggle("notifications");
-    h.pick_date("summary-time", "2026-10-14T07:45");
+    h.pick_date("summary-time", "07:45");
 
     // The theme applies at once and persists.
-    let light = h.prop("account", Prop::BackgroundColor);
+    let screen = |h: &Harness| {
+        let parent = h.native().nodes[&h.find("settings").unwrap()].parent.unwrap();
+        h.native().prop(parent, Prop::BackgroundColor).cloned()
+    };
+    let light = screen(&h);
     h.select("theme", 2);
-    assert_ne!(h.prop("account", Prop::BackgroundColor), light);
+    assert_ne!(screen(&h), light);
 
     // Clearing the cache waits for the measurement, then asks with the size.
     assert!(disabled(&h, "clear-cache"));
@@ -199,59 +213,138 @@ fn settings_toggles_pickers_account_and_confirmations() {
     assert_eq!(h.alert().unwrap()["title"], "Sign out of ada@example.net?");
     h.alert_action(1);
     assert_eq!(h.surfaces().len(), 1);
-    assert_eq!(h.text_of("account-name"), "Sign in");
+    assert_eq!(h.text_of("account-label"), "Sign In");
     assert_clean(&h);
 
     // Everything above persisted.
     drop(h);
     let h = started(build("settings").data_dir(&dir));
-    assert_eq!(h.text_of("account-name"), "Sign in");
-    assert!(h.texts().iter().any(|t| t.contains("Delivered at")));
+    assert_eq!(h.text_of("account-label"), "Sign In");
+    assert!(format!("{:?}", h.props("summary-time")).contains("7:45"), "{:?}", h.props("summary-time"));
     let _ = std::fs::remove_dir_all(&dir);
 }
 
 // Chat ----------------------------------------------------------------------
 
+/// The thread's row count, as the list reports it.
+fn item_count(h: &Harness, list: &str) -> i32 {
+    match h.prop(list, Prop::ItemCount) {
+        Some(PropValue::I32(n)) => n,
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
+fn chat_opens_at_the_newest_messages_with_markers_and_attachments() {
+    let h = started(build("chat"));
+    // A bottom-aligned list: the thread opens at its end and keeps the end in view.
+    assert_eq!(h.view_type("messages"), ViewType::List);
+    assert_eq!(h.prop("messages", Prop::ListAlignment), Some(PropValue::I32(1)));
+    // Day labels and the unread line.
+    assert!(h.find_text("Today").is_some(), "{}", h.dump());
+    assert!(h.find_text("3 unread messages").is_some());
+    // Maya's photo is an image tile; her PDF a file chip with its name and size.
+    assert!(h.find("attachment-m11").is_some());
+    assert!(!h.nodes_of(ViewType::Image).is_empty());
+    assert!(h.find_text("trail-conditions.pdf").is_some() && h.find_text("PDF · 380 KB").is_some());
+    // The long message wraps inside its bubble, which stops short of the edge.
+    assert!(h.frame("bubble-m10").width < 390.0 * 0.8 + 0.5 && h.frame("bubble-m10").height > 60.0);
+    // Your latest message did not go out.
+    assert!(h.find("failed-m9").is_some());
+    assert_clean(&h);
+}
+
 #[test]
 fn chat_sends_retries_loads_history_and_deletes_with_undo() {
     let mut h = started(build("chat"));
-    assert_eq!(h.view_type("messages"), ViewType::List);
-    assert!(h.find("failed-m8").is_some());
+    let rows = item_count(&h, "messages");
 
-    // Return sends; delivery is confirmed after the round trip.
+    // Return sends; delivery is confirmed after the round trip, and the thread goes to its end.
     assert!(disabled(&h, "send"));
     h.type_text("draft", "See you at the station");
+    h.clear_commands();
     h.submit("draft");
     assert_eq!(h.native_input("draft").text, "");
     assert_eq!(h.text_of("delivery"), "Sending…");
+    assert_eq!(item_count(&h, "messages"), rows + 1);
+    let last = format!(r#""index":{}"#, rows);
+    assert!(h.commands().iter().any(|(_, c, p)| *c == Command::ScrollToIndex && p.contains(&last)), "{:?}", h.commands());
     h.advance(800.0);
     assert_eq!(h.text_of("delivery"), "Delivered");
 
     // A failed message can be sent again.
-    h.tap("retry-m8");
-    assert!(h.find("failed-m8").is_none());
+    h.tap("retry-m9");
+    assert!(h.find("failed-m9").is_none());
     h.advance(800.0);
 
-    // Older messages load on request, then the start of the conversation is marked.
+    // Older messages load on request, a page at a time, then the start of the conversation is marked.
     h.scroll_list("messages", 0, 4);
     h.tap("load-earlier");
     assert!(h.find("history-loading").is_some());
+    assert!(!h.nodes_of(ViewType::Spinner).is_empty());
+    h.advance(1000.0);
+    h.scroll_list("messages", 0, 4);
+    assert!(h.find("load-earlier").is_some(), "a second page remains");
+    h.tap("load-earlier");
     h.advance(1000.0);
     h.scroll_list("messages", 0, 4);
     assert!(h.find("history-start").is_some(), "{}", h.dump());
+    // Both pages (twelve messages, with their day labels) went above the thread.
+    assert!(item_count(&h, "messages") >= rows + 1 + 12 + 4, "{}", item_count(&h, "messages"));
 
     // Message actions: copy, and delete with undo.
-    h.scroll_list("messages", 0, 30);
+    h.scroll_list("messages", 0, 60);
     h.clear_commands();
-    h.tap("bubble-m7");
+    h.tap("bubble-m8");
     assert_eq!(h.surfaces().len(), 2);
     h.tap("action-copy");
     assert!(h.commands().iter().any(|(_, c, p)| *c == Command::SetClipboard && p.contains("first-aid kit")));
-    h.long_press("bubble-m7");
+    h.long_press("bubble-m8");
     h.tap("action-delete");
-    assert!(h.find("bubble-m7").is_none() && h.find("undo-bar").is_some());
+    assert!(h.find("bubble-m8").is_none() && h.find("undo-bar").is_some());
     h.tap("undo");
-    assert!(h.find("bubble-m7").is_some());
+    assert!(h.find("bubble-m8").is_some());
+    assert_clean(&h);
+}
+
+#[test]
+fn chat_uploads_a_failed_attachment_again_and_offers_the_latest() {
+    let mut h = started(build("chat"));
+    h.scroll_list("messages", 0, 30);
+
+    // Yesterday's route file did not go out: a destructive chip and the retry line.
+    assert!(h.find("failed-m3").is_some());
+    assert!(h.find_text("Upload failed").is_some());
+    let red = native_shell::core::theme::Theme::default_for(native_shell::core::theme::Appearance::Light).color("destructive").unwrap();
+    assert_eq!(h.prop("attachment-m3", Prop::BorderColor), Some(PropValue::Color(red)));
+
+    // Sending again uploads it: progress in the description and the bar, then delivered.
+    h.tap("retry-m3");
+    assert!(h.find("failed-m3").is_none());
+    h.advance(160.0);
+    assert!(h.find_text("GPX · 84 KB · 20%").is_some(), "{:?}", h.texts());
+    h.advance(1000.0);
+    assert!(h.find_text("GPX · 84 KB").is_some() && h.find_text("Upload failed").is_none());
+    assert!(h.texts().iter().all(|t| !t.contains('%')), "{:?}", h.texts());
+
+    // An attachment's actions have no text to copy.
+    h.tap("attachment-m12");
+    assert_eq!(h.surfaces().len(), 2);
+    assert!(h.find("action-delete").is_some() && h.find("action-copy").is_none());
+    h.dismiss();
+
+    // Reading further up offers a way back to the newest message.
+    let list = h.find("messages").unwrap();
+    h.dispatch(
+        list,
+        native_shell::core::protocol::EventType::Scroll,
+        r#"{"x":0,"y":0,"content_width":390,"content_height":2400,"viewport_width":390,"viewport_height":600}"#,
+    );
+    assert_eq!(h.prop("messages-jump", Prop::A11yLabel), Some(PropValue::Str("Latest messages".into())));
+    h.clear_commands();
+    h.tap("messages-jump");
+    assert!(h.commands().iter().any(|(_, c, p)| *c == Command::ScrollToIndex && p.contains(r#""position":"bottom""#)));
+    assert!(h.find("messages-jump").is_none());
     assert_clean(&h);
 }
 
@@ -336,9 +429,11 @@ fn watchlist_uses_host_modules_and_components() {
     // A row opens its detail; removing it offers undo.
     h.host_event("cell-KITE.US", "select", "{}");
     assert_eq!(h.text_of("detail-price"), "107.00");
+    h.clear_commands();
     h.tap("remove");
-    assert!(h.find("cell-KITE.US").is_none() && h.find("undo-bar").is_some());
-    h.tap("undo");
+    assert!(h.find("cell-KITE.US").is_none());
+    assert!(last_toast(&h).contains("Removed KITE.US"));
+    h.toast_action("undo");
     assert!(h.find("cell-KITE.US").is_some());
 
     // Adding from the sheet subscribes the new symbol.
@@ -456,7 +551,8 @@ fn components_pages_show_their_states() {
     h.pick_date("date", "2026-12-24");
     assert_eq!(h.text_of("summary"), "Table for 4 on Thu, Dec 24 at 1:00 PM.");
     h.tap("request");
-    assert!(h.find("requested").is_some());
+    assert!(h.text_of("summary").starts_with("Requested."));
+    assert!(disabled(&h, "request"));
     h.tap("back");
 
     // Overlays: sheet, dialog, toast, alert.
@@ -468,7 +564,7 @@ fn components_pages_show_their_states() {
     assert!(h.find("rename-dialog").is_some());
     h.type_text("rename-input", "Coast trip plan");
     h.tap("rename-save");
-    assert_eq!(h.text_of("doc-name"), "Coast trip plan.pdf");
+    assert_eq!(h.text_of("doc-label"), "Coast trip plan.pdf");
     h.clear_commands();
     h.tap("offline");
     assert!(h

@@ -3,7 +3,7 @@
 mod control;
 mod date_picker;
 mod host_component;
-mod image;
+pub mod image;
 mod input;
 mod list;
 pub mod modal;
