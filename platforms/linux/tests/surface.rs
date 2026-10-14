@@ -17,6 +17,7 @@ fn main() -> ExitCode {
         ("the clipboard round-trips", the_clipboard_round_trips),
         ("click and long press reach the right gesture", click_and_long_press_reach_the_right_gesture),
         ("a node that appears later can be clicked at once", a_node_that_appears_later_can_be_clicked_at_once),
+        ("a tall surface settles while something animates", a_tall_surface_settles_while_something_animates),
     ])
 }
 
@@ -175,4 +176,16 @@ export default class App extends View {
     assert!(late.width() > 0 && late.height() > 0, "allocated: {}x{}", late.width(), late.height());
     f.click("late");
     f.expect("clicked");
+}
+
+/// Taller than a small test screen, with a spinner keeping GTK laying out
+/// every frame: the window must not be clamped below the fixture's size, or
+/// the environment flips between two heights and batches never stop.
+fn a_tall_surface_settles_while_something_animates() {
+    let f = Fixture::open_dir("../../examples/components");
+    f.resize(390, 2600);
+    pump_for(Duration::from_millis(300));
+    f.tap("open-status");
+    f.settle();
+    assert_eq!(f.surface.environment().height, 2600.0);
 }

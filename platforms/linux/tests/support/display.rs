@@ -19,8 +19,10 @@ use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
-/// The screen the client reports; windows larger than it would be clamped.
-const SCREEN: (u32, u32) = (1600, 1600);
+/// The screen the client reports. GTK clamps windows to it, so it must hold
+/// any fixture size: a clamped window and the fixture's own layout would
+/// allocate the surface at two heights in turn.
+pub const SCREEN: (u32, u32) = (4096, 4096);
 
 /// A running display; stopped when dropped (or, if never dropped, when the process exits).
 pub struct Display {

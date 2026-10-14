@@ -250,6 +250,11 @@ impl Fixture {
 
     /// Resizes the surface (the window size does not matter) and settles.
     pub fn resize(&self, width: i32, height: i32) {
+        let (max_w, max_h) = display::SCREEN;
+        assert!(
+            width > 0 && height > 0 && width as u32 <= max_w && height as u32 <= max_h,
+            "{width}x{height} does not fit the test display's {max_w}x{max_h} screen (support/display.rs)"
+        );
         self.size.set((width, height));
         self.window.set_default_size(width, height);
         self.settle();
@@ -333,6 +338,7 @@ impl Fixture {
     /// nearest node listening for clicks, as the renderer would, then settles.
     /// Prefer [`Fixture::click`]; this one does not exercise the widget's gesture.
     pub fn tap(&self, test_id: &str) {
+        self.layout();
         let node = self.node(test_id);
         let target = self.surface.listener(node, event_mask::CLICK).unwrap_or_else(|| panic!("nothing listens for clicks at {test_id:?}"));
         self.surface.send_event(target, EventType::Click, r#"{"x":1,"y":1,"count":1}"#);
