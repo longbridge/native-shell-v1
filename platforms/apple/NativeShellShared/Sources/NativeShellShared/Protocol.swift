@@ -46,13 +46,20 @@ public enum Prop: UInt16 {
     case items = 110, selectedIndex, date, dateMode, menu
     case pathData = 120, fillColor, strokeColor, strokeWidth, viewBox, fillRule
     case a11yLabel = 130, a11yRole, a11yHint, a11yValue, a11yState, testId, a11yHidden
-    case activeOpacity = 140, activeBackground, hitSlop, focusable
+    case activeOpacity = 140, activeBackground, hitSlop, focusable, hoverOpacity, hoverBackground, cursor, tooltip
     case hostComponent = 150, hostProps, themeTokens
 }
 
 public enum A11yRole: Int32 {
     case none = 0, button, link, header, image, text, textField, switchRole, checkbox, radio, slider, progressBar, tab,
          tabList, list, listItem, menu, alert, search
+}
+
+/// GPUI's `CursorStyle`, in its order (the `Cursor` prop).
+public enum CursorStyle: Int32 {
+    case arrow = 0, iBeam, crosshair, closedHand, openHand, pointingHand, resizeLeft, resizeRight, resizeLeftRight,
+         resizeUp, resizeDown, resizeUpDown, resizeUpLeftDownRight, resizeUpRightDownLeft, resizeColumn, resizeRow,
+         iBeamCursorForVerticalLayout, operationNotAllowed, dragLink, dragCopy, contextualMenu
 }
 
 public enum Command: UInt32 {
@@ -78,11 +85,12 @@ public enum EventMask {
     public static let pressIn: UInt32 = 1 << 15
     public static let pressOut: UInt32 = 1 << 16
     public static let hostEvent: UInt32 = 1 << 17
+    public static let hover: UInt32 = 1 << 18
 }
 
 public enum EventType: UInt32 {
     case click = 1, doubleClick, longPress, change, submit, focus, blur, scroll, refresh, pan, pinch, link, key,
-         dismiss, action, rangeChange, rowHeight, backPressed, pressIn, pressOut, hostEvent, toastAction
+         dismiss, action, rangeChange, rowHeight, backPressed, pressIn, pressOut, hostEvent, toastAction, hover
 }
 
 public enum PropValue: Equatable {

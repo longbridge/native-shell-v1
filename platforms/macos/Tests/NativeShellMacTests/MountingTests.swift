@@ -431,4 +431,56 @@ final class MountingTests: XCTestCase {
         spin(0.1)
         XCTAssertNil(h.view(2, as: NSHImageView.self).loaded)
     }
+
+    func testHoverStylesEventsCursorAndTooltip() {
+        h.apply { b in
+            b.create(1, .view, parent: 0, frame: CGRect(x: 0, y: 0, width: 100, height: 40), props: [
+                (.opacity, .f32(0.9)), (.hoverOpacity, .f32(0.5)), (.activeOpacity, .f32(0.2)),
+                (.backgroundColor, .color(0xFFFF_FFFF)), (.hoverBackground, .color(0xFF00_00FF)),
+                (.cursor, .i32(5)), (.tooltip, .str("Opens the editor")),
+            ])
+            b.mask(1, EventMask.hover | EventMask.click)
+        }
+        let v = h.view(1)!
+        let hoverAreas = { (v: NSView) in v.trackingAreas.filter { $0.owner === v && $0.options.contains(.mouseEnteredAndExited) } }
+        XCTAssertEqual(hoverAreas(v).count, 1, "hover is tracked natively")
+        XCTAssertEqual(v.toolTip, "Opens the editor")
+        XCTAssertTrue(v.cursor === NSCursor.pointingHand)
+
+        v.pointerHover(true, at: CGPoint(x: 10, y: 5))
+        XCTAssertEqual(v.alphaValue, 0.45, accuracy: 0.001)
+        XCTAssertEqual(v.layer?.backgroundColor, Colors.argb(0xFF00_00FF).cgColor)
+        XCTAssertEqual(h.events(.hover).last?.payload.bool("entered"), true)
+        XCTAssertEqual(h.events(.hover).last?.payload.double("y"), 5)
+        // Pressed wins over hovered.
+        v.mouseDown(with: Mouse.event(.leftMouseDown, at: CGPoint(x: 10, y: 5), in: v))
+        XCTAssertEqual(v.alphaValue, 0.18, accuracy: 0.001)
+        v.mouseUp(with: Mouse.event(.leftMouseUp, at: CGPoint(x: 10, y: 5), in: v))
+        XCTAssertEqual(v.alphaValue, 0.45, accuracy: 0.001)
+        v.pointerHover(false, at: CGPoint(x: 200, y: 5))
+        XCTAssertEqual(v.alphaValue, 0.9, accuracy: 0.001)
+        XCTAssertEqual(v.layer?.backgroundColor, Colors.argb(0xFFFF_FFFF).cgColor)
+        XCTAssertEqual(h.events(.hover).map { $0.payload.bool("entered") }, [true, false])
+
+        // Reset on reuse: no tracking, cursor, tooltip or hover look left behind.
+        h.apply { $0.delete(1) }
+        h.apply { $0.create(2, .view, parent: 0, frame: CGRect(x: 0, y: 0, width: 100, height: 40)) }
+        let reused = h.view(2)!
+        XCTAssertTrue(reused === v)
+        XCTAssertTrue(hoverAreas(reused).isEmpty)
+        XCTAssertNil(reused.toolTip)
+        XCTAssertNil(reused.cursor)
+        XCTAssertFalse(reused.hovered)
+    }
+
+    func testEveryCursorStyleHasAnAppKitCursor() {
+        var raw: Int32 = 0
+        while let style = CursorStyle(rawValue: raw) {
+            _ = Cursors.cursor(style)
+            raw += 1
+        }
+        XCTAssertEqual(raw, 21)
+        XCTAssertTrue(Cursors.cursor(.iBeam) === NSCursor.iBeam)
+        XCTAssertTrue(Cursors.cursor(.operationNotAllowed) === NSCursor.operationNotAllowed)
+    }
 }

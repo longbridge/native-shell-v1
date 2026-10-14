@@ -82,6 +82,12 @@ stays safe on the JS thread.
 * Back: Command-[ (the view, or a Go menu item with the `goBack:` action) and
   the mouse's back button. A page whose `CanGoBack` is false gets
   `BackPressed` instead. Escape dismisses a dismissable sheet or dialog.
+* Hover: `HoverOpacity` / `HoverBackground` apply while the pointer is over
+  the node (pressed values win), tracked with an `NSTrackingArea` only on
+  nodes that need it; nodes with the `HOVER` mask bit get `Hover
+  {entered, x, y}`. `Cursor` maps GPUI's cursor styles to `NSCursor` (the
+  diagonal resize cursors need macOS 15, the arrow stands in before);
+  `Tooltip` is the view's `toolTip`.
 * `HitSlop` and `Focusable` are accepted and ignored; `RefreshEnabled` too
   (there is no pull to refresh with a pointer).
 
@@ -94,20 +100,8 @@ stays safe on the JS thread.
   Escape.
 * `keyboard_height` is 0 and `font_scale` is 1 (see Environment).
 * Haptics play only on Force Touch trackpads, while a finger rests on one.
-* Hover is not part of the protocol, so `on_hover` and mouse-move handlers
-  still do nothing (see below).
 
 ## Not yet in the protocol
 
-Real pointers suggest additions; none is implemented, since the protocol
-changes together on every platform:
-
-* Hover: an event mask bit and an event (`Hover {entered, x, y}`) so
-  `on_hover` and `.hover(…)` styles work, plus a `Cursor` property (arrow,
-  pointing hand, I-beam…) for elements to declare their cursor.
 * Mouse button and scroll wheel events for `on_mouse_down` / `on_mouse_up` /
-  `on_scroll_wheel` with the button number.
-* The engine's click handler passes `NO_MODIFIERS` to scripts; reading the
-  `modifiers` the macOS renderer sends would give `ClickEvent.modifiers` real
-  values (and `docs/protocol-json.md` would list the key for `Click`).
-* `Tooltip`: a string property shown by the platform on hover.
+  `on_scroll_wheel` with the button number (deferred).

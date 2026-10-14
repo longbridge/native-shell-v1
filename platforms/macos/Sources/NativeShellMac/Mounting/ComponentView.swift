@@ -144,6 +144,7 @@ open class NSHComponentView: NSView {
     func setEventMask(_ mask: UInt32) {
         eventMask = mask
         updateAccessibilityElement()
+        updateHoverTracking()
     }
 
     func listens(_ bit: UInt32) -> Bool { eventMask & bit != 0 }
@@ -180,7 +181,7 @@ open class NSHComponentView: NSView {
             setNeedsDecorations()
         case .opacity:
             baseAlpha = value.number.map { CGFloat($0) } ?? 1
-            alphaValue = baseAlpha
+            applyPointerLook()
         case .shadow:
             shadowSpec = value.jsonObject
             setNeedsDecorations()
@@ -220,6 +221,19 @@ open class NSHComponentView: NSView {
             activeOpacity = value.number.map { CGFloat($0) }
         case .activeBackground:
             activeBackground = value.nsColor
+        case .hoverOpacity:
+            hoverOpacity = value.number.map { CGFloat($0) }
+            updateHoverTracking()
+            applyPointerLook()
+        case .hoverBackground:
+            hoverBackground = value.nsColor
+            updateHoverTracking()
+            applyPointerLook()
+        case .cursor:
+            cursorStyle = value.int.flatMap { CursorStyle(rawValue: Int32($0)) }
+            window?.invalidateCursorRects(for: self)
+        case .tooltip:
+            toolTip = value.string.flatMap { $0.isEmpty ? nil : $0 }
         case .hitSlop, .focusable:
             // A pointer is precise: no slop. Keyboard focus follows the native controls.
             break
@@ -238,6 +252,7 @@ open class NSHComponentView: NSView {
         animation = nil
         endTracking()
         pressed = false
+        hovered = false
         alphaValue = 1
         applyFrame(.zero)
     }
@@ -258,6 +273,9 @@ open class NSHComponentView: NSView {
     private var borderShape: CAShapeLayer?
     private var activeOpacity: CGFloat?
     private var activeBackground: NSColor?
+    private var hoverOpacity: CGFloat?
+    private var hoverBackground: NSColor?
+    private var cursorStyle: CursorStyle?
     private var role: A11yRole = .none
     private var a11yState: [String: Any] = [:]
     private var a11yHidden = false
@@ -266,7 +284,12 @@ open class NSHComponentView: NSView {
         radii.allSatisfy({ $0 == radii[0] }) ? radii[0] : nil
     }
 
-    private var currentBackground: NSColor? { pressed && activeBackground != nil ? activeBackground : baseBackground }
+    /// Pressed wins over hovered, both over the resting background.
+    private var currentBackground: NSColor? {
+        if pressed, let c = activeBackground { return c }
+        if hovered, let c = hoverBackground { return c }
+        return baseBackground
+    }
 
     private func cg(_ c: NSColor?) -> CGColor? { c?.cgColor(in: effectiveAppearance) }
 
@@ -492,11 +515,68 @@ open class NSHComponentView: NSView {
     private var magnification: CGFloat = 0
 
     var pressed = false {
-        didSet {
-            guard pressed != oldValue else { return }
-            if let o = activeOpacity { alphaValue = pressed ? baseAlpha * o : baseAlpha }
-            if activeBackground != nil { layoutDecorations() }
+        didSet { if pressed != oldValue { applyPointerLook() } }
+    }
+
+    /// The pointer is over the view (only tracked while something depends on it).
+    private(set) var hovered = false {
+        didSet { if hovered != oldValue { applyPointerLook() } }
+    }
+
+    /// Opacity and background for the pressed and hovered states; pressed wins.
+    private func applyPointerLook() {
+        if pressed, let o = activeOpacity {
+            alphaValue = baseAlpha * o
+        } else if hovered, let o = hoverOpacity {
+            alphaValue = baseAlpha * o
+        } else {
+            alphaValue = baseAlpha
         }
+        if activeBackground != nil || hoverBackground != nil { layoutDecorations() }
+    }
+
+    // MARK: Hover, cursor
+
+    private var hoverArea: NSTrackingArea?
+
+    private var wantsHover: Bool { listens(EventMask.hover) || hoverOpacity != nil || hoverBackground != nil }
+
+    private func updateHoverTracking() {
+        if !wantsHover {
+            hovered = false
+            if let a = hoverArea { removeTrackingArea(a) }
+            hoverArea = nil
+        } else if hoverArea == nil {
+            // inVisibleRect follows the bounds, so frames from later batches need no update.
+            let a = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self, userInfo: nil)
+            addTrackingArea(a)
+            hoverArea = a
+        }
+    }
+
+    override open func mouseEntered(with e: NSEvent) {
+        guard wantsHover else { return super.mouseEntered(with: e) }
+        pointerHover(true, at: convert(e.locationInWindow, from: nil))
+    }
+
+    override open func mouseExited(with e: NSEvent) {
+        guard wantsHover else { return super.mouseExited(with: e) }
+        pointerHover(false, at: convert(e.locationInWindow, from: nil))
+    }
+
+    /// The pointer entered or left (the tracking area's events; tests call it directly).
+    func pointerHover(_ entered: Bool, at p: CGPoint) {
+        guard entered != hovered else { return }
+        hovered = entered
+        if listens(EventMask.hover) { send(.hover, ["entered": entered, "x": Double(p.x), "y": Double(p.y)]) }
+    }
+
+    /// The AppKit cursor for the node's `Cursor`, or nil to leave the inherited one.
+    var cursor: NSCursor? { cursorStyle.map(Cursors.cursor) }
+
+    override open func resetCursorRects() {
+        super.resetCursorRects()
+        if let c = cursor { addCursorRect(visibleRect, cursor: c) }
     }
 
     override open func mouseDown(with e: NSEvent) {
@@ -652,5 +732,42 @@ enum Paths {
         p.addArc(tangent1End: CGPoint(x: r.minX, y: r.minY), tangent2End: CGPoint(x: r.minX + tl, y: r.minY), radius: tl)
         p.closeSubpath()
         return p
+    }
+}
+
+/// GPUI's cursor styles as AppKit cursors; the arrow stands in where macOS has none.
+enum Cursors {
+    static func cursor(_ style: CursorStyle) -> NSCursor {
+        switch style {
+        case .arrow: return .arrow
+        case .iBeam: return .iBeam
+        case .crosshair: return .crosshair
+        case .closedHand: return .closedHand
+        case .openHand: return .openHand
+        case .pointingHand: return .pointingHand
+        case .resizeLeft: return .resizeLeft
+        case .resizeRight: return .resizeRight
+        case .resizeLeftRight: return .resizeLeftRight
+        case .resizeColumn:
+            if #available(macOS 15.0, *) { return .columnResize }
+            return .resizeLeftRight
+        case .resizeUp: return .resizeUp
+        case .resizeDown: return .resizeDown
+        case .resizeUpDown: return .resizeUpDown
+        case .resizeRow:
+            if #available(macOS 15.0, *) { return .rowResize }
+            return .resizeUpDown
+        case .resizeUpLeftDownRight:
+            if #available(macOS 15.0, *) { return .frameResize(position: .topLeft, directions: .all) }
+            return .arrow
+        case .resizeUpRightDownLeft:
+            if #available(macOS 15.0, *) { return .frameResize(position: .topRight, directions: .all) }
+            return .arrow
+        case .iBeamCursorForVerticalLayout: return .iBeamCursorForVerticalLayout
+        case .operationNotAllowed: return .operationNotAllowed
+        case .dragLink: return .dragLink
+        case .dragCopy: return .dragCopy
+        case .contextualMenu: return .contextualMenu
+        }
     }
 }
