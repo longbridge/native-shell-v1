@@ -195,7 +195,7 @@ final class DetailController: NSViewController {
             program = nil
         }
         do {
-            let (sources, appId) = try Programs.sources(example.name)
+            let (programDir, appId) = try Programs.directory(example.name)
             let config = NSHInstanceConfig(appId: appId)
             let dir = dataRoot.appendingPathComponent(appId)
             if reset { try? FileManager.default.removeItem(at: dir) }
@@ -214,7 +214,7 @@ final class DetailController: NSViewController {
             view.addSubview(vc.view, positioned: .below, relativeTo: message)
             // The spinner sits above the program, which draws nothing until its first frame.
             view.addSubview(spinner, positioned: .above, relativeTo: vc.view)
-            try instance.loadSources(sources)
+            try instance.loadProgram(directory: programDir)
             program = vc
             message.isHidden = true
         } catch {
@@ -265,20 +265,12 @@ final class ProgramController: NSHViewController, NSHInstanceDelegate {
 }
 
 enum Programs {
-    /// `{manifest, files}` for a bundled example directory, and the program's id.
-    static func sources(_ name: String) throws -> (String, String) {
+    /// A bundled example directory and the program's id from its manifest.
+    static func directory(_ name: String) throws -> (URL, String) {
         guard let dir = Bundle.main.url(forResource: name, withExtension: nil, subdirectory: "examples") else {
             throw NSError(domain: "example", code: 1, userInfo: [NSLocalizedDescriptionKey: "The example “\(name)” is not bundled with the app."])
         }
         let manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: dir.appendingPathComponent("native-shell.json")))
-        var files: [String: String] = [:]
-        let e = FileManager.default.enumerator(at: dir, includingPropertiesForKeys: nil)
-        while let url = e?.nextObject() as? URL {
-            guard url.pathExtension == "js" else { continue }
-            files[String(url.path.dropFirst(dir.path.count + 1))] = try String(contentsOf: url, encoding: .utf8)
-        }
-        let data = try JSONSerialization.data(withJSONObject: ["manifest": manifest, "files": files])
-        let id = (manifest as? [String: Any])?["id"] as? String ?? name
-        return (String(decoding: data, as: UTF8.self), id)
+        return (dir, (manifest as? [String: Any])?["id"] as? String ?? name)
     }
 }

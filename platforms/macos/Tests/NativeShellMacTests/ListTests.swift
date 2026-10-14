@@ -160,4 +160,34 @@ final class ListTests: XCTestCase {
         }
         XCTAssertEqual(h.view(2, as: NSHListView.self).scrollView.contentView.bounds.minY, 0)
     }
+
+    /// Resizing the viewport (a keyboard on iOS, a window here) never loses a row view.
+    func testVisibleRowsStayHostedAcrossResizes() {
+        var rendered = Set<Int>()
+        h.apply { b in
+            b.create(1, .list, parent: 0, frame: CGRect(x: 0, y: 0, width: 390, height: 844), props: [
+                (.itemCount, .i32(60)), (.rowOffsets, .f32Array(offsets(60))), (.listAlignment, .i32(1)), (.prefetch, .i32(2)),
+            ])
+        }
+        let list = h.view(1, as: NSHListView.self)
+        func follow() {
+            guard let r = h.events(.rangeChange).last?.payload, let f = r.int("first"), let e = r.int("end") else { return }
+            h.apply { b in renderWindow(f, e, existing: &rendered, b: &b) }
+        }
+        follow()
+        for height in [600, 844, 300, 700, 420, 844] as [CGFloat] {
+            h.apply { $0.frame(1, CGRect(x: 0, y: 0, width: 390, height: height)) }
+            XCTAssertTrue(wait { self.h.events(.rangeChange).last?.payload.int("end") == 60 })
+            follow()
+            let clip = list.scrollView.contentView.bounds
+            XCTAssertEqual(clip.maxY, 60 * 44, accuracy: 0.5, "pinned to the end at height \(height)")
+            let first = Int(clip.minY / 44), last = min(59, Int((clip.maxY - 0.5) / 44))
+            for i in first ... last {
+                guard let row = h.view(UInt32(100_000 + i)) else { XCTFail("row \(i) not rendered at height \(height)"); continue }
+                XCTAssertTrue(row.superview === list.document, "row \(i) hosted at height \(height)")
+                XCTAssertEqual(row.frame, CGRect(x: 0, y: CGFloat(i) * 44, width: 390, height: 44), "row \(i) placed at height \(height)")
+                XCTAssertFalse(row.isHidden)
+            }
+        }
+    }
 }

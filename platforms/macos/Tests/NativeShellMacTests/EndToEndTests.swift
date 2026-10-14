@@ -107,18 +107,9 @@ final class EndToEndTests: XCTestCase {
         window = nil
     }
 
-    /// `{manifest, files}` of a program directory.
+    /// `{manifest, files}` of a program directory, as hosts load it.
     static func sources(_ dir: URL) throws -> String {
-        let manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: dir.appendingPathComponent("native-shell.json")))
-        var files: [String: String] = [:]
-        let e = FileManager.default.enumerator(at: dir, includingPropertiesForKeys: nil)
-        while let url = e?.nextObject() as? URL {
-            guard ["js", "mjs", "json"].contains(url.pathExtension), url.lastPathComponent != "native-shell.json",
-                  url.lastPathComponent != "host.json" else { continue }
-            let rel = String(url.path.dropFirst(dir.path.count + 1))
-            files[rel] = try String(contentsOf: url, encoding: .utf8)
-        }
-        return JSON.string(["manifest": manifest, "files": files])
+        try NSHInstance.programSources(directory: dir)
     }
 
     @discardableResult
@@ -315,6 +306,31 @@ final class EndToEndTests: XCTestCase {
         tap("open-buttons")
         waitFor("a later batch") { self.vc.surfaceView.manager.appliedBatches > applied }
         XCTAssertEqual(firstFrames, 1, "only the first frame is announced")
+    }
+
+    /// Binary program files (a photo next to the script) load as data URLs and draw.
+    func testProgramImageAssetsLoad() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("nsh-assets-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try FileManager.default.createDirectory(at: dir.appendingPathComponent("assets"), withIntermediateDirectories: true)
+        try Data(#"{"id": "dev.test.assets", "name": "Assets"}"#.utf8).write(to: dir.appendingPathComponent("native-shell.json"))
+        try Data("""
+        import { View, div, image } from "native-shell";
+        export default class Photo extends View {
+          render() { return div().size_full().child(image("assets/route.jpg").w(120).h(80).test_id("photo")); }
+        }
+        """.utf8).write(to: dir.appendingPathComponent("main.js"))
+        let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 12, pixelsHigh: 8, bitsPerSample: 8, samplesPerPixel: 4,
+                                   hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+        for x in 0 ..< 12 { for y in 0 ..< 8 { rep.setColor(.systemTeal, atX: x, y: y) } }
+        try rep.representation(using: .jpeg, properties: [.compressionFactor: 0.9])!.write(to: dir.appendingPathComponent("assets/route.jpg"))
+
+        try launch(Self.sources(dir), appId: "dev.test.assets")
+        waitFor("photo loaded") { (self.view("photo") as? NSHImageView)?.loaded != nil }
+        let image = (view("photo") as? NSHImageView)?.loaded
+        XCTAssertEqual(image?.width, 12)
+        XCTAssertEqual(image?.height, 8)
+        XCTAssertTrue(errors.isEmpty, "\(errors)")
     }
 
     func testScriptErrorsAreReported() throws {
