@@ -91,6 +91,8 @@ export default class ShopTab extends View {
     const t = cx.theme();
     const product = productById(FEATURED);
     if (!product) return null;
+    // At large text sizes the photo moves above the words, which then get the full width.
+    const stacked = cx.window().font_scale >= 1.5;
     return Button.new("featured")
       .test_id("featured")
       .accessibility_label(`Featured: ${product.name}, on sale`)
@@ -99,6 +101,7 @@ export default class ShopTab extends View {
       .overflow_hidden()
       .bg(t.muted)
       .flex()
+      .when(stacked, (el) => el.flex_col_reverse())
       .items_stretch()
       .active((s) => s.opacity(0.7))
       .on_click((_e, cx) => this.open(product, cx))
@@ -112,7 +115,14 @@ export default class ShopTab extends View {
           .child(text(cx, "title3", "20% off wool throws").font_semibold())
           .child(text(cx, "subheadline", "Lambswool, woven in herringbone. Until Sunday.", t.muted_foreground)),
       )
-      .child(image(photo(product, "rust")).w(Math.min(128, width * 0.32)).flex_none().object_fit("cover").accessibility_hidden());
+      .child(
+        image(photo(product, "rust"))
+          .when(stacked, (el) => el.w_full().h(140))
+          .when(!stacked, (el) => el.w(Math.min(128, width * 0.32)))
+          .flex_none()
+          .object_fit("cover")
+          .accessibility_hidden(),
+      );
   }
 
   chips(cx) {
@@ -192,7 +202,7 @@ export default class ShopTab extends View {
           .gap_0p5()
           .child(text(cx, "subheadline", product.name).font_medium())
           .child(price(cx, product))
-          .child(stars(cx, product.rating, product.reviews, 12))
+          .child(stars(cx, `card-${product.id}`, product.rating, product.reviews))
           .when(product.colors.length > 1, (el) =>
             el.child(text(cx, "caption1", `${product.colors.length} colors`, t.muted_foreground)),
           ),

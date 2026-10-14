@@ -13,7 +13,7 @@ import { productById, photo } from "./catalog.js";
 import CheckoutPage from "./checkout.js";
 import ProductPage from "./product.js";
 import { store, money, MAX_QUANTITY, FREE_DELIVERY } from "./store.js";
-import { icon, largeTitle, photoFrame, quantityStepper, section, statusBar, text, valueRow } from "./ui.js";
+import { icon, largeTitle, photoFrame, quantityStepper, section, text, valueRow } from "./ui.js";
 
 /** How far a line slides to reveal Remove, and how far a swipe must travel to leave it open. */
 const REVEAL = 96;
@@ -126,6 +126,9 @@ export default class CartTab extends View {
     const color = p.colors.find((c) => c.id === line.color)?.label ?? "";
     const size = p.sizes?.find((s) => s.id === line.size)?.label;
     const offset = this.drag?.key === key ? Math.min(0, this.drag.base + this.drag.dx) : this.open === key ? -REVEAL : 0;
+    // At large text sizes the line total moves under the name, which keeps the width to wrap in.
+    const large = cx.window().font_scale >= 1.5;
+    const total = text(cx, "body", money(p.price * line.quantity)).font_semibold().test_id(`line-total-${index}`);
     // Remove sits behind the line, drawn only while the line is moved aside.
     return div()
       .key(key)
@@ -179,11 +182,14 @@ export default class CartTab extends View {
                   .items_start()
                   .gap_2()
                   .child(text(cx, "body", p.name).flex_1().min_w_0())
-                  .child(text(cx, "body", money(p.price * line.quantity)).font_semibold().test_id(`line-total-${index}`)),
+                  .when(!large, (el) => el.child(total)),
               )
               .child(text(cx, "footnote", size ? `${color} · ${size}` : color, t.muted_foreground))
+              .when(large, (el) => el.child(total))
               .child(
                 h_flex()
+                  .flex_wrap()
+                  .gap_2()
                   .pt_1()
                   .justify_between()
                   .child(
@@ -244,7 +250,9 @@ export default class CartTab extends View {
               "footnote",
               left > 0 ? `Add ${money(left)} more for free standard delivery.` : "Your order ships free with standard delivery.",
               t.muted_foreground,
-            ).flex_1(),
+            )
+              .flex_1()
+              .min_w_0(),
           ),
       )
       .when(left > 0, (el) => el.child(Progress.new("free-delivery-progress").value(Math.round((amount / FREE_DELIVERY) * 100)).h_1()));

@@ -5,12 +5,11 @@
 // thumb rests, and states what it will add and for how much. Adding confirms
 // with a haptic and a toast that can undo it; the tab bar's badge counts it.
 
-import { View, div, h_flex, v_flex, Button, Tabs, Select, image } from "native-shell";
+import { View, h_flex, v_flex, Button, Tabs, Select, image } from "native-shell";
+import { Carousel, CarouselState, CarouselContent, CarouselItem, CarouselPagination, CarouselPaginationItem } from "gpui-component";
 import { productById, photos, CATEGORIES } from "./catalog.js";
 import { store, money, MAX_QUANTITY, FREE_DELIVERY } from "./store.js";
 import { icon, navBar, price, productTag, quantityStepper, section, stars, text } from "./ui.js";
-
-const SWIPE = 40;
 
 export default class ProductPage extends View {
   init(props) {
@@ -19,8 +18,11 @@ export default class ProductPage extends View {
     this.color = this.product.colors[0].id;
     this.size = this.product.sizes?.[0].id ?? null;
     this.quantity = 1;
-    this.slide = 0;
-    this.dragX = 0;
+    this.carousel = CarouselState(this.slides.length);
+  }
+
+  release() {
+    this.carousel.release();
   }
 
   get slides() {
@@ -30,14 +32,8 @@ export default class ProductPage extends View {
   pickColor(index, cx) {
     this.color = this.product.colors[index].id;
     // The gallery follows: each color's photo is its slide.
-    this.slide = index;
+    this.carousel.set_selected_index(index);
     cx.haptic("selection");
-    cx.notify();
-  }
-
-  showSlide(index, cx) {
-    this.slide = Math.max(0, Math.min(this.slides.length - 1, index));
-    this.dragX = 0;
     cx.notify();
   }
 
@@ -94,59 +90,28 @@ export default class ProductPage extends View {
       .child(this.buyBar(cx));
   }
 
-  /** A swipeable photo gallery with page dots; each dot is also a button. */
+  /** The photos, paged by a swipe or the dots; the slide shown is announced by name. */
   gallery(cx, width) {
     const t = cx.theme();
     const slides = this.slides;
-    const current = slides[this.slide];
-    return v_flex()
+    const state = this.carousel;
+    return Carousel.new("gallery", state)
       .test_id("gallery")
-      .role("image")
-      .accessibility_label(current.label)
-      .accessibility_value(`Photo ${this.slide + 1} of ${slides.length}`)
-      .accessibility_hint("Swipe left or right for more photos")
+      .accessibility_label(slides[state.selected_index() ?? 0].label)
+      .on_change((_i, cx) => cx.notify())
       .child(
-        div()
-          .w(width)
-          .h(width)
-          .overflow_hidden()
-          .bg(t.muted)
-          .on_pan((e, cx) => {
-            if (e.phase === "changed") {
-              this.dragX = e.dx;
-              cx.notify();
-            } else if (e.phase === "ended") {
-              this.showSlide(this.slide + (e.dx < -SWIPE ? 1 : e.dx > SWIPE ? -1 : 0), cx);
-            } else {
-              this.showSlide(this.slide, cx);
-            }
-          })
-          .child(
-            h_flex()
-              .relative()
-              .left(-this.slide * width + this.dragX)
-              .w(width * slides.length)
-              .h(width)
-              .children(slides.map((s, i) => image(s.src).test_id(`slide-${i}`).w(width).h(width).flex_none().object_fit("cover"))),
+        CarouselContent.new(state).children(
+          slides.map((s, i) =>
+            CarouselItem.new(`slide-${i}`, i, state)
+              .test_id(`slide-${i}`)
+              .child(image(s.src).w(width).h(width).object_fit("cover").bg(t.muted).accessibility_label(s.label)),
           ),
+        ),
       )
       .child(
-        h_flex()
-          .justify_center()
-          .gap_0()
-          .pt_1()
-          .children(
-            slides.map((s, i) =>
-              Button.new(`dot-${i}`)
-                .test_id(`dot-${i}`)
-                .accessibility_label(s.label)
-                .aria_selected(i === this.slide)
-                .p_1p5()
-                .hit_slop([8, 4, 8, 4])
-                .on_click((_e, cx) => this.showSlide(i, cx))
-                .child(div().size_2().rounded_full().bg(i === this.slide ? t.foreground : t.border)),
-            ),
-          ),
+        CarouselPagination.new().children(
+          slides.map((_s, i) => CarouselPaginationItem.new(`dot-${i}`, i, state).test_id(`dot-${i}`)),
+        ),
       );
   }
 
@@ -164,7 +129,7 @@ export default class ProductPage extends View {
           .when(tag !== null, (el) => el.child(tag)),
       )
       .child(text(cx, "title2", p.name).font_bold().role("header"))
-      .child(stars(cx, p.rating, p.reviews, 16))
+      .child(stars(cx, "product", p.rating, p.reviews))
       .child(price(cx, p, "title3").test_id("price"));
   }
 

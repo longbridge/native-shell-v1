@@ -18,6 +18,7 @@ fn main() -> ExitCode {
     run(&[
         ("shop from browsing to a placed order", browse_to_order),
         ("shop's empty, no-result and error states", empty_and_error_states),
+        ("shop at the largest text sizes", large_text),
     ])
 }
 
@@ -108,7 +109,7 @@ fn browse_to_order() {
     f.click("checkout");
     f.wait_for("checkout-page");
     f.click("place-order");
-    f.wait_for("error-street");
+    f.wait_for("address-street-error");
     shoot(&f, "checkout-errors");
     type_text(&f, "field-street", "12 Harbour Street");
     type_text(&f, "field-city", "Springfield");
@@ -159,4 +160,22 @@ fn empty_and_error_states() {
     let again = Fixture::start_with(&Runtime::new(), options, |instance| instance.load_dir(&dir));
     again.wait_for("catalog-error");
     shoot(&again, "catalog-error");
+}
+
+/// Text at twice the default size: rows grow, nothing clips.
+fn large_text() {
+    let settings = gtk::Settings::default().expect("settings");
+    let dpi = settings.gtk_xft_dpi();
+    settings.set_gtk_xft_dpi(96 * 1024 * 2);
+    let f = open();
+    shoot(&f, "catalog-large-text");
+    f.tap("product-pen");
+    f.wait_for("add-to-cart");
+    shoot(&f, "product-large-text");
+    f.click("add-to-cart");
+    f.click("back");
+    f.click("tab-cart");
+    f.wait_for("cart");
+    shoot(&f, "cart-large-text");
+    settings.set_gtk_xft_dpi(dpi);
 }

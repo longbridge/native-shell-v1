@@ -9,7 +9,7 @@
 // keeping everything typed. Success replaces the form with the confirmation.
 
 import { View, div, h_flex, v_flex, Button, Input, InputState, Radio, Spinner } from "native-shell";
-import { ErrorAlert } from "gpui-component";
+import { ErrorAlert, Form, Field } from "gpui-component";
 import { productById, photo } from "./catalog.js";
 import { store, money, arrivalDate, deliveryPrice, DELIVERY, ACCOUNT } from "./store.js";
 import { icon, navBar, photoFrame, section, text, valueRow } from "./ui.js";
@@ -33,10 +33,10 @@ const PHONE = /^\+?\d{7,15}$/;
 const FIELDS = [
   { id: "name", label: "Full name", auto_capitalize: "words", required: "Enter the name to deliver to." },
   { id: "street", label: "Street address", auto_capitalize: "words", required: "Enter a street address." },
-  { id: "apartment", label: "Apartment, suite (optional)", auto_capitalize: "words" },
+  { id: "apartment", label: "Apartment, suite", auto_capitalize: "words" },
   { id: "city", label: "City", auto_capitalize: "words", required: "Enter a city." },
   { id: "postal", label: "Postal code", keyboard: "number", max_length: 5, required: "Enter a postal code." },
-  { id: "phone", label: "Phone (optional)", keyboard: "phone", help: "Only used if the courier can’t find you." },
+  { id: "phone", label: "Phone", keyboard: "phone", help: "Only used if the courier can’t find you." },
 ];
 
 export default class CheckoutPage extends View {
@@ -191,38 +191,33 @@ export default class CheckoutPage extends View {
       .gap_2()
       .child(text(cx, "footnote", "SHIPPING ADDRESS", t.muted_foreground).role("header").px_4())
       .child(
-        v_flex()
-          .gap_4()
+        div()
           .p_4()
           .rounded_xl()
           .bg(t.surface)
-          .child(this.field(cx, "name", placing))
-          .child(this.field(cx, "street", placing))
-          .child(this.field(cx, "apartment", placing))
           .child(
-            h_flex()
-              .items_start()
-              .gap_3()
-              .child(this.field(cx, "city", placing).flex_1())
-              .child(this.field(cx, "postal", placing).w_32().flex_none()),
-          )
-          .child(this.field(cx, "phone", placing)),
+            // Two columns so city and postal code share a row; the rest span both.
+            Form.new()
+              .columns(2)
+              .children(FIELDS.map((f) => this.field(cx, f, placing).col_span(f.id === "city" || f.id === "postal" ? 1 : 2))),
+          ),
       );
   }
 
-  field(cx, id, placing) {
+  /** @param {import("native-shell").Context} cx @param {FieldSpec} f @param {boolean} placing */
+  field(cx, f, placing) {
     const t = cx.theme();
-    const f = FIELDS.find((x) => x.id === id);
-    const error = this.errors[id];
-    return v_flex()
-      .gap_1p5()
-      .min_w_0()
-      .child(text(cx, "footnote", f.label, t.muted_foreground).font_medium())
+    const error = this.errors[f.id];
+    return Field.new()
+      .test_id(`address-${f.id}`)
+      .label(f.label)
+      .required(Boolean(f.required))
+      .when(Boolean(f.help), (el) => el.description(f.help))
+      .error(error ?? null)
       .child(
-        Input.new(this.inputs[id])
-          .id(`field-${id}`)
-          .test_id(`field-${id}`)
-          .accessibility_label(f.label)
+        Input.new(this.inputs[f.id])
+          .id(`field-${f.id}`)
+          .test_id(`field-${f.id}`)
           .disabled(placing)
           .min_h_11()
           .px_3()
@@ -232,9 +227,7 @@ export default class CheckoutPage extends View {
           .bg(t.background)
           .text_size(t.typography.body.size)
           .text_color(t.foreground),
-      )
-      .when(Boolean(error), (el) => el.child(text(cx, "footnote", error, t.destructive).test_id(`error-${id}`).role("alert")))
-      .when(!error && Boolean(f.help), (el) => el.child(text(cx, "footnote", f.help, t.muted_foreground)));
+      );
   }
 
   deliveryOptions(cx, placing) {

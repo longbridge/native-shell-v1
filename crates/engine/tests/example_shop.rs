@@ -160,16 +160,16 @@ fn shop_browse_add_to_cart_check_out_and_see_the_order() {
     assert_eq!(h.surfaces().len(), 2);
     assert_eq!(h.native_input("field-name").text, "Ada Lovelace");
     h.tap("place-order");
-    assert_eq!(h.text_of("error-street"), "Enter a street address.");
-    assert_eq!(h.text_of("error-postal"), "Enter a postal code.");
-    assert!(h.find("error-apartment").is_none() && h.find("error-phone").is_none());
+    assert_eq!(h.text_of("address-street-error"), "Enter a street address.");
+    assert_eq!(h.text_of("address-postal-error"), "Enter a postal code.");
+    assert!(h.find("address-apartment-error").is_none() && h.find("address-phone-error").is_none());
     fill_address(&mut h);
-    assert!(h.find("error-street").is_none(), "typing clears the field's error");
+    assert!(h.find("address-street-error").is_none(), "typing clears the field's error");
     h.type_text("field-postal", "123");
     h.type_text("field-phone", "call me");
     h.tap("place-order");
-    assert_eq!(h.text_of("error-postal"), "Enter a 5-digit postal code.");
-    assert_eq!(h.text_of("error-phone"), "Enter a phone number with 7 to 15 digits.");
+    assert_eq!(h.text_of("address-postal-error"), "Enter a 5-digit postal code.");
+    assert_eq!(h.text_of("address-phone-error"), "Enter a phone number with 7 to 15 digits.");
     h.type_text("field-postal", "12345");
     h.type_text("field-phone", "");
 

@@ -9,7 +9,7 @@
 // keyboard and the photos' square frames.
 
 import { div, h_flex, v_flex, shape, image, Button } from "native-shell";
-import { Tag } from "gpui-component";
+import { Rating, Tag } from "gpui-component";
 import { money } from "./store.js";
 /** @import { ClickEvent, Color, Context, Element } from "native-shell" */
 
@@ -38,9 +38,6 @@ const ICONS = {
 };
 
 /** @typedef {"large_title" | "title1" | "title2" | "title3" | "headline" | "body" | "callout" | "subheadline" | "footnote" | "caption1" | "caption2"} TextRole */
-
-/** A five-pointed star on the same grid, filled for ratings. */
-const STAR = "M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8-6.2-3.2L5.8 21 7 14.2 2 9.3l6.9-1Z";
 
 /** @param {keyof typeof ICONS} name @param {Color} color */
 export function icon(name, color, size = 20) {
@@ -230,45 +227,21 @@ export function productTag(product) {
 }
 
 /**
- * Stars for a rating out of five, filled to the nearest half, then the score
- * and how many reviews it averages. Announced as one phrase.
+ * A read-only rating: stars to the nearest half, then the score and how many
+ * reviews it averages. Announced as one phrase.
+ * @param {Context} cx
+ * @param {string} id
+ * @param {number} rating
+ * @param {number} reviews
  */
-export function stars(cx, rating, reviews, size = 14) {
+export function stars(cx, id, rating, reviews) {
   const t = cx.theme();
-  const rounded = Math.round(rating * 2) / 2;
+  const count = String(reviews).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return h_flex()
     .gap_1()
-    .accessibility_label(`Rated ${rating} out of 5, ${reviews} reviews`)
-    .child(
-      h_flex()
-        .gap_0p5()
-        .children(
-          [0, 1, 2, 3, 4].map((i) => {
-            const fill = rounded - i;
-            const star = shape(STAR, { view_box: [0, 0, 24, 24] }).w(size).h(size).flex_none();
-            if (fill >= 1) return star.fill(t.warning);
-            if (fill <= 0) return star.fill(t.secondary);
-            // A half star: the empty star with the filled one clipped to its left half over it.
-            return div()
-              .relative()
-              .w(size)
-              .h(size)
-              .flex_none()
-              .child(star.fill(t.secondary))
-              .child(
-                div()
-                  .absolute()
-                  .top_0()
-                  .left_0()
-                  .w(size / 2)
-                  .h(size)
-                  .overflow_hidden()
-                  .child(shape(STAR, { view_box: [0, 0, 24, 24] }).w(size).h(size).fill(t.warning)),
-              );
-          }),
-        ),
-    )
-    .child(text(cx, "footnote", `${rating.toFixed(1)} · ${String(reviews).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`, t.muted_foreground));
+    .accessibility_label(`Rated ${rating} out of 5, ${count} reviews`)
+    .child(Rating.new(`${id}-rating`).value(rating).size("xsmall").disabled().accessibility_hidden())
+    .child(text(cx, "footnote", `${rating.toFixed(1)} · ${count}`, t.muted_foreground));
 }
 
 /**
