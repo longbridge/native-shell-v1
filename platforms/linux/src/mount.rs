@@ -380,6 +380,16 @@ pub fn apply_base_prop(view: &NodeView, prop: Prop, value: &PropValue, animated:
         }
         Prop::ActiveBackground => view.update_press(|p| p.active_background = color(value)),
         Prop::HitSlop => view.set_hit_slop(quad(value)),
+        Prop::HoverOpacity => view.update_press(|p| p.hover_opacity = float(value).map(|o| o.clamp(0.0, 1.0))),
+        Prop::HoverBackground => view.update_press(|p| p.hover_background = color(value)),
+        Prop::Cursor => view.set_cursor_style(match value {
+            PropValue::I32(c) => native_shell_core::protocol::CursorStyle::from_raw(*c),
+            _ => None,
+        }),
+        Prop::Tooltip => view.set_tooltip_text(match value {
+            PropValue::Str(s) if !s.is_empty() => Some(s.as_str()),
+            _ => None,
+        }),
         // Bool, or the tab order as I32 (GTK orders focus by the widget tree).
         Prop::Focusable => view.set_focusable_node(match value {
             PropValue::Bool(b) => *b,
@@ -588,8 +598,15 @@ mod tests {
                 set(Prop::HitSlop, PropValue::F32Array(vec![8.0])),
                 set(Prop::Gradient, PropValue::Json(r#"{"angle":90,"stops":[[1,0],[2,1]]}"#.into())),
                 set(Prop::Animation, PropValue::Json(r#"{"opacity":{"duration":100}}"#.into())),
+                set(Prop::HoverOpacity, PropValue::F32(0.7)),
+                set(Prop::HoverBackground, PropValue::Color(0xFF11_2233)),
+                set(Prop::Cursor, PropValue::I32(5)),
+                set(Prop::Tooltip, PropValue::Str("Archive".into())),
             ]);
             let v = m.view(1).cloned().expect("view");
+            assert_eq!(v.press().hover_background, Some(0xFF11_2233));
+            assert_eq!(v.cursor().and_then(|c| c.name()).as_deref(), Some("pointer"));
+            assert_eq!(v.tooltip_text().as_deref(), Some("Archive"));
             assert_eq!(v.style().background, Some(0xFF00_00FF));
             // GTK keeps opacity in 8 bits.
             assert!(!v.is_visible() && (v.opacity() - 0.5).abs() < 0.01 && v.press().active_opacity == Some(0.4));
@@ -604,11 +621,16 @@ mod tests {
                 Prop::HitSlop,
                 Prop::Gradient,
                 Prop::Animation,
+                Prop::HoverOpacity,
+                Prop::HoverBackground,
+                Prop::Cursor,
+                Prop::Tooltip,
             ];
             m.apply(&props.map(|p| set(p, PropValue::Null)));
             assert_eq!(v.style(), crate::node_view::BoxStyle::default());
             assert!(v.is_visible() && v.opacity() == 1.0 && v.press() == crate::node_view::Press::default());
             assert_eq!(v.hit_slop(), [0.0; 4]);
+            assert!(v.cursor().is_none() && v.tooltip_text().is_none());
         });
     }
 

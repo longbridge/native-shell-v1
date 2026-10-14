@@ -41,6 +41,7 @@ pub struct Gestures {
     secondary: Option<gtk::GestureClick>,
     drag: Option<gtk::GestureDrag>,
     zoom: Option<gtk::GestureZoom>,
+    hover: Option<gtk::EventControllerMotion>,
     track: Rc<Track>,
 }
 
@@ -54,6 +55,8 @@ struct Track {
     /// Last drag sample `(dx, dy, µs)` and the smoothed velocity in points/s.
     last: Cell<(f64, f64, i64)>,
     velocity: Cell<(f64, f64)>,
+    /// Where the pointer last was over the node (GTK's leave has no position).
+    pointer: Cell<(f64, f64)>,
 }
 
 impl Track {
@@ -82,9 +85,16 @@ pub fn sync(view: &NodeView) {
         pan(view, track.clone())
     });
     toggle(view, &mut g.zoom, view.listens(PINCH), || pinch(view));
+    let wants_hover = view.listens(HOVER) || press.hover_opacity.is_some() || press.hover_background.is_some();
+    toggle(view, &mut g.hover, wants_hover, || hover(view, track.clone()));
     if !wants_press && !view.listens(PAN) {
         g.track.cancel_timer();
         g.track.down.set(false);
+    }
+    drop(g);
+    // Nothing tracks the pointer any more: no stale hovered look.
+    if !wants_hover && press.hovered {
+        view.set_hovered(false);
     }
 }
 
@@ -338,6 +348,46 @@ fn pinch(view: &NodeView) -> gtk::GestureZoom {
         }
     });
     g
+}
+
+/// Pointer entry and exit: hover feedback, and `Hover {entered, x, y}` for
+/// HOVER listeners. Touch input does not hover.
+fn hover(view: &NodeView, track: Rc<Track>) -> gtk::EventControllerMotion {
+    let c = gtk::EventControllerMotion::new();
+    let (weak, t) = (view.downgrade(), track.clone());
+    c.connect_enter(move |c, x, y| {
+        let Some(view) = weak.upgrade() else { return };
+        if is_touch(c) {
+            return;
+        }
+        t.pointer.set((x, y));
+        pointer_hover(&view, true, x, y);
+    });
+    let t = track.clone();
+    c.connect_motion(move |_, x, y| t.pointer.set((x, y)));
+    let weak = view.downgrade();
+    c.connect_leave(move |_| {
+        let Some(view) = weak.upgrade() else { return };
+        let (x, y) = track.pointer.get();
+        pointer_hover(&view, false, x, y);
+    });
+    c
+}
+
+fn is_touch(c: &gtk::EventControllerMotion) -> bool {
+    c.current_event_device().is_some_and(|d| d.source() == gdk::InputSource::Touchscreen)
+}
+
+/// The pointer entered or left `view` (the motion controller's crossings;
+/// tests call it directly).
+pub fn pointer_hover(view: &NodeView, entered: bool, x: f64, y: f64) {
+    if view.press().hovered == entered {
+        return;
+    }
+    view.set_hovered(entered);
+    if view.listens(HOVER) {
+        view.emit(EventType::Hover, json!({"entered": entered, "x": x, "y": y}).to_string());
+    }
 }
 
 #[cfg(test)]
