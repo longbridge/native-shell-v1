@@ -17,8 +17,7 @@ fn main() -> ExitCode {
         ("submit, done and focus", submit_done_and_focus),
         ("multiline editor", multiline_editor),
         ("chat composer sends and clears", chat_composer_sends_and_clears),
-        ("address form: return moves on, validation (light)", || address_form(false)),
-        ("address form (dark)", || address_form(true)),
+        ("address form: return moves on, validation", address_form),
     ])
 }
 
@@ -202,30 +201,26 @@ fn chat_composer_sends_and_clears() {
     assert_eq!(draft.text(), "!", "typing goes on after the script's write");
 }
 
-/// Screenshots go to `screenshots/<name>-<light|dark>.png`. Each appearance
-/// runs its flow from the start: Broadway never ticks the frame clock here
-/// (see tests/support), so a live theme switch is not restyled reliably.
-fn appearance(dark: bool) -> &'static str {
-    if dark {
-        "dark"
-    } else {
-        "light"
+/// Screenshots `screenshots/<name>-<light|dark>.png`, switching the theme
+/// live (the dark one also checks every editor restyles).
+fn shoot(f: &Fixture, name: &str) {
+    for dark in [false, true] {
+        f.set_dark(dark);
+        f.screenshot(format!("screenshots/{name}-{}.png", if dark { "dark" } else { "light" }));
     }
+    f.set_dark(false);
 }
 
 /// The components example's shipping address form, as a user fills it in.
-fn address_form(dark: bool) {
-    set_dark(dark);
-    let shot = |f: &Fixture, name: &str| f.screenshot(format!("screenshots/{name}-{}.png", appearance(dark)));
+fn address_form() {
     let f = Fixture::open_dir("../../examples/components");
-    // The push transition needs frame clock ticks, which Broadway never gives
-    // here; without animations the page shows at once.
+    // Without animations the page shows at once, never mid-transition.
     if let Some(settings) = gtk::Settings::default() {
         settings.set_gtk_enable_animations(false);
     }
     f.tap("open-fields");
     f.wait_for("name");
-    shot(&f, "input-address-empty");
+    shoot(&f, "input-address-empty");
 
     let fields: Vec<gtk::Text> = ["name", "street", "city", "postal", "phone"].iter().map(|id| line(&f, id)).collect();
     f.click("name");
@@ -249,7 +244,7 @@ fn address_form(dark: bool) {
     f.tap("save-address");
     f.expect("postal-error");
     f.expect("phone-error");
-    shot(&f, "input-address-errors");
+    shoot(&f, "input-address-errors");
     // Editing clears the errors; six digits do not fit a five-digit code.
     type_text(&f, &fields[3], "456");
     assert_eq!(fields[3].text(), "12345");
