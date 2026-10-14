@@ -35,7 +35,7 @@ time fields, alerts) stay GTK-native.
 | `Image` | `http(s)`, file paths and `data:` URIs fetched and decoded off the main thread, downsampled to the node's pixels and cached decoded; cover, contain, fill and center modes |
 | `Shape` | GSK paths from SVG path data, view box scaled like `xMidYMid meet`, round caps and joins |
 | `Scroll` | `GtkScrolledWindow` around a content node of `ContentSize`; kinetic scrolling and overlay indicators are GTK's; `ScrollTo` animates with a critically damped spring |
-| `List` | A scrolled content widget as tall as `RowOffsets`; rendered rows are placed at their offsets (the core recycles row nodes as `RangeChange` moves its window), placeholders for visible rows not rendered yet |
+| `List` | A scrolled content widget as tall as `RowOffsets`; rendered rows are placed at their offsets (the core recycles row nodes as `RangeChange` moves its window), placeholders for visible rows not rendered yet; `ListAlignment` bottom opens at the end and keeps it in view while the user is there (as rows arrive or the viewport shrinks) |
 | `Switch`, `Checkbox` | Drawn as on iOS (system green when on unless tinted; checkbox or radio by `CheckStyle`) |
 | `Slider` | Drawn as on iOS; `{value, final: false}` at most every 50 ms while dragging, `final: true` at the end; arrow keys step |
 | `Progress`, `Spinner` | Drawn: a thin bar (a sliding segment when indeterminate), the iOS activity indicator |
@@ -67,6 +67,14 @@ only, so it is safe on the JS thread.
 * Gestures are attached only for what a node listens to, and a node claims
   the touch sequence only when it fires, so a scrolled window above still
   scrolls when a drag starts on a clickable row.
+* Hover: a motion controller, attached only to nodes with the `HOVER` mask
+  bit or hover styles, applies `HoverOpacity` / `HoverBackground` natively
+  (pressed values win) and sends `Hover {entered, x, y}` (the exit carries
+  the last position over the node). Touchscreen crossings do not hover.
+* `Cursor`: GPUI's `CursorStyle` as GDK's CSS cursor names (`pointer`,
+  `text`, `grab`, `col-resize`, `not-allowed`…); without one, links get
+  `pointer` and other nodes inherit their parent's cursor. `Tooltip`: GTK's
+  own tooltip (`gtk_widget_set_tooltip_text`).
 * Hardware keys are observed in the capture phase on the window and sent
   once per down/up as `Key` to the nearest node with the KEY mask above the
   focused widget, else to the root; they are never consumed.

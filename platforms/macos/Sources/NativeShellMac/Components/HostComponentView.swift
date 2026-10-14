@@ -8,6 +8,7 @@ import NativeShellShared
 final class NSHHostComponentView: NSHComponentView {
     private(set) var component: NSHHostComponent?
     private(set) var componentName: String?
+    override var hostComponentName: String? { componentName }
     private(set) var props: [String: Any] = [:]
     private var sink: NSHEventSink?
 

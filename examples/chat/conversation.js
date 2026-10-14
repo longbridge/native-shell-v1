@@ -43,6 +43,7 @@ export function recentMessages() {
   ];
 }
 
+/** @type {{ from: Message["from"], text: string, days: number, h: number, m: number }[]} */
 const EARLIER = [
   { from: "them", text: "Finished the book you lent me. That ending!", days: 6, h: 20, m: 4 },
   { from: "me", text: "Right? I had to read the last chapter twice.", days: 6, h: 20, m: 11 },
@@ -53,12 +54,17 @@ const EARLIER = [
 
 let earlierServed = false;
 
-/** One page of older messages, oldest first, and whether more exist. */
+/**
+ * One page of older messages, oldest first, and whether more exist.
+ * @param {import("native-shell").AsyncContext} cx
+ * @returns {Promise<{ messages: Message[], more: boolean }>}
+ */
 export async function fetchEarlier(cx) {
   await cx.sleep(900);
   if (earlierServed) return { messages: [], more: false };
   earlierServed = true;
   const base = today(0, 0);
+  /** @type {Message[]} */
   const messages = EARLIER.map((e, i) => ({
     id: `e${i}`,
     from: e.from,

@@ -8,6 +8,12 @@
 //! moves the core's window. Row views are the core's nodes: when the window
 //! moves the core recycles them by key (a row keeps its view and gets a new
 //! `RowIndex`), so the renderer never builds a view per item.
+//!
+//! A bottom-aligned list (`ListAlignment` 1, a chat thread) opens at its last
+//! row and, while the user is at the end, keeps the end in view as rows
+//! arrive, row heights get measured or the viewport shrinks. Whether the user
+//! is at the end is decided after every settled scroll, before the next batch
+//! changes the geometry; scrolled away, the position is kept.
 
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
@@ -27,6 +33,8 @@ use crate::node_view::{rgba, rounded_rect, NodeView};
 const FALLBACK_ROW: f64 = 44.0;
 /// Rows requested beyond the visible ones when the core sends no `Prefetch`.
 const DEFAULT_PREFETCH: usize = 10;
+/// How close to the end still counts as at the end.
+const END_SLOP: f64 = 4.0;
 /// Placeholder bars when the theme has no `muted` color (iOS's system fill).
 const PLACEHOLDER: u32 = 0x3378_7880;
 const ROW_INDEX_KEY: &str = "nsh-row-index";
@@ -86,6 +94,16 @@ impl Rows<'_> {
         (first.saturating_sub(prefetch), (end + prefetch).min(self.count))
     }
 
+    /// The offset that shows the last row at the bottom of `viewport`.
+    pub fn end_offset(&self, viewport: f64) -> f64 {
+        (self.total() - viewport).max(0.0)
+    }
+
+    /// Whether a viewport at `top` shows the end (a list shorter than it always does).
+    pub fn at_end(&self, top: f64, viewport: f64) -> bool {
+        top >= self.end_offset(viewport) - END_SLOP
+    }
+
     /// The offset that shows row `index` at `position` ("top", "center" or "bottom").
     pub fn offset_for(&self, index: usize, position: &str, viewport: f64) -> f64 {
         if self.count == 0 {
@@ -125,6 +143,10 @@ mod imp {
         pub viewport: Cell<f64>,
         pub placeholder: Cell<u32>,
         pub reported: Cell<Option<(usize, usize)>>,
+        /// `ListAlignment` 1.
+        pub bottom: Cell<bool>,
+        /// The user was at the end when the list last settled; a new list starts there.
+        pub pinned: Cell<bool>,
         pub vadjustment: RefCell<Option<gtk::Adjustment>>,
         /// Schedules a range report.
         pub schedule: RefCell<Option<Box<dyn Fn()>>>,
@@ -199,7 +221,22 @@ glib::wrapper! {
 
 impl ListContent {
     fn new() -> ListContent {
-        glib::Object::new()
+        let content: ListContent = glib::Object::new();
+        content.imp().pinned.set(true);
+        content
+    }
+
+    /// Remembers whether the user is at the end, once a scroll or layout settled.
+    fn update_pin(&self) {
+        let imp = self.imp();
+        if !imp.bottom.get() {
+            return;
+        }
+        let (top, height) = self.viewport();
+        if height > 0.0 {
+            let offsets = imp.offsets.borrow();
+            imp.pinned.set(Rows { offsets: &offsets, count: imp.count.get() }.at_end(top, height));
+        }
     }
 
     fn rows_total(&self) -> f64 {
@@ -288,6 +325,7 @@ impl List {
         let weak_content = content.downgrade();
         scroller.set_on_frame(move || {
             let Some(content) = weak_content.upgrade() else { return };
+            content.update_pin();
             let Some(range) = content.range() else { return };
             if content.imp().reported.replace(Some(range)) == Some(range) {
                 return;
@@ -300,6 +338,23 @@ impl List {
         let schedule = scroller.scheduler();
         content.imp().schedule.replace(Some(Box::new(schedule)));
         List { scroller, content }
+    }
+
+    /// Scrolls a bottom-aligned list to its end if the user was there.
+    fn keep_end_in_view(&self, cx: &NodeCx) {
+        let imp = self.content.imp();
+        let viewport = imp.viewport.get();
+        if !imp.bottom.get() || !imp.pinned.get() || imp.count.get() == 0 || viewport <= 0.0 {
+            return;
+        }
+        let (offsets, count) = self.rows();
+        let rows = Rows { offsets: &offsets, count };
+        let (_, top) = self.scroller.offset();
+        let end = rows.end_offset(viewport);
+        if (top - end).abs() > 0.5 {
+            let width = cx.view.frame().map_or(0.0, |f| f.width as f64);
+            self.scroller.scroll_to(0.0, end, (width, rows.total()), (width, viewport), false);
+        }
     }
 
     fn rows(&self) -> (Vec<f32>, usize) {
@@ -321,6 +376,7 @@ impl Component for List {
                 imp.offsets.replace(offsets);
             }
             Prop::Prefetch => imp.prefetch.set(float(value).map(|p| p.max(0.0) as usize)),
+            Prop::ListAlignment => imp.bottom.set(float(value) == Some(1.0)),
             Prop::ShowsIndicators => {
                 let p = if bool_prop(value, true) { gtk::PolicyType::Automatic } else { gtk::PolicyType::External };
                 self.scroller.window.set_policy(gtk::PolicyType::Never, p);
@@ -330,8 +386,10 @@ impl Component for List {
         true
     }
 
-    fn set_frame(&mut self, _cx: &NodeCx, frame: Frame) {
+    fn set_frame(&mut self, cx: &NodeCx, frame: Frame) {
         self.content.imp().viewport.set(frame.height as f64);
+        // A shorter viewport (a panel opening below) keeps a pinned end in view.
+        self.keep_end_in_view(cx);
         self.scroller.schedule();
     }
 
@@ -343,6 +401,7 @@ impl Component for List {
         let muted = cx.shared.theme.borrow().color("muted");
         self.content.imp().placeholder.set(muted.unwrap_or(PLACEHOLDER));
         self.content.rows_changed();
+        self.keep_end_in_view(cx);
         self.scroller.schedule();
     }
 
@@ -439,6 +498,17 @@ mod tests {
         // A list taller than its offsets still reaches its last rows.
         let long = Rows { offsets: &OFFSETS, count: 1000 };
         assert_eq!(long.range(240.0 + 44.0 * 100.0, 440.0, 2), (103, 117));
+    }
+
+    #[test]
+    fn at_end_allows_a_few_points() {
+        let r = rows(5);
+        assert_eq!(r.end_offset(100.0), 140.0);
+        assert!(r.at_end(140.0, 100.0) && r.at_end(137.0, 100.0));
+        assert!(!r.at_end(130.0, 100.0));
+        // Shorter than the viewport: always at the end.
+        assert_eq!(r.end_offset(500.0), 0.0);
+        assert!(r.at_end(0.0, 500.0));
     }
 
     #[test]

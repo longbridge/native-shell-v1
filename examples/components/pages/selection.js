@@ -119,6 +119,7 @@ export default class SelectionPage extends View {
       .child(text(cx, label, detail, false));
   }
 
+  /** @param {import("native-shell").Context} cx @param {{ id: string, label: string, detail: string, disabled?: boolean }} speed */
   radioRow(cx, { id, label, detail, disabled }) {
     const t = cx.theme();
     const selected = this.speed === id;

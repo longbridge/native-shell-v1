@@ -4,6 +4,7 @@
 // the same code is right in light and dark and follows the user's text size.
 
 import { div, shape } from "native-shell";
+/** @import { ClickEvent, Color, Context, Element } from "native-shell" */
 
 /** Outline icons on a 24-unit grid, drawn with a 2-unit round stroke. */
 const ICONS = {
@@ -15,7 +16,7 @@ const ICONS = {
   history: "M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l4 2",
 };
 
-/** @param {keyof typeof ICONS} name @param {string} color */
+/** @param {keyof typeof ICONS} name @param {Color} color */
 export function icon(name, color, size = 20) {
   return shape(ICONS[name], { view_box: [0, 0, 24, 24] })
     .stroke(color, 2)
@@ -32,17 +33,19 @@ export function avatar(cx, name, size = 40) {
     .slice(0, 2)
     .map((w) => w[0].toUpperCase())
     .join("");
-  return div()
-    .flex_none()
-    // The initials scale with the user's text size, so the circle does too.
-    .size(size * Math.min(cx.window().font_scale, 2))
-    .rounded_full()
-    .bg(t.secondary)
-    .flex()
-    .items_center()
-    .justify_center()
-    .text_color(t.secondary_foreground)
-    .font_semibold()
-    .text_sm()
-    .child(initials);
+  return (
+    div()
+      .flex_none()
+      // The initials scale with the user's text size, so the circle does too.
+      .size(size * Math.min(cx.window().font_scale, 2))
+      .rounded_full()
+      .bg(t.secondary)
+      .flex()
+      .items_center()
+      .justify_center()
+      .text_color(t.secondary_foreground)
+      .font_semibold()
+      .text_sm()
+      .child(initials)
+  );
 }

@@ -7,6 +7,7 @@
 // values appear only for platform geometry: safe areas and the keyboard.
 
 import { div, h_flex, v_flex, shape, Button } from "native-shell";
+/** @import { ClickEvent, Color, Context, Element } from "native-shell" */
 
 /** Outline icons on a 24-unit grid, drawn with a 2-unit round stroke. */
 const ICONS = {
@@ -21,7 +22,7 @@ const ICONS = {
   alert: "M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0ZM12 8v4M12 16h.01",
 };
 
-/** @param {keyof typeof ICONS} name @param {string} color */
+/** @param {keyof typeof ICONS} name @param {Color} color */
 export function icon(name, color, size = 20) {
   return shape(ICONS[name], { view_box: [0, 0, 24, 24] })
     .stroke(color, 2)

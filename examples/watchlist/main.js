@@ -32,7 +32,7 @@ export default class Watchlist extends View {
   init(_props, cx) {
     this.user = current_user();
     this.symbols = loadSymbols();
-    /** @type {Map<string, Quote>} */
+    /** @type {Map<string, import("demo/quote").Quote>} */
     this.quotes = new Map();
     this.sort = 0;
     /** "connecting" | "live" | "paused" | "error" */
@@ -154,7 +154,9 @@ export default class Watchlist extends View {
               .flex_1()
               .min_w_0()
               .gap_1()
-              .child(div().role("header").text_size(titleSize(cx)).font_bold().line_height(1.15).text_color(t.foreground).child("Watchlist"))
+              .child(
+                div().role("header").text_size(titleSize(cx)).font_bold().line_height(1.15).text_color(t.foreground).child("Watchlist"),
+              )
               .child(
                 div()
                   .test_id("subtitle")
@@ -471,7 +473,6 @@ export default class Watchlist extends View {
     const t = cx.theme();
     return h_flex()
       .test_id("undo-bar")
-      .role("alert")
       .mx_4()
       .my_2()
       .pl_4()
@@ -481,7 +482,7 @@ export default class Watchlist extends View {
       .rounded_lg()
       .bg(t.foreground)
       .shadow_md()
-      .child(div().flex_1().min_w_0().text_sm().text_color(t.background).truncate().child(`Removed ${this.undo.symbol}`))
+      .child(div().role("alert").flex_1().min_w_0().text_sm().text_color(t.background).truncate().child(`Removed ${this.undo.symbol}`))
       .child(
         Button.new("undo")
           .test_id("undo")

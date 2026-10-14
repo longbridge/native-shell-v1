@@ -304,6 +304,29 @@ fn focus_stays_in_the_top_sheet_or_dialog() {
 }
 
 #[test]
+fn toast_symbols_take_the_status_tokens() {
+    gtk_test::run(|| {
+        set_animations(false);
+        let mut rig = Rig::new();
+        let p = rig.presenter();
+        let light = native_shell::core::theme::Theme::default_for(native_shell::core::theme::Appearance::Light);
+        for (level, token) in [("info", "info"), ("success", "success"), ("warning", "warning"), ("error", "destructive")] {
+            rig.manager.apply(&[native_shell::core::protocol::Mutation::Command {
+                node: ROOT_NODE,
+                command: native_shell::core::protocol::Command::ShowToast,
+                payload: format!(r#"{{"id":"{level}","title":"{level}","level":"{level}","duration":0}}"#),
+            }]);
+            assert_eq!(p.toasts.icon_color(level), light.color(token), "{level}");
+            if level == "success" {
+                assert_eq!(p.toasts.icon_color(level), Some(0xFF34_C759), "iOS system green by default");
+            }
+            p.toasts.dismiss(Some(level));
+        }
+        rig.pump();
+    });
+}
+
+#[test]
 fn a_deleted_page_stays_until_its_exit_transition_ends() {
     gtk_test::run(|| {
         set_animations(true);

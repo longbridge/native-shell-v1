@@ -20,6 +20,7 @@ use gtk::subclass::prelude::*;
 use gtk::{gdk, glib, graphene};
 
 use native_shell_core::protocol::{Command, EventType, Prop, PropValue, ROOT_NODE};
+use native_shell_core::theme::{Appearance, Theme};
 
 use crate::component::{Component, NodeCx, Shared};
 use crate::components::modal::ModalState;
@@ -95,9 +96,19 @@ impl Presenter {
         }
     }
 
-    /// A color of the program's theme, with the fallback used before the first batch.
-    pub(crate) fn color(&self, token: &str, fallback: u32) -> u32 {
-        self.shared.upgrade().and_then(|s| s.theme.borrow().color(token)).unwrap_or(fallback)
+    /// A color of the program's theme; before the first batch (or for a token
+    /// the program's core does not send) the core's default theme's.
+    pub(crate) fn color(&self, token: &str) -> u32 {
+        let appearance = self.appearance();
+        self.shared
+            .upgrade()
+            .and_then(|s| s.theme.borrow().color(token))
+            .or_else(|| Theme::default_for(appearance).color(token))
+            .unwrap_or(0xFF00_0000)
+    }
+
+    pub(crate) fn appearance(&self) -> Appearance {
+        self.shared.upgrade().map(|s| s.theme.borrow().appearance).unwrap_or_default()
     }
 
     pub(crate) fn register(&self, view: &NodeView, surface: Surface) {
@@ -244,7 +255,7 @@ impl Presenter {
     }
 
     fn theme_changed(&self) {
-        let background = self.color("background", 0xFFFF_FFFF);
+        let background = self.color("background");
         self.root_host.set_background(Some(background));
         for surface in self.surfaces.borrow().values() {
             match surface {

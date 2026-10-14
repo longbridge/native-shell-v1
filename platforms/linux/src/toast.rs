@@ -22,7 +22,8 @@ const MAX_VISIBLE: usize = 3;
 const MAX_WIDTH: f32 = 420.0;
 const MARGIN: f32 = 16.0;
 const GAP: f32 = 8.0;
-const RADIUS: f32 = 8.0;
+/// The renderers' card radius (the theme's `lg`).
+const RADIUS: f32 = 12.0;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Level {
@@ -51,15 +52,14 @@ impl Level {
         }
     }
 
-    /// The symbol's tint. Success and warning use the iOS system green and
-    /// orange, which the theme has no token for.
-    fn tint(self, presenter: &Presenter, dark: bool) -> u32 {
-        match self {
-            Level::Info => presenter.color("primary", 0xFF17_1717),
-            Level::Success => if dark { 0xFF30_D158 } else { 0xFF34_C759 },
-            Level::Warning => if dark { 0xFFFF_9F0A } else { 0xFFFF_9500 },
-            Level::Error => presenter.color("destructive", 0xFFEF_4444),
-        }
+    /// The symbol's tint: the theme's status color for the level.
+    fn tint(self, presenter: &Presenter) -> u32 {
+        presenter.color(match self {
+            Level::Info => "info",
+            Level::Success => "success",
+            Level::Warning => "warning",
+            Level::Error => "destructive",
+        })
     }
 }
 
@@ -231,6 +231,11 @@ impl ToastCenter {
     }
 
     #[cfg(test)]
+    pub fn icon_color(&self, id: &str) -> Option<u32> {
+        self.visible.borrow().iter().find(|t| t.id == id).map(|t| t.icon.imp().color.get())
+    }
+
+    #[cfg(test)]
     pub fn tap_action(&self, id: &str) {
         let t = self.visible.borrow().iter().find(|t| t.id == id).cloned();
         if let Some(button) = t.and_then(|t| t.action.clone()) {
@@ -326,16 +331,15 @@ fn with_color(label: &gtk::Label, color: u32) {
 }
 
 fn apply_colors(t: &Toast, presenter: &Presenter) {
-    let dark = presenter.shared.upgrade().is_some_and(|s| s.theme.borrow().appearance == native_shell_core::theme::Appearance::Dark);
     let imp = t.card.imp();
-    imp.background.set(presenter.color("background", 0xFFFF_FFFF));
-    imp.border.set(presenter.color("border", 0xFFE5_E5E5));
+    imp.background.set(presenter.color("background"));
+    imp.border.set(presenter.color("border"));
     t.card.queue_draw();
-    t.icon.set_color(t.level.tint(presenter, dark));
-    with_color(&t.title, presenter.color("foreground", 0xFF0A_0A0A));
-    with_color(&t.description, presenter.color("muted_foreground", 0xFF73_7373));
+    t.icon.set_color(t.level.tint(presenter));
+    with_color(&t.title, presenter.color("foreground"));
+    with_color(&t.description, presenter.color("muted_foreground"));
     if let Some(label) = t.action.as_ref().and_then(|b| b.child()).and_downcast::<gtk::Label>() {
-        with_color(&label, presenter.color("foreground", 0xFF0A_0A0A));
+        with_color(&label, presenter.color("foreground"));
     }
 }
 
