@@ -372,6 +372,11 @@ impl Drop for Fixture {
     }
 }
 
+/// The widget of the node with `test_id` under `root`, for surfaces a [`Fixture`] does not own.
+pub fn find_test_id(root: &gtk::Widget, test_id: &str) -> Option<gtk::Widget> {
+    find_widget(root, &|w| w.widget_name() == test_id)
+}
+
 fn find_widget(root: &gtk::Widget, matches: &dyn Fn(&gtk::Widget) -> bool) -> Option<gtk::Widget> {
     if matches(root) {
         return Some(root.clone());

@@ -4,6 +4,8 @@
 //!
 //! `cargo run --example launcher` (in `platforms/linux`); `-- --example tasks`
 //! opens one directly and `--reset` starts it with empty storage.
+//! `--dev http://HOST:PORT` (or the "Connect to Dev Server" row) runs the
+//! program `nshell dev` serves and reloads it on every change.
 //! `--screenshot <dir>` renders the list headlessly into
 //! `<dir>/launcher-{light,dark}.png` and exits.
 
@@ -17,11 +19,12 @@ use std::rc::Rc;
 use adw::prelude::*;
 use common::{Example, SECTIONS};
 use gtk::glib;
-use native_shell_gtk::{default_data_dir, Instance, InstanceOptions, Runtime, SurfaceView};
+use native_shell_gtk::{default_data_dir, DevClient, Instance, InstanceOptions, Runtime, SurfaceView};
 
 fn main() -> glib::ExitCode {
     let args: Vec<String> = std::env::args().collect();
     let open = args.iter().position(|a| a == "--example").and_then(|i| args.get(i + 1)).cloned();
+    let dev = args.iter().position(|a| a == "--dev").and_then(|i| args.get(i + 1)).cloned();
     let reset = args.iter().any(|a| a == "--reset");
     if let Some(i) = args.iter().position(|a| a == "--screenshot") {
         return screenshot(args.get(i + 1).map_or(Path::new("screenshots"), |d| Path::new(d)));
@@ -43,6 +46,9 @@ fn main() -> glib::ExitCode {
             .content(&navigation)
             .build();
         window.present();
+        if let Some(url) = &dev {
+            open_dev(&navigation, url);
+        }
         if let Some(name) = &open {
             if let Some(example) = common::examples().find(|e| e.name == name) {
                 open_example(&navigation, example, reset);
@@ -68,6 +74,18 @@ fn list_page(navigation: &adw::NavigationView, reset: bool) -> adw::NavigationPa
         }
         page.add(&group);
     }
+    let group = adw::PreferencesGroup::builder()
+        .title("Development")
+        .description("Run the program “nshell dev” serves; it reloads whenever its files change.")
+        .build();
+    let row = adw::ActionRow::builder().title("Connect to Dev Server").activatable(true).build();
+    row.add_prefix(&tile_icon("network-server-symbolic", "tile-dev"));
+    row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
+    row.set_widget_name("dev-connect");
+    let nav = navigation.clone();
+    row.connect_activated(move |_| ask_dev_url(&nav));
+    group.add(&row);
+    page.add(&group);
     let toolbar = adw::ToolbarView::new();
     toolbar.add_top_bar(&adw::HeaderBar::new());
     toolbar.set_content(Some(&page));
@@ -76,17 +94,21 @@ fn list_page(navigation: &adw::NavigationView, reset: bool) -> adw::NavigationPa
 
 /// The example's symbol, white on a rounded tile of its color.
 fn tile(example: &Example) -> gtk::Widget {
-    let tile = gtk::Image::from_icon_name(example.icon);
+    tile_icon(example.icon, &format!("tile-{}", example.name))
+}
+
+fn tile_icon(icon: &str, class: &str) -> gtk::Widget {
+    let tile = gtk::Image::from_icon_name(icon);
     tile.set_pixel_size(18);
     tile.set_size_request(32, 32);
     tile.set_valign(gtk::Align::Center);
     tile.add_css_class("example-tile");
-    tile.add_css_class(&format!("tile-{}", example.name));
+    tile.add_css_class(class);
     tile.upcast()
 }
 
 fn install_css() {
-    let mut css = String::from(".example-tile { border-radius: 8px; color: white; }\n");
+    let mut css = String::from(".example-tile { border-radius: 8px; color: white; }\n.tile-dev { background: #636366; }\n");
     for example in common::examples() {
         css.push_str(&format!(".tile-{} {{ background: {}; }}\n", example.name, example.tint));
     }
@@ -155,4 +177,37 @@ fn screenshot(dir: &Path) -> glib::ExitCode {
         window.destroy();
     }
     glib::ExitCode::SUCCESS
+}
+
+/// Asks for the address `nshell dev` printed, then connects.
+fn ask_dev_url(navigation: &adw::NavigationView) {
+    let entry = gtk::Entry::builder().placeholder_text("http://192.168.1.20:8080").input_purpose(gtk::InputPurpose::Url).activates_default(true).build();
+    let dialog = adw::AlertDialog::new(Some("Connect to Dev Server"), Some("The address “nshell dev” printed."));
+    dialog.set_extra_child(Some(&entry));
+    dialog.add_responses(&[("cancel", "Cancel"), ("connect", "Connect")]);
+    dialog.set_response_appearance("connect", adw::ResponseAppearance::Suggested);
+    dialog.set_default_response(Some("connect"));
+    dialog.set_close_response("cancel");
+    let nav = navigation.clone();
+    dialog.connect_response(Some("connect"), move |_, _| open_dev(&nav, &entry.text()));
+    dialog.present(Some(navigation));
+}
+
+/// The served program on its own page; polling stops when the page goes.
+fn open_dev(navigation: &adw::NavigationView, url: &str) {
+    let client = match DevClient::connect(url, Runtime::shared()) {
+        Ok(c) => c,
+        Err(e) => {
+            let dialog = adw::AlertDialog::new(Some("Couldn’t Connect"), Some(&e));
+            dialog.add_response("ok", "OK");
+            return dialog.present(Some(navigation));
+        }
+    };
+    let toolbar = adw::ToolbarView::new();
+    toolbar.add_top_bar(&adw::HeaderBar::new());
+    toolbar.set_content(Some(&client.widget()));
+    let page = adw::NavigationPage::builder().title(url).tag("dev").child(&toolbar).build();
+    let client = std::cell::RefCell::new(Some(client));
+    page.connect_destroy(move |_| drop(client.take()));
+    navigation.push(&page);
 }

@@ -14,6 +14,7 @@ cargo test                                   # unit + GTK integration tests (hea
 cargo clippy --all-targets -- -D warnings
 cargo run --example launcher                 # the example app; -- --example tasks --reset
 cargo run --example run -- ../../examples/chat
+cargo run --example run -- --dev http://HOST:PORT   # hot reload from `nshell dev`
 cargo run --example screenshot [-- tasks …]  # screenshots/example-<name>-{light,dark}.png
 cargo run --example launcher -- --screenshot screenshots
 NSH_SCREENSHOTS=1 cargo test                 # refresh the committed test screenshots

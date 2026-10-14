@@ -12,6 +12,7 @@ mod a11y;
 mod animator;
 mod clipboard;
 mod component;
+mod dev;
 mod components;
 mod gestures;
 #[cfg(test)]
@@ -27,6 +28,7 @@ mod text;
 mod theme;
 mod toast;
 
+pub use dev::DevClient;
 pub use instance::{default_data_dir, Instance, InstanceOptions};
 pub use native_shell::{Limits, Metrics, ThemeConfig};
 pub use native_shell_core::host::{

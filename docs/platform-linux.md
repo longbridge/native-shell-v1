@@ -111,6 +111,29 @@ dev mode; `load_dir`, `load_sources` or `load_bundle` load a program and
 `SurfaceView::attach` renders it. `Instance::connect_error` reports
 unrecoverable failures; the surface shows the engine's error page or banner.
 
+## Hot reload with `nshell dev`
+
+`nshell dev <dir>` serves a program over HTTP and prints the command to run
+it on Linux. `DevClient::connect(url, runtime)` is the client:
+
+* `cargo run --example run -- --dev http://HOST:PORT`, or the launcher's
+  `--dev` flag and its "Connect to Dev Server" row.
+* It fetches `/bundle` and runs the program in dev mode; a background thread
+  long-polls `/version`, and on every change the program is reloaded in
+  place: a new instance on a fresh `SurfaceView` in the same container, so
+  the window stays (program state starts over).
+* An error the server reports (the program cannot be read), a malformed
+  bundle or an unreachable server is shown as the engine's error page; the
+  next good version replaces it, and an unreachable server is retried every
+  second.
+* Script and renderer logs go to the server (`POST /log`, printed there as
+  `[device <level>] …`) as well as to stderr; this replaces the runtime's
+  logger.
+
+`tests/dev.rs` runs the client against a small in-process server with the
+same endpoints: load, reload in place, error page until fixed, unreachable
+server, forwarded logs.
+
 ## Testing
 
 `cd platforms/linux && cargo test`. Every GTK test file is a

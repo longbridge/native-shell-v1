@@ -71,3 +71,7 @@ harness = false
 [[test]]
 name = "examples"
 harness = false
+
+[[test]]
+name = "dev"
+harness = false
