@@ -17,7 +17,7 @@ use std::rc::{Rc, Weak};
 
 use adw::prelude::*;
 use gtk::subclass::prelude::*;
-use gtk::{gdk, gio, glib, graphene};
+use gtk::{gdk, glib, graphene};
 
 use native_shell_core::protocol::{Command, EventType, Prop, PropValue, ROOT_NODE};
 
@@ -261,23 +261,10 @@ impl Presenter {
         match command {
             Command::ShowToast => self.toasts.show(self, &payload),
             Command::DismissToast => self.toasts.dismiss(text("id").as_deref()),
-            Command::OpenUrl => {
-                let Some(url) = text("url") else { return };
-                let window = cx.view.root().and_downcast::<gtk::Window>();
-                gtk::UriLauncher::new(&url).launch(window.as_ref(), None::<&gio::Cancellable>, move |result| {
-                    if let Err(e) = result {
-                        eprintln!("[native-shell] cannot open {url}: {e}");
-                    }
-                });
+            // OpenUrl, SetClipboard, Haptic.
+            _ => {
+                crate::root_commands::run(cx.view.upcast_ref(), command, &payload);
             }
-            Command::SetClipboard => {
-                if let Some(t) = text("text") {
-                    cx.view.clipboard().set_text(&t);
-                }
-            }
-            // Desktops have no haptic engine to drive.
-            Command::Haptic => {}
-            _ => {}
         }
     }
 }

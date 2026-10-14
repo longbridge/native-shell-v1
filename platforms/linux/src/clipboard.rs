@@ -21,6 +21,11 @@ pub fn text() -> Option<String> {
     cache().lock().unwrap_or_else(|p| p.into_inner()).clone()
 }
 
+/// Replaces the copy right away (the clipboard reports its own change later).
+pub fn set_text(text: Option<String>) {
+    *cache().lock().unwrap_or_else(|p| p.into_inner()) = text;
+}
+
 /// Starts following the default display's clipboard; main thread, idempotent.
 pub fn watch() {
     thread_local! {
@@ -37,7 +42,6 @@ pub fn watch() {
 
 fn refresh(clipboard: &gdk::Clipboard) {
     clipboard.read_text_async(None::<&gtk::gio::Cancellable>, |result| {
-        let text = result.ok().flatten().map(|s| s.to_string());
-        *cache().lock().unwrap_or_else(|p| p.into_inner()) = text;
+        set_text(result.ok().flatten().map(|s| s.to_string()));
     });
 }

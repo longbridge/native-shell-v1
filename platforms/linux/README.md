@@ -59,7 +59,8 @@ instance.load_dir(Path::new("path/to/program"))?;   // or load_sources / load_bu
   Safe areas and keyboard height are zero on the desktop.
 * `nsh/clipboard` reads come from a main-thread copy of the clipboard text,
   since GTK reads the clipboard asynchronously and the core asks
-  synchronously.
+  synchronously. The root's `SetClipboard`, `OpenUrl` (`gtk::UriLauncher`)
+  and `Haptic` (nothing to drive on desktops) are in `src/root_commands.rs`.
 
 ## Commands
 
@@ -90,9 +91,18 @@ through the GTK gesture or the protocol, switches appearance, reads pixels and
 writes screenshots.
 
 Tests never open windows on the desktop: unless `GDK_BACKEND=broadway` is set,
-the harness starts a private `gtk4-broadwayd`. Without a browser attached,
-Broadway freezes each window's frame clock after its first frame, so the
-fixture lays the surface out itself, at 390 × 844 whatever the window's size,
-and tick callbacks never run there: anything driven by the frame clock must
-also be testable without it. CI runs the same tests in an Ubuntu 26.04
-container on a Broadway display (`.github/workflows/ci.yml`, job `linux`).
+the harness starts a private `gtk4-broadwayd` (`tests/support/display.rs`,
+shared with the crate's own GTK unit tests). GDK throttles Broadway windows to
+one frame per second while no browser is attached, so the display comes with a
+minimal client that acknowledges each frame and reports a large screen: frame
+clocks, tick callbacks and animations run at full rate, and windows can be
+phone-sized. The fixture still lays the surface out itself after each batch,
+so tests never wait for a frame to see a change. CI runs the same tests in an
+Ubuntu 26.04 container on a Broadway display (`.github/workflows/ci.yml`, job
+`linux`).
+
+Screenshots that tests write under `screenshots/` land in
+`target/screenshots/` unless `NSH_SCREENSHOTS=1` is set, so a test run never
+rewrites the committed images; set it to refresh them
+(`NSH_SCREENSHOTS=1 cargo test`). `examples/screenshot` and the launcher's
+`--screenshot` always write to `screenshots/`.

@@ -20,6 +20,7 @@ mod instance;
 mod keys;
 mod mount;
 mod node_view;
+mod root_commands;
 mod runtime;
 mod surface;
 mod text;
