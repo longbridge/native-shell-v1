@@ -119,7 +119,7 @@ final class NavigationTests: XCTestCase {
         modal.loadViewIfNeeded()
         for style in [UIUserInterfaceStyle.light, .dark] {
             let bg = modal.view.backgroundColor?.resolvedColor(with: UITraitCollection(userInterfaceStyle: style))
-            XCTAssertEqual(bg, Colors.hex(style == .dark ? "#0a0a0a" : "#ffffff"), "opaque theme background (\(style.rawValue))")
+            XCTAssertEqual(bg, Colors.hex(style == .dark ? "#000000" : "#ffffff"), "opaque theme background (\(style.rawValue))")
             var a: CGFloat = 0
             bg?.getRed(nil, green: nil, blue: nil, alpha: &a)
             XCTAssertEqual(a, 1)

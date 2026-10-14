@@ -464,13 +464,17 @@ final class MountingTests: XCTestCase {
             XCTAssertEqual(t.titleLabel.font.fontDescriptor.symbolicTraits.contains(.traitBold), false, "title is medium, not bold")
             XCTAssertTrue(t.accessibilityLabel?.hasPrefix(["info": "Info", "success": "Success", "warning": "Warning", "error": "Error"][t.level]!) ?? false)
         }
+        let traitsLight = UITraitCollection(userInterfaceStyle: .light)
+        XCTAssertEqual(all.first { $0.level == "success" }!.iconView.tintColor.resolvedColor(with: traitsLight), Colors.hex("#34c759"), "success token")
+        XCTAssertEqual(all.first { $0.level == "warning" }!.iconView.tintColor.resolvedColor(with: traitsLight), Colors.hex("#ff9500"), "warning token")
+        XCTAssertEqual(all.first { $0.level == "info" }!.iconView.tintColor.resolvedColor(with: traitsLight), Colors.hex("#007aff"), "info token")
         let error = all.first { $0.level == "error" }!
         for style in [UIUserInterfaceStyle.light, .dark] {
             let traits = UITraitCollection(userInterfaceStyle: style)
             let bg = error.backgroundColor!.resolvedColor(with: traits)
-            XCTAssertEqual(bg, Colors.hex(style == .dark ? "#0a0a0a" : "#ffffff"), "background token, not a level color")
-            XCTAssertEqual(error.iconView.tintColor.resolvedColor(with: traits), Colors.hex(style == .dark ? "#f87171" : "#ef4444"), "destructive token")
-            XCTAssertEqual(error.descriptionLabel.textColor.resolvedColor(with: traits), Colors.hex(style == .dark ? "#a3a3a3" : "#737373"))
+            XCTAssertEqual(bg, Colors.hex(style == .dark ? "#000000" : "#ffffff"), "background token, not a level color")
+            XCTAssertEqual(error.iconView.tintColor.resolvedColor(with: traits), Colors.hex(style == .dark ? "#ff453a" : "#ff3b30"), "destructive token")
+            XCTAssertEqual(error.descriptionLabel.textColor.resolvedColor(with: traits), Colors.hex(style == .dark ? "#8d8d93" : "#8a8a8e"))
         }
 
         // Retract the info toast so the queued error one shows in the captures.
@@ -755,7 +759,7 @@ final class MountingTests: XCTestCase {
             b.create(6, .select, parent: 0, frame: CGRect(x: 0, y: 0, width: 200, height: 44))
         }
         func primary(_ c: UIColor?, _ style: UIUserInterfaceStyle) -> Bool {
-            c?.resolvedColor(with: UITraitCollection(userInterfaceStyle: style)) == Colors.hex(style == .dark ? "#fafafa" : "#171717")
+            c?.resolvedColor(with: UITraitCollection(userInterfaceStyle: style)) == Colors.hex(style == .dark ? "#0a84ff" : "#007aff")
         }
         for style in [UIUserInterfaceStyle.light, .dark] {
             XCTAssertTrue(primary(h.view(1, as: NSHSliderView.self).control.minimumTrackTintColor, style), "slider")
@@ -802,7 +806,7 @@ final class MountingTests: XCTestCase {
         h.apply { $0.prop(1, .tintColor, .color(0xFF00_FF00)) }
         XCTAssertEqual(slider.control.minimumTrackTintColor, Colors.argb(0xFF00_FF00))
         // Before any ThemeTokens, defaults/provider stand in.
-        XCTAssertEqual(ThemeTokens.color("primary", runtime: NSHRuntime(), theme: ThemeState()).resolvedColor(with: UITraitCollection(userInterfaceStyle: .light)), Colors.hex("#171717"))
+        XCTAssertEqual(ThemeTokens.color("primary", runtime: NSHRuntime(), theme: ThemeState()).resolvedColor(with: UITraitCollection(userInterfaceStyle: .light)), Colors.hex("#007aff"))
     }
 
     /// Renderer-drawn glyphs follow the frame the core gives (it grows with the font scale).

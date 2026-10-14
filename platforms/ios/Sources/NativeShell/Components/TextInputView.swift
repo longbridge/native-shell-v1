@@ -70,11 +70,20 @@ final class NSHTextInputView: NSHComponentView, UITextFieldDelegate, UITextViewD
             textView = nil
         }
         for (p, v) in props { applyInputProp(p, v) }
+        input.tintColor = themeColor("primary")
         input.accessibilityIdentifier = accessibilityIdentifier
         input.accessibilityLabel = accessibilityLabel
         applyStyle()
         updatePlaceholder()
         setNeedsLayout()
+    }
+
+    /// Caret and selection handles follow the theme's tint.
+    override func themeDidChange() { input.tintColor = themeColor("primary") }
+
+    override func didMoveToSuperview() {
+        super.didMoveToSuperview()
+        themeDidChange()
     }
 
     override func layoutSubviews() {

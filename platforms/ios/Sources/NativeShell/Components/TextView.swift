@@ -49,6 +49,8 @@ final class NSHTextView: NSHComponentView {
 
     private var lastAutoLabel: String?
 
+    override func themeDidChange() { selectableView?.tintColor = themeColor("primary") }
+
     override func layoutSubviews() {
         super.layoutSubviews()
         canvas.frame = bounds
@@ -66,6 +68,7 @@ final class NSHTextView: NSHComponentView {
             tv.textContainerInset = .zero
             tv.textContainer.lineFragmentPadding = 0
             tv.layoutManager.usesFontLeading = true
+            tv.tintColor = themeColor("primary")
             tv.frame = bounds
             if let t = canvas.text {
                 tv.attributedText = t.string

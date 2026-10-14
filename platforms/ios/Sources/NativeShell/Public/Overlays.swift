@@ -203,9 +203,9 @@ final class ToastView: UIView {
         layer.borderColor = borderColorToken.resolvedColor(with: traitCollection).cgColor
         switch level {
         case "error": iconView.tintColor = token("destructive")
-        case "success": iconView.tintColor = .systemGreen
-        case "warning": iconView.tintColor = .systemOrange
-        default: iconView.tintColor = .systemBlue
+        case "success": iconView.tintColor = token("success")
+        case "warning": iconView.tintColor = token("warning")
+        default: iconView.tintColor = token("info")
         }
         titleLabel.textColor = token("foreground")
         descriptionLabel.textColor = token("muted_foreground")
