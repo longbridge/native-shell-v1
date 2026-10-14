@@ -159,6 +159,7 @@ The script's props object, verbatim.
 | `RangeChange` | `{"first": 0, "end": 30}` (half-open `[first, end)`, prefetch included, clamped to `[0, ItemCount]`) |
 | `RowHeight` | `{"index", "height"}` |
 | `HostEvent` | `{"name": "select", "payload": …}` |
+| `Hover` | `{"entered": true, "x", "y"}`: the pointer entered (`true`) or left (`false`) the node; pointer platforms only, sent on nodes with the `HOVER` mask bit |
 | `ToastAction` (root node) | `{"id"}`: the toast's action button was tapped; the renderer dismisses that toast |
 
 ## Command payloads
@@ -297,6 +298,21 @@ per-thread paints / TextKit stacks). During layout, a constrained probe
 (`width_mode` 1 or 2) whose width is at least the max-content width is answered
 from that result without another call: the text lays out on the same lines.
 Only texts that actually wrap are measured again at their width.
+
+## Pointer: hover, cursor, tooltip
+
+On platforms with a pointer (macOS, Linux, iPad with a trackpad, Android with
+a mouse) renderers apply three things without a round trip, as they do for
+pressed feedback: `HoverOpacity` / `HoverBackground` while the pointer is over
+the node (`.hover(s => …)`; when pressed too, the pressed values win),
+`Cursor` (a `CursorStyle`, GPUI's set and order: 0 arrow, 1 ibeam,
+2 crosshair, 3 closed hand, 4 open hand, 5 pointing hand, 6–15 the resize
+cursors, 16 vertical ibeam, 17 not allowed, 18 drag link, 19 drag copy,
+20 context menu; fall back to arrow where the platform lacks one) and `Tooltip`
+(plain text shown after the pointer rests on the node, with the platform's
+own tooltip: `NSView.toolTip`, Android `View.tooltipText`, the toolkit's on
+Linux; iOS has none and ignores it). `Hover` events go only to nodes with the
+`HOVER` mask bit. Touch-only platforms ignore all four.
 
 ## Images and shapes
 

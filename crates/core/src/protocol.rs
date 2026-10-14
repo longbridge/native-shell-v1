@@ -265,6 +265,15 @@ closed_enum! {
         HitSlop = 142,
         /// The node may become first responder; carries its tab order.
         Focusable = 143,
+        /// Opacity and background while a pointer is over the node (`.hover(s => …)`),
+        /// applied natively like the pressed ones. Pointer platforms only.
+        HoverOpacity = 144,
+        HoverBackground = 145,
+        /// See [`CursorStyle`]: the pointer's shape over the node. Pointer platforms only.
+        Cursor = 146,
+        /// Text shown after the pointer rests on the node, where the platform has
+        /// tooltips (macOS, Android `View.tooltipText`, Linux); ignored elsewhere.
+        Tooltip = 147,
 
         /// Registered name of a host component. Sent once, right after `Create`.
         HostComponent = 150,
@@ -299,6 +308,33 @@ closed_enum! {
         Menu = 16,
         Alert = 17,
         Search = 18,
+    }
+}
+
+closed_enum! {
+    /// GPUI's `CursorStyle`, in its order.
+    CursorStyle: i32 {
+        Arrow = 0,
+        IBeam = 1,
+        Crosshair = 2,
+        ClosedHand = 3,
+        OpenHand = 4,
+        PointingHand = 5,
+        ResizeLeft = 6,
+        ResizeRight = 7,
+        ResizeLeftRight = 8,
+        ResizeUp = 9,
+        ResizeDown = 10,
+        ResizeUpDown = 11,
+        ResizeUpLeftDownRight = 12,
+        ResizeUpRightDownLeft = 13,
+        ResizeColumn = 14,
+        ResizeRow = 15,
+        IBeamCursorForVerticalLayout = 16,
+        OperationNotAllowed = 17,
+        DragLink = 18,
+        DragCopy = 19,
+        ContextualMenu = 20,
     }
 }
 
@@ -350,12 +386,14 @@ pub mod event_mask {
     pub const PRESS_OUT: u32 = 1 << 16;
     /// Host components: forward every event the component emits.
     pub const HOST_EVENT: u32 = 1 << 17;
+    /// Pointer platforms: entry and exit of the pointer.
+    pub const HOVER: u32 = 1 << 18;
 }
 
 closed_enum! {
     /// Events the renderer sends back, with a JSON payload.
     EventType: u32 {
-        /// `{x, y, count}`
+        /// `{x, y, count, modifiers?: {shift, ctrl, alt, cmd}}`
         Click = 1,
         DoubleClick = 2,
         LongPress = 3,
@@ -393,6 +431,8 @@ closed_enum! {
         HostEvent = 21,
         /// On the root node: the action button of toast `{id}` was tapped (the renderer dismisses it).
         ToastAction = 22,
+        /// The pointer entered (`entered: true`) or left the node: `{entered, x, y}`. Pointer platforms only.
+        Hover = 23,
     }
 }
 
@@ -423,6 +463,7 @@ impl EventType {
             EventType::PressIn => PRESS_IN,
             EventType::PressOut => PRESS_OUT,
             EventType::HostEvent => HOST_EVENT,
+            EventType::Hover => HOVER,
             EventType::RangeChange | EventType::RowHeight | EventType::BackPressed | EventType::ToastAction => 0,
         }
     }
@@ -452,6 +493,7 @@ impl EventType {
             EventType::PressOut => "press_out",
             EventType::HostEvent => "host_event",
             EventType::ToastAction => "toast_action",
+            EventType::Hover => "hover",
         }
     }
 
@@ -816,6 +858,22 @@ pub fn abi_hash() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pointer_additions_follow_gpui() {
+        // Hover has its own mask bit and the script name `on_hover` registers under.
+        assert_eq!(EventType::Hover.mask_bit(), event_mask::HOVER);
+        assert_eq!(EventType::from_script_name("hover"), Some(EventType::Hover));
+        let bits: Vec<u32> = EventType::ALL.iter().map(|e| e.mask_bit()).filter(|b| *b != 0).collect();
+        let unique: std::collections::HashSet<_> = bits.iter().collect();
+        assert_eq!(bits.len(), unique.len(), "every mask bit belongs to one event");
+        // GPUI's CursorStyle, in its declaration order.
+        assert_eq!(CursorStyle::ALL.len(), 21);
+        for (i, c) in CursorStyle::ALL.iter().enumerate() {
+            assert_eq!(*c as i32, i as i32, "{c:?}");
+        }
+        assert_eq!(CursorStyle::from_raw(5), Some(CursorStyle::PointingHand));
+    }
 
     fn sample() -> Vec<Mutation> {
         vec![
