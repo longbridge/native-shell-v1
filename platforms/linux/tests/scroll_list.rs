@@ -194,6 +194,18 @@ fn scrolled(f: &Fixture, test_id: &str) -> gtk::ScrolledWindow {
     first(&f.expect(test_id)).unwrap_or_else(|| panic!("{test_id} has no scrolled window"))
 }
 
+/// Whether every overlay scrollbar of `window` has faded out.
+fn indicators_hidden(window: &gtk::ScrolledWindow) -> bool {
+    let mut child = window.first_child();
+    while let Some(w) = child {
+        if w.is::<gtk::Scrollbar>() && w.is_child_visible() && w.opacity() > 0.0 {
+            return false;
+        }
+        child = w.next_sibling();
+    }
+    true
+}
+
 /// Row views mounted in a list's content.
 fn rows(content: &gtk::Widget) -> usize {
     let mut n = 0;
@@ -251,12 +263,15 @@ fn chat_opens_at_the_newest_message() {
     let at_end = || vadj.value() > 0.0 && vadj.value() == vadj.upper() - vadj.page_size();
     // Its list is bottom-aligned: it opens at the end, with no scrolling to get there.
     assert!(at_end(), "at {} of {} - {}", vadj.value(), vadj.upper(), vadj.page_size());
-    // The map attachment decodes off the main thread; the end stays in view
-    // meanwhile. The wait also lets GTK's overlay indicator, shown by the
-    // initial scroll to the end, fade out of the screenshots.
-    pump_for(Duration::from_millis(4000));
+    // The map attachment decodes off the main thread; the end stays in view meanwhile.
+    let decoded = pump_until(Duration::from_secs(5), || native_shell_gtk::image_loads_in_flight() == 0);
+    assert!(decoded, "the attachment image decodes");
     f.settle();
     assert!(at_end(), "at {} of {} - {}", vadj.value(), vadj.upper(), vadj.page_size());
+    // GTK flashes its overlay indicator when the list scrolls itself to the end; let it fade.
+    let window = scrolled(&f, "messages");
+    let faded = pump_until(Duration::from_secs(5), || indicators_hidden(&window));
+    assert!(faded, "the overlay scroll indicator fades out");
     f.screenshot("screenshots/chat-light.png");
     f.set_dark(true);
     f.screenshot("screenshots/chat-dark.png");
