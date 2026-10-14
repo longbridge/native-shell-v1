@@ -94,7 +94,7 @@ fn events_flow() {
         shot(&f, "booking-tickets", dark);
         f.tap("continue");
         f.tap("continue");
-        f.expect("email-error");
+        f.expect("field-email-error");
         shot(&f, "booking-errors", dark);
         type_into(&f, "name", "Robin Alvarez");
         type_into(&f, "email", "robin@example.org");

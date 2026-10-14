@@ -140,15 +140,15 @@ fn discover_event_booking_and_ticket() {
 
     // Details: validation under each field, Return moves through the form.
     h.tap("continue");
-    assert_eq!(h.text_of("name-error"), "Enter the name on the booking.");
-    assert_eq!(h.text_of("email-error"), "Enter an email address for the tickets.");
+    assert_eq!(h.text_of("field-name-error"), "Enter the name on the booking.");
+    assert_eq!(h.text_of("field-email-error"), "Enter an email address for the tickets.");
     h.type_text("name", "Robin Alvarez");
-    assert!(h.find("name-error").is_none(), "an error clears once fixed");
+    assert!(h.find("field-name-error").is_none(), "an error clears once fixed");
     h.type_text("email", "robin@example");
     h.type_text("phone", "12");
     h.submit("phone");
-    assert_eq!(h.text_of("email-error"), "Enter an email address like name@example.org.");
-    assert!(h.find("phone-error").is_some());
+    assert_eq!(h.text_of("field-email-error"), "Enter an email address like name@example.org.");
+    assert!(h.find("field-phone-error").is_some());
     h.type_text("email", "robin@example.org");
     h.type_text("phone", "");
     h.tap("continue");

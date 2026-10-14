@@ -4,14 +4,14 @@
 // twice. It ends on the ticket.
 
 import { View, div, h_flex, v_flex, shape, Button, Input, InputState, NumberInput, Radio } from "native-shell";
-import { ErrorAlert } from "gpui-component";
+import { ErrorAlert, Field, Form, Stepper, StepperItem } from "gpui-component";
 import { category } from "./catalog.js";
 import { dayDate, formatPrice, formatTime, longDate, relativeDay } from "./dates.js";
 import { pay } from "./service.js";
 import { addTicket, left } from "./store.js";
 import TicketPage from "./ticket.js";
 import { categoryIcon, icon, navBar, primaryButton, section } from "./ui.js";
-import { descriptionList, field, steps } from "./kit.js";
+import { descriptionList } from "./kit.js";
 /** @import { Context } from "native-shell" */
 /** @import { Event, Tier } from "./catalog.js" */
 
@@ -128,6 +128,13 @@ export default class BookingPage extends View {
     cx.notify();
   }
 
+  goTo(index, cx) {
+    if (index >= this.step || this.payment === "paying") return;
+    this.step = index;
+    this.payment = "idle";
+    cx.notify();
+  }
+
   back(cx) {
     if (this.payment === "paying") return;
     if (this.step === 0) {
@@ -194,7 +201,14 @@ export default class BookingPage extends View {
               .pt_4()
               .pb_8()
               .gap_6()
-              .child(steps(cx, "steps", STEPS, this.step))
+              .child(
+                Stepper.new("steps")
+                  .test_id("steps")
+                  .selected_index(this.step)
+                  .items(STEPS.map((label) => StepperItem.new().child(label)))
+                  // Done steps can be revisited; later ones open only through Continue.
+                  .on_change((index, cx) => this.goTo(index, cx)),
+              )
               .child(this.eventSummary(cx))
               .children(this.step === 0 ? this.ticketsStep(cx) : this.step === 1 ? this.detailsStep(cx) : this.reviewStep(cx)),
           ),
@@ -342,13 +356,41 @@ export default class BookingPage extends View {
   }
 
   detailsStep(cx) {
+    const t = cx.theme();
+    /** @param {string} id @param {import("native-shell").InputState} state */
+    const input = (id, state) =>
+      Input.new(state)
+        .test_id(id)
+        .min_h_11()
+        .px_3()
+        .py_2()
+        .rounded_lg()
+        .border_1()
+        .border_color(this.errors[id] ? t.destructive : t.input)
+        .bg(t.surface)
+        .text_base()
+        .text_color(t.foreground);
     return [
-      v_flex()
+      Form.new()
         .test_id("attendee-form")
-        .gap_4()
-        .child(field(cx, { id: "name", label: "Name", state: this.name, error: this.errors.name }))
-        .child(field(cx, { id: "email", label: "Email", state: this.email, error: this.errors.email, help: "Tickets and changes go here." }))
-        .child(field(cx, { id: "phone", label: "Phone", state: this.phone, error: this.errors.phone, help: "Only used if the event changes at short notice." })),
+        .child(Field.new().test_id("field-name").label("Name").required(true).error(this.errors.name).child(input("name", this.name)))
+        .child(
+          Field.new()
+            .test_id("field-email")
+            .label("Email")
+            .required(true)
+            .description("Tickets and changes go here.")
+            .error(this.errors.email)
+            .child(input("email", this.email)),
+        )
+        .child(
+          Field.new()
+            .test_id("field-phone")
+            .label("Phone")
+            .description("Only used if the event changes at short notice.")
+            .error(this.errors.phone)
+            .child(input("phone", this.phone)),
+        ),
     ];
   }
 
