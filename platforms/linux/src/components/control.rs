@@ -18,7 +18,7 @@ use gtk::{gdk, glib, graphene, gsk, pango};
 
 use native_shell_core::host::WidthMode;
 use native_shell_core::protocol::{event_mask, EventType, PropValue};
-use native_shell_core::theme::{Appearance, Theme};
+use native_shell_core::theme::Theme;
 
 use crate::component::{NodeCx, Shared};
 use crate::node_view::{rgba, rounded_rect};
@@ -243,13 +243,14 @@ impl Link {
             .unwrap_or(0xFF00_0000)
     }
 
-    pub fn dark(&self) -> bool {
-        self.shared.upgrade().is_some_and(|s| s.theme.borrow().appearance == Appearance::Dark)
-    }
-
     /// The accent: the node's `TintColor`, else the theme's `primary`.
     pub fn accent(&self) -> u32 {
         self.tint.get().unwrap_or_else(|| self.color("primary"))
+    }
+
+    /// The keyboard focus ring: the theme's `ring`, or a node tint at half strength.
+    pub fn ring(&self) -> u32 {
+        self.tint.get().map_or_else(|| self.color("ring"), |t| fade(t, 0.5))
     }
 }
 
@@ -315,11 +316,11 @@ pub fn fill(snapshot: &gtk::Snapshot, shape: &gsk::RoundedRect, color: u32) {
     snapshot.pop();
 }
 
-/// The keyboard focus ring: a soft accent halo just outside `shape`.
-pub fn focus_ring(snapshot: &gtk::Snapshot, shape: &gsk::RoundedRect, accent: u32) {
+/// The keyboard focus ring: a halo of `color` (`Link::ring`) just outside `shape`.
+pub fn focus_ring(snapshot: &gtk::Snapshot, shape: &gsk::RoundedRect, color: u32) {
     let mut outer = *shape;
     outer.shrink(-3.0, -3.0, -3.0, -3.0);
-    let c = rgba(fade(accent, 0.5));
+    let c = rgba(color);
     snapshot.append_border(&outer, &[3.0; 4], &[c, c, c, c]);
 }
 

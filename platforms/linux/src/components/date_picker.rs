@@ -268,7 +268,7 @@ fn paint_pill(c: &Canvas, snapshot: &gtk::Snapshot, l: &Link, s: &State, i: usiz
     control::draw_text(snapshot, &layout, (w - tw) / 2.0, (h - th) / 2.0);
     snapshot.pop();
     if c.shows_focus() {
-        control::focus_ring(snapshot, &shape, l.accent());
+        control::focus_ring(snapshot, &shape, l.ring());
     }
 }
 

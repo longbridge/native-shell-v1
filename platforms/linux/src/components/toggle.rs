@@ -165,9 +165,9 @@ fn paint_switch(c: &Canvas, snapshot: &gtk::Snapshot, link: &Link, s: &SwitchSta
     let x = (c.width() as f32 - w) / 2.0;
     let y = (c.height() as f32 - h) / 2.0;
     let pos = s.pos.get() as f32;
-    // The on state keeps the system green (the iOS convention) unless the node sets a tint.
-    let on = link.tint.get().unwrap_or(if link.dark() { 0xFF30D158 } else { 0xFF34C759 });
-    let off = link.color("input");
+    // The on state is green (`success`, the iOS system green) unless the node sets a tint.
+    let on = link.tint.get().unwrap_or_else(|| link.color("success"));
+    let off = link.color("secondary");
     let dim = !c.is_sensitive();
     if dim {
         snapshot.push_opacity(control::DISABLED_ALPHA as f64);
@@ -184,7 +184,7 @@ fn paint_switch(c: &Canvas, snapshot: &gtk::Snapshot, link: &Link, s: &SwitchSta
     control::knob_shadow(snapshot, &knob);
     control::fill(snapshot, &knob, 0xFFFFFFFF);
     if c.shows_focus() {
-        control::focus_ring(snapshot, &track, link.accent());
+        control::focus_ring(snapshot, &track, link.ring());
     }
     if dim {
         snapshot.pop();
@@ -299,7 +299,7 @@ fn paint_check(c: &Canvas, snapshot: &gtk::Snapshot, link: &Link, s: &CheckState
     };
     snapshot.pop();
     if c.shows_focus() {
-        control::focus_ring(snapshot, &shape, tint);
+        control::focus_ring(snapshot, &shape, link.ring());
     }
 }
 
