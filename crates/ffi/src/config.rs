@@ -50,6 +50,9 @@ struct RawConfig {
     trusted_keys: Vec<RawKey>,
     #[serde(default)]
     revoked: Vec<String>,
+    /// Pins `Date` (Unix ms) for UI tests and screenshots; see `InstanceConfig::wall_clock`.
+    #[serde(default)]
+    wall_clock: Option<f64>,
 }
 
 #[derive(Deserialize, Default)]
@@ -125,6 +128,7 @@ impl Config {
             environment: raw.environment.unwrap_or_default(),
             dev: raw.dev,
             theme: raw.theme,
+            wall_clock: raw.wall_clock,
         };
         Ok(Config { threading, instance, trusted_keys, revoked: raw.revoked })
     }

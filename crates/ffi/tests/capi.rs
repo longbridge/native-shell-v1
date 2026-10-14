@@ -632,6 +632,19 @@ fn theme_override_changes_rendered_colors() {
 }
 
 #[test]
+fn wall_clock_pins_date() {
+    let dir = tempfile::tempdir().unwrap();
+    let r = Recorder::default();
+    let id = create(&r, &config(dir.path(), NSH_THREAD_CALLER, serde_json::json!({"wall_clock": 1_791_970_860_000u64})));
+    let main = r#"import { View, div } from "native-shell";
+export default class D extends View { render() { return div().child(`now ${new Date().toISOString().slice(0, 13)}`); } }"#;
+    assert_eq!(load_sources(id, main), 0, "{}", last_error());
+    let mut screen = Screen::default();
+    screen.wait(id, true, "the pinned date", |s| s.has_text("now 2026-10-14T09"));
+    nsh_instance_destroy(id);
+}
+
+#[test]
 fn bad_themes_and_reserved_modules_fail_create() {
     let dir = tempfile::tempdir().unwrap();
     let r = Recorder::default();

@@ -165,9 +165,13 @@ pub struct HarnessBuilder {
     data_dir: Option<std::path::PathBuf>,
     dev: bool,
     theme: Option<ThemeConfig>,
+    wall_clock: Option<f64>,
     emulate_ranges: bool,
     host: Arc<FakeHost>,
 }
+
+/// Where the harness pins `Date` by default: 2026-10-14 09:41 UTC.
+pub const WALL_CLOCK: f64 = 1_791_970_860_000.0;
 
 impl HarnessBuilder {
     /// The manifest JSON (otherwise `native-shell.json` from the files, or a default one).
@@ -211,6 +215,12 @@ impl HarnessBuilder {
     /// as a renderer does (on by default). Off, only [`Harness::scroll_list`] reports them.
     pub fn emulate_list_ranges(mut self, on: bool) -> Self {
         self.emulate_ranges = on;
+        self
+    }
+
+    /// Where `Date` starts (Unix ms); [`WALL_CLOCK`] by default, `None` for the system clock.
+    pub fn wall_clock(mut self, at: Option<f64>) -> Self {
+        self.wall_clock = at;
         self
     }
 
@@ -261,6 +271,7 @@ impl HarnessBuilder {
             environment: self.environment,
             dev: self.dev,
             theme: self.theme,
+            wall_clock: self.wall_clock,
         };
         let host: Arc<dyn Host> = self.host.clone();
         let instance = Instance::new(config, host);
@@ -374,6 +385,7 @@ impl Harness {
             data_dir: None,
             dev: false,
             theme: None,
+            wall_clock: Some(WALL_CLOCK),
             emulate_ranges: true,
             host: Arc::new(FakeHost::new()),
         }

@@ -220,6 +220,8 @@ pub(crate) struct Shared {
     pub commands: Vec<PendingCommand>,
     pub timers: Timers,
     pub time: EngineTime,
+    /// Unix time (ms) `Date` starts at when pinned (`InstanceConfig::wall_clock`).
+    pub wall_clock: Option<f64>,
     pub frame_requested: bool,
     pub next_request: u64,
     /// Each list's window as of the last commit or range change; read while rendering.
@@ -250,6 +252,7 @@ impl Shared {
             commands: Vec::new(),
             timers: Timers::default(),
             time: EngineTime::new(clock),
+            wall_clock: None,
             frame_requested: false,
             next_request: 0,
             list_windows: HashMap::new(),
@@ -411,6 +414,12 @@ pub(crate) fn install<'js>(ctx: &Ctx<'js>, shared: &SharedRef) -> rquickjs::Resu
     n.set(
         "now",
         Function::new(ctx.clone(), move |ctx: Ctx<'_>| -> rquickjs::Result<f64> { Ok(borrow(&ctx, &s)?.time.now()) })?,
+    )?;
+
+    let s = shared.clone();
+    n.set(
+        "wall_clock",
+        Function::new(ctx.clone(), move |ctx: Ctx<'_>| -> rquickjs::Result<Option<f64>> { Ok(borrow(&ctx, &s)?.wall_clock) })?,
     )?;
 
     let s = shared.clone();
