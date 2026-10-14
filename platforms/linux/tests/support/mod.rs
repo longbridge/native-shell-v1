@@ -315,6 +315,13 @@ impl Fixture {
         self.settle();
     }
 
+    /// Long-presses the node with `test_id` through GTK ([`long_press_widget`]), then settles.
+    pub fn long_press(&self, test_id: &str) {
+        let widget = self.expect(test_id);
+        assert!(long_press_widget(&widget, self.surface.upcast_ref()), "nothing to long-press at {test_id:?}");
+        self.settle();
+    }
+
     /// Taps the node with `test_id` at the protocol level: sends `Click` to the
     /// nearest node listening for clicks, as the renderer would, then settles.
     /// Prefer [`Fixture::click`]; this one does not exercise the widget's gesture.
@@ -416,10 +423,53 @@ fn has_click(widget: &gtk::Widget) -> bool {
     widget.is::<gtk::Button>() || click_gesture(widget).is_some()
 }
 
+/// The widget's click gesture for the primary button (or any button).
 fn click_gesture(widget: &gtk::Widget) -> Option<gtk::GestureClick> {
-    let controllers = widget.observe_controllers();
-    (0..controllers.n_items()).find_map(|i| controllers.item(i).and_downcast::<gtk::GestureClick>())
+    click_gesture_for(widget, |button| button == gdk::BUTTON_PRIMARY || button == 0)
 }
+
+fn click_gesture_for(widget: &gtk::Widget, button: impl Fn(u32) -> bool) -> Option<gtk::GestureClick> {
+    let controllers = widget.observe_controllers();
+    (0..controllers.n_items())
+        .filter_map(|i| controllers.item(i).and_downcast::<gtk::GestureClick>())
+        .find(|g| button(g.button()))
+}
+
+/// A long press where a finger on `widget`'s center would land: the secondary
+/// click gesture (a desktop's context click) at or above it, up to the
+/// surface, else holding the primary press past the long-press delay.
+/// False when there is no gesture to press.
+pub fn long_press_widget(widget: &gtk::Widget, surface: &gtk::Widget) -> bool {
+    let center = graphene::Point::new(widget.width() as f32 / 2.0, widget.height() as f32 / 2.0);
+    let at = |target: &gtk::Widget| {
+        let p = widget.compute_point(target, &center).unwrap_or(center);
+        (p.x() as f64, p.y() as f64)
+    };
+    let mut current = Some(widget.clone());
+    while let Some(target) = current {
+        if let Some(gesture) = click_gesture_for(&target, |b| b == gdk::BUTTON_SECONDARY) {
+            let (x, y) = at(&target);
+            gesture.emit_by_name::<()>("pressed", &[&1i32, &x, &y]);
+            gesture.emit_by_name::<()>("released", &[&1i32, &x, &y]);
+            return true;
+        }
+        if let Some(gesture) = click_gesture(&target) {
+            let (x, y) = at(&target);
+            gesture.emit_by_name::<()>("pressed", &[&1i32, &x, &y]);
+            pump_for(LONG_PRESS_HOLD);
+            gesture.emit_by_name::<()>("released", &[&1i32, &x, &y]);
+            return true;
+        }
+        if &target == surface {
+            break;
+        }
+        current = target.parent();
+    }
+    false
+}
+
+/// Longer than the renderer's 500 ms long-press delay.
+const LONG_PRESS_HOLD: Duration = Duration::from_millis(650);
 
 /// The first clickable widget inside `node`'s content, skipping child nodes.
 fn content_target(node: &gtk::Widget) -> Option<gtk::Widget> {

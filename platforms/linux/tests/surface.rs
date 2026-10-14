@@ -15,6 +15,7 @@ fn main() -> ExitCode {
         ("timers pause while the surface is hidden", timers_pause_while_the_surface_is_hidden),
         ("the frame clock runs at full rate", the_frame_clock_runs_at_full_rate),
         ("the clipboard round-trips", the_clipboard_round_trips),
+        ("click and long press reach the right gesture", click_and_long_press_reach_the_right_gesture),
     ])
 }
 
@@ -130,4 +131,27 @@ export default class App extends View {
     clipboard.read_text_async(None::<&gtk::gio::Cancellable>, move |r| *slot.borrow_mut() = r.ok().flatten().map(|s| s.to_string()));
     pump_until(Duration::from_secs(2), || text.borrow().is_some());
     assert_eq!(text.borrow().as_deref(), Some("Gate code 4521"), "the desktop clipboard has it too");
+}
+
+/// A row with both a click and a long press (a secondary click on desktops):
+/// the click helper must not take the secondary-button gesture.
+fn click_and_long_press_reach_the_right_gesture() {
+    let f = Fixture::new(
+        r#"
+import { View, div } from "native-shell";
+export default class App extends View {
+  init() { this.log = []; }
+  render() {
+    return div().size_full()
+      .child(div().test_id("row").h(44)
+        .on_click((_e, cx) => { this.log.push("click"); cx.notify(); })
+        .on_long_press((_e, cx) => { this.log.push("long"); cx.notify(); }))
+      .child(div().test_id(`log-${this.log.join("-")}`).h(10));
+  }
+}"#,
+    );
+    f.click("row");
+    f.expect("log-click");
+    f.long_press("row");
+    f.expect("log-click-long");
 }
