@@ -248,11 +248,15 @@ fn chat_opens_at_the_newest_message() {
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/chat");
     let f = Fixture::start_with(&example_runtime(), native_shell_gtk::InstanceOptions::default(), |i| i.load_dir(&dir));
     let vadj = scrolled(&f, "messages").vadjustment();
-    let at_end = pump_until(Duration::from_secs(2), || {
-        f.settle();
-        vadj.value() > 0.0 && vadj.value() == vadj.upper() - vadj.page_size()
-    });
-    assert!(at_end, "at {} of {} - {}", vadj.value(), vadj.upper(), vadj.page_size());
+    let at_end = || vadj.value() > 0.0 && vadj.value() == vadj.upper() - vadj.page_size();
+    // Its list is bottom-aligned: it opens at the end, with no scrolling to get there.
+    assert!(at_end(), "at {} of {} - {}", vadj.value(), vadj.upper(), vadj.page_size());
+    // The map attachment decodes off the main thread; the end stays in view
+    // meanwhile. The wait also lets GTK's overlay indicator, shown by the
+    // initial scroll to the end, fade out of the screenshots.
+    pump_for(Duration::from_millis(4000));
+    f.settle();
+    assert!(at_end(), "at {} of {} - {}", vadj.value(), vadj.upper(), vadj.page_size());
     f.screenshot("screenshots/chat-light.png");
     f.set_dark(true);
     f.screenshot("screenshots/chat-dark.png");

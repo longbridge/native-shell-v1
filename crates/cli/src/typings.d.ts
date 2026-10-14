@@ -1206,14 +1206,541 @@ declare module "gpui-component" {
   export interface TitleBar extends Element {}
 
   // --- feedback (crates/engine/js/gpui_component/feedback.js) ---
+  type FeedbackSize = "xsmall" | "small" | "medium" | "large";
+  type FeedbackClick = (event: import("native-shell").ClickEvent, cx: import("native-shell").Context) => void;
+  /** A gpui-shell constructor: `X.new(...)` or `new X(...)`. */
+  type Constructor<A extends unknown[], E> = { new (...args: A): E; new: (...args: A) => E };
+
+  export interface AlertElement extends Element {
+    /** Sets the alert title. */
+    title(title: string): this;
+    /** Uses the full-width banner presentation. */
+    banner(): this;
+    /** Controls whether the alert is rendered. */
+    visible(visible: boolean): this;
+    /** Sets the alert's semantic size. */
+    size(size: FeedbackSize): this;
+    /** gpui-component's `Alert::icon`: an element in place of the variant's glyph. */
+    icon(icon: Element): this;
+    /** gpui-component's `Alert::on_close`: a dismiss button that calls the handler. */
+    on_close(handler: FeedbackClick): this;
+  }
+  /** A message banner with semantic default, info, success, warning, and error constructors. */
+  export const Alert: Constructor<[id: string, message: string], AlertElement>;
+  export const InfoAlert: Constructor<[id: string, message: string], AlertElement>;
+  export const SuccessAlert: Constructor<[id: string, message: string], AlertElement>;
+  export const WarningAlert: Constructor<[id: string, message: string], AlertElement>;
+  export const ErrorAlert: Constructor<[id: string, message: string], AlertElement>;
+
+  export interface BadgeElement extends Element {
+    /** Displays a dot instead of a numeric count. */
+    dot(): this;
+    /** Sets the displayed count; zero hides a numeric badge. */
+    count(count: number): this;
+    /** Sets the largest count displayed before the plus suffix. */
+    max(max: number): this;
+    /** Sets the badge background from a theme token or a color literal. */
+    color(color: import("native-shell").Color): this;
+    /** Sets the semantic component size. */
+    size(size: FeedbackSize): this;
+  }
+  /** A count or dot badge positioned over its ordinary children. */
+  export const Badge: Constructor<[], BadgeElement>;
+
+  export interface TagElement extends Element {
+    /** Sets the semantic tag variant. */
+    variant(variant: "primary" | "secondary" | "danger" | "success" | "warning" | "info"): this;
+    /** Uses the outline presentation. */
+    outline(): this;
+    /** Uses pill-shaped corners. */
+    rounded_full(): this;
+    /** Sets the semantic component size. */
+    size(size: FeedbackSize): this;
+    /** Mobile: a trailing dismiss button, for a removable tag. */
+    on_close(handler: FeedbackClick): this;
+  }
+  /** A compact semantic status tag that renders ordinary children. */
+  export const Tag: Constructor<[], TagElement>;
+
+  export interface SkeletonElement extends Element {
+    /** Uses the secondary skeleton color. */
+    secondary(): this;
+  }
+  /** A still loading placeholder, hidden from assistive technology. */
+  export const Skeleton: Constructor<[], SkeletonElement>;
+
+  export interface EmptyElement extends Element {
+    /** The header part, placed first. */
+    header(header: EmptyHeaderElement): this;
+    /** The content part, placed after the header. */
+    content(content: EmptyContentElement): this;
+  }
+  export interface EmptyHeaderElement extends Element {
+    /** Sets an EmptyMedia, replacing the previous media. */
+    media(media: EmptyMediaElement): this;
+    /** Sets an EmptyTitle, replacing the previous title. */
+    title(title: EmptyTitleElement): this;
+    /** Sets an EmptyDescription, replacing the previous description. */
+    description(description: EmptyDescriptionElement): this;
+  }
+  export interface EmptyMediaElement extends Element {
+    /** Sets the unframed default treatment or a muted icon frame. */
+    variant(variant: "default" | "icon"): this;
+  }
+  export interface EmptyTitleElement extends Element {}
+  export interface EmptyDescriptionElement extends Element {}
+  export interface EmptyContentElement extends Element {}
+  /** A stateless empty state. Ordinary children follow the header and content slots. */
+  export const Empty: Constructor<[], EmptyElement>;
+  /** An independently styled header. Accepts only named media, title, and description slots, in that order. */
+  export const EmptyHeader: Constructor<[], EmptyHeaderElement>;
+  /** A centered media part accepting arbitrary children such as an icon, avatar, or image. */
+  export const EmptyMedia: Constructor<[], EmptyMediaElement>;
+  /** An independently styled title with arbitrary children. */
+  export const EmptyTitle: Constructor<[], EmptyTitleElement>;
+  /** An independently styled, wrapping description with arbitrary children. */
+  export const EmptyDescription: Constructor<[], EmptyDescriptionElement>;
+  /** An independently styled content column for application-owned controls and actions. */
+  export const EmptyContent: Constructor<[], EmptyContentElement>;
+
+  export interface LabelElement extends Element {
+    /** Adds muted secondary text. */
+    secondary(secondary: string): this;
+    /** Controls whether the main text is masked. */
+    masked(masked: boolean): this;
+    /** Highlights matching text fragments. */
+    highlights(highlights: string): this;
+  }
+  /** A text label with optional secondary, masking, and highlight presentation. */
+  export const Label: Constructor<[text: string], LabelElement>;
+
+  export interface KbdElement extends Element {
+    /** Controls whether the keystroke uses keycap presentation. */
+    appearance(appearance: boolean): this;
+    /** Uses the outlined keycap presentation. */
+    outline(): this;
+  }
+  /** A platform-formatted keyboard shortcut keycap. */
+  export const Kbd: Constructor<[keystroke: string], KbdElement>;
+
+  export interface SeparatorElement extends Element {
+    /** Displays text centered over the separator line. */
+    label(label: string): this;
+    /** Sets the separator line color. */
+    color(color: import("native-shell").Color): this;
+    /** Uses a dashed separator line. */
+    dashed(): this;
+  }
+  /** A horizontal or vertical, solid or dashed separator. */
+  export const Separator: Constructor<[], SeparatorElement>;
+  export const VerticalSeparator: Constructor<[], SeparatorElement>;
+  export const DashedSeparator: Constructor<[], SeparatorElement>;
+  export const VerticalDashedSeparator: Constructor<[], SeparatorElement>;
+
+  export interface ShimmerTextElement extends Element {
+    /** Sets an explicit stable animation identity. */
+    id(id: string): this;
+    /** Sets one shimmer sweep duration in milliseconds. Mobile: kept; the text holds still. */
+    duration_ms(duration_ms: number): this;
+    /** Sets the relative highlight half-width. */
+    spread(spread: number): this;
+    /** Reverses the shimmer direction. */
+    reverse(reverse: boolean): this;
+    /** Runs one sweep instead of looping. */
+    once(once: boolean): this;
+  }
+  /** Loading text in the secondary label color, announced as busy. */
+  export const ShimmerText: Constructor<[text: string], ShimmerTextElement>;
+
+  export interface NotificationElement extends Element {
+    title(text: string): this;
+    message(text: string): this;
+    type(type: "info" | "success" | "warning" | "error"): this;
+    /** Mobile: the toast's *View* action. */
+    on_click(callback: (cx: import("native-shell").Context) => void): this;
+    /** Runs when the toast expires or its action is tapped. */
+    on_close(callback: (cx: import("native-shell").Context) => void): this;
+    autohide(value: boolean): this;
+  }
+  /** A button that shows a notification (a toast on a phone); on_effect_error receives failures. */
+  export const Notification: Constructor<
+    [id: string, label: string, on_effect_error: (message: string, cx: import("native-shell").Context) => void],
+    NotificationElement
+  >;
 
   // --- forms (crates/engine/js/gpui_component/forms.js) ---
+  type FormSize = "xsmall" | "small" | "medium" | "large";
+  type FormContext = import("native-shell").Context;
+  type FormConstructor<A extends unknown[], E> = { new (...args: A): E; new: (...args: A) => E };
+
+  export interface FormElement extends Element {
+    /** Sets the form grid's column count. */
+    columns(columns: number): this;
+    /** Sets the horizontal form label width in pixels. */
+    label_width(width: number): this;
+    /** Sets the form density. */
+    size(size: FormSize): this;
+  }
+  /**
+   * A vertical or horizontal form accepting Field children. Mobile: a vertical
+   * form stacks labels above controls; a horizontal one is an inset grouped
+   * list whose rows put the label beside the control.
+   */
+  export const Form: FormConstructor<[], FormElement>;
+  export const VForm: FormConstructor<[], FormElement>;
+  export const HForm: FormConstructor<[], FormElement>;
+
+  export interface FieldElement extends Element {
+    /** Sets the field label. */
+    label(label: string): this;
+    /** Sets supporting text below the control. */
+    description(description: string): this;
+    /** Mobile: why the value was refused, shown (as an alert) in place of the description. */
+    error(message: string | null): this;
+    /** Marks the field as required. */
+    required(required: boolean): this;
+    /** Controls field visibility. */
+    visible(visible: boolean): this;
+    /** Keeps unlabeled horizontal fields aligned with labeled fields. */
+    label_indent(label_indent: boolean): this;
+    /** Aligns the label and control within the field. */
+    align(align: "start" | "center" | "end"): this;
+    /** Sets the field's grid-column span. */
+    col_span(span: number): this;
+  }
+  /** A typed form field containing ordinary control children. */
+  export const Field: FormConstructor<[], FieldElement>;
+
+  export interface InputGroupElement extends Element {
+    /** Sets the group's text control (an InputGroupInput or InputGroupTextarea). */
+    input(input: InputGroupInputElement | InputGroupTextareaElement): this;
+    /** Appends an InputGroupAddon at its logical side. */
+    addon(addon: InputGroupAddonElement): this;
+    /** Disables the field and the addons' direct InputGroupButton children. */
+    disabled(disabled: boolean): this;
+    /** Prevents text edits while leaving addon actions available. */
+    readonly(readonly: boolean): this;
+    /** Displays the caller's validation result without rejecting input. */
+    invalid(invalid: boolean): this;
+    /** Accepted; the platform draws its own focus. */
+    focus_ring(focus_ring: boolean): this;
+    /** Names the group independently of its text control. */
+    aria_label(label: string): this;
+    /** Sets the group's semantic control size. */
+    size(size: FormSize): this;
+  }
+  /** A themed frame around one text control and any number of addons. */
+  export const InputGroup: FormConstructor<[id: string], InputGroupElement>;
+
+  type InputContentType =
+    | "name" | "name_prefix" | "given_name" | "middle_name" | "family_name" | "name_suffix" | "nickname"
+    | "job_title" | "organization_name" | "location" | "full_street_address" | "street_address_line1"
+    | "street_address_line2" | "address_city" | "address_state" | "address_city_and_state" | "sublocality"
+    | "country_name" | "postal_code" | "telephone_number" | "email_address" | "url" | "credit_card_number"
+    | "credit_card_name" | "credit_card_given_name" | "credit_card_middle_name" | "credit_card_family_name"
+    | "credit_card_security_code" | "credit_card_expiration" | "credit_card_expiration_month"
+    | "credit_card_expiration_year" | "credit_card_type" | "username" | "password" | "new_password"
+    | "one_time_code" | "shipment_tracking_number" | "flight_number" | "date_time" | "birthdate"
+    | "birthdate_day" | "birthdate_month" | "birthdate_year" | "cellular_eid" | "cellular_imei";
+
+  interface InputGroupControlElement extends Element {
+    /** Controls whether this component accepts interaction. */
+    disabled(disabled: boolean): this;
+    /** Prevents edits while preserving selection and copying. */
+    readonly(readonly: boolean): this;
+    /** Names the text control for accessibility. */
+    aria_label(label: string): this;
+    /** Sets the developer-assigned accessibility identifier. */
+    accessibility_id(id: string): this;
+    /** Controls the retained text; programmatic changes do not emit on_change. */
+    value(value: string): this;
+    /** Sets the empty-value prompt on the retained state. */
+    placeholder(placeholder: string): this;
+    /** Reports edits from the retained input. */
+    on_change(handler: (value: string, cx: FormContext) => void): this;
+  }
+  export interface InputGroupInputElement extends InputGroupControlElement {
+    /** Controls password masking. */
+    masked(masked: boolean): this;
+    /** Sets the native content type; names follow InputContentType in snake_case. */
+    content_type(content_type: InputContentType): this;
+  }
+  export interface InputGroupTextareaElement extends InputGroupControlElement {
+    /** Sets a fixed row count. */
+    rows(rows: number): this;
+    /** Grows the native textarea between the minimum and maximum row counts. */
+    auto_grow(min_rows: number, max_rows: number): this;
+  }
+  /** An unframed single-line input using an InputState. */
+  export const InputGroupInput: FormConstructor<[state: import("native-shell").InputState], InputGroupInputElement>;
+  /** An unframed multiline input using a TextareaState. */
+  export const InputGroupTextarea: FormConstructor<[state: import("native-shell").TextareaState], InputGroupTextareaElement>;
+
+  export interface InputGroupAddonElement extends Element {
+    /** Places the addon relative to the control; default is inline-start. */
+    align(align: "inline-start" | "inline-end" | "block-start" | "block-end"): this;
+  }
+  /** An aligned addon; a tap on its text or empty space focuses the field. */
+  export const InputGroupAddon: FormConstructor<[id: string], InputGroupAddonElement>;
+
+  export interface InputGroupButtonElement extends Element {
+    /** Controls whether this component accepts interaction. */
+    disabled(disabled: boolean): this;
+    /** Sets the visible label. */
+    label(label: string): this;
+    /** Sets the icon path in the application's asset bundle. */
+    icon(path: string): this;
+    /** Names an icon-only action. */
+    aria_label(label: string): this;
+    /** Displays progress and prevents duplicate activation. */
+    loading(loading: boolean): this;
+    /** Uses the outlined button treatment. */
+    outline(): this;
+    /** Sets the button size; xsmall and small are the compact input-group sizes. */
+    size(size: FormSize): this;
+    /** Selects a semantic button variant. */
+    variant(variant: "default" | "primary" | "secondary" | "danger" | "warning" | "success" | "info" | "ghost" | "link" | "text"): this;
+  }
+  /** A compact button inside an input group: tinted text or an icon, 44 pt to tap. */
+  export const InputGroupButton: FormConstructor<[id: string], InputGroupButtonElement>;
+  /** Muted text or rich helper content inside an input group. */
+  export const InputGroupText: FormConstructor<[], Element>;
+
+  export interface RatingElement extends Element {
+    /** Controls whether this component accepts interaction; a disabled rating is a read-only display. */
+    disabled(disabled: boolean): this;
+    /** Sets the current number of active stars. Mobile: halves (4.5) for a read-only average. */
+    value(value: number): this;
+    /** Sets the maximum number of stars. */
+    max(max: number): this;
+    /** Reports the star the reader chose, so the script can drive `value`. */
+    on_change(handler: (value: number, cx: FormContext) => void): this;
+    /** Sets the active star color. */
+    color(color: import("native-shell").Color): this;
+    /** Sets the rating's semantic size. */
+    size(size: FormSize): this;
+  }
+  /** An interactive star rating with configurable value and maximum. */
+  export const Rating: FormConstructor<[id: string], RatingElement>;
+
+  export interface StepperItemElement extends Element {
+    /** Disables this step independently of its parent. */
+    disabled(disabled: boolean): this;
+    /** Mobile (gpui-component's Rust API): an asset icon in place of the step number. */
+    icon(path: string): this;
+  }
+  /** A step part accepted only as a direct Stepper child. */
+  export const StepperItem: FormConstructor<[], StepperItemElement>;
+
+  export interface StepperElement extends Element {
+    /** Controls the current zero-based step. */
+    selected_index(index: number): this;
+    /** Switches between vertical and horizontal layout. */
+    vertical(vertical: boolean): this;
+    /** Centers each step's text in horizontal layouts. */
+    text_center(text_center: boolean): this;
+    /** Disables every step. */
+    disabled(disabled: boolean): this;
+    /** Sets the stepper's semantic size. */
+    size(size: FormSize): this;
+    /** Reports the newly selected zero-based index. */
+    on_change(handler: (index: number, cx: FormContext) => void): this;
+    /** gpui-component's Rust spelling: adds steps. */
+    items(items: StepperItemElement[]): this;
+    item(item: StepperItemElement): this;
+  }
+  /** A typed progress stepper accepting only StepperItem children. */
+  export const Stepper: FormConstructor<[id: string], StepperElement>;
+
+  export interface TimeFieldStateOptions {
+    /** `"HH:MM"` or `"HH:MM:SS"`; the field starts at 00:00 without one. */
+    value?: string;
+    precision?: "minute" | "second";
+    /** Mobile: the platform's picker follows the user's 12/24-hour setting. */
+    hour_cycle?: "h24" | "h12";
+  }
+  /** Retained time-of-day editing state. Create it in `init` or an event handler. */
+  export class TimeFieldState {
+    static new(options?: TimeFieldStateOptions): TimeFieldState;
+    constructor(options?: TimeFieldStateOptions);
+    /** `"HH:MM"` (`"HH:MM:SS"` with second precision). */
+    value(): string;
+    /** Replaces the time without reporting a change. */
+    set_value(time: string): void;
+    hour_cycle(): "h24" | "h12";
+    /** `change` on every edit, with the new time. */
+    on(event: "change", handler: (time: string, cx: FormContext) => void): boolean;
+    release(): boolean;
+  }
+  export interface TimeFieldElement extends Element {
+    /** Controls whether this component accepts interaction. */
+    disabled(disabled: boolean): this;
+    /** Mobile (gpui-component's Rust API): shows the script's validation result. */
+    invalid(invalid: boolean): this;
+  }
+  /** The platform's time picker bound to a TimeFieldState. */
+  export const TimeField: FormConstructor<[state: TimeFieldState], TimeFieldElement>;
+
+  export interface ClipboardElement extends Element {
+    /** Sets the text copied when the button is pressed. */
+    value(value: string): this;
+    /** Mobile (gpui-component's Rust API): computes the text when the button is pressed. */
+    value_fn(fn: (cx: FormContext) => string): this;
+    /** Mobile (gpui-component's Rust API): called once the text is on the clipboard. */
+    on_copied(handler: (value: string, cx: FormContext) => void): this;
+  }
+  /**
+   * A button that copies a configured string to the system clipboard (needs
+   * `capabilities.clipboard.write`), then shows a check unless the platform
+   * confirms copies itself.
+   */
+  export const Clipboard: FormConstructor<[id: string], ClipboardElement>;
+
+  /** Retained color selection: `"#RRGGBB"` or `null`. Create it in `init` or an event handler. */
+  export class ColorPickerState {
+    static new(options?: { value?: string | null }): ColorPickerState;
+    constructor(options?: { value?: string | null });
+    value(): string | null;
+    /** Replaces the color without reporting a change. */
+    set_value(color: string | null): void;
+    /** `change` when the reader picks or types a color. */
+    on(event: "change", handler: (color: string, cx: FormContext) => void): boolean;
+    release(): boolean;
+  }
+  export interface ColorPickerElement extends Element {
+    /** Sets the visible label above the picker. */
+    label(label: string): this;
+    /** Sets the announced name independently of the visible label. */
+    accessibility_label(label: string): this;
+    /** Mobile (gpui-component's Rust API): the colors offered first, as `"#RRGGBB"`. */
+    featured_colors(colors: string[]): this;
+    /** Mobile (gpui-component's Rust API): an asset icon, drawn in the chosen color, in place of the swatch. */
+    icon(path: string): this;
+    disabled(disabled: boolean): this;
+    size(size: FormSize): this;
+    /** Accepted; the picker is a sheet on a phone. */
+    anchor(anchor: string): this;
+  }
+  /** A swatch that opens a sheet of colors, a palette and a hex field. */
+  export const ColorPicker: FormConstructor<[state: ColorPickerState], ColorPickerElement>;
 
   // --- data (crates/engine/js/gpui_component/data.js) ---
 
   // --- charts (crates/engine/js/gpui_component/charts.js) ---
 
   // --- chat (crates/engine/js/gpui_component/chat.js) ---
+  type ChatHandler = (event: import("native-shell").ClickEvent, cx: import("native-shell").Context) => void;
+  export type MessageAlignment = "start" | "end";
+  export type BubbleVariant = "filled" | "secondary" | "muted" | "tinted" | "outline" | "ghost" | "destructive";
+  export type MarkerVariant = "plain" | "separator" | "border";
+  export type MarkerAlignment = "start" | "center" | "end";
+  export type MarkerLoadingStyle = "spinner" | "shimmer";
+  export type AttachmentStatus = "pending" | "uploading" | "processing" | "failed" | "complete";
+  export type AttachmentAxis = "horizontal" | "vertical";
+  export type AttachmentSize = "xsmall" | "small" | "medium" | "large";
+
+  /** A message row. Ordinary children are composed into its content slot. */
+  export class Message {
+    constructor();
+    /** Sets the sender-edge alignment. */
+    alignment(value: MessageAlignment): this;
+    /** Mobile: the sender's picture, level with the last bubble. */
+    avatar(el: Element): this;
+    /** Mobile: metadata above the content (sender, time). */
+    header(content: Element | string): this;
+    /** Mobile: a line under the row (delivery state, a failure and its retry). */
+    footer(content: Element | string): this;
+  }
+  export interface Message extends Element {}
+
+  /** A message bubble whose ordinary children form its visible content. */
+  export class Bubble {
+    constructor();
+    /** Sets the message-edge alignment; inside a `Message`, the message's applies when unset. */
+    alignment(value: MessageAlignment): this;
+    /** Sets the semantic bubble treatment. */
+    variant(value: BubbleVariant): this;
+    /** Mobile: the last bubble of a burst, its corner toward the sender tightened. */
+    tail(value?: boolean): this;
+  }
+  export interface Bubble extends Element {}
+
+  /** A compact conversation status marker with composable children. */
+  export class Marker {
+    constructor(id: string);
+    /** Sets the marker treatment. */
+    variant(value: MarkerVariant): this;
+    /** Mobile: where the content sits in the row (a separator keeps the line on the far side). */
+    alignment(value: MarkerAlignment): this;
+    /** Sets whether the marker displays a loading treatment. */
+    loading(value?: boolean): this;
+    /** Sets the loading treatment. */
+    loading_style(value: MarkerLoadingStyle): this;
+  }
+  export interface Marker extends Element {}
+
+  /** A file or image attachment. Ordinary children are composed into its metadata content slot. */
+  export class Attachment {
+    constructor(id: string);
+    /** Sets the attachment lifecycle status. */
+    status(value: AttachmentStatus): this;
+    /** Sets the layout axis: a chip, or a vertical tile with a square preview. */
+    axis(value: AttachmentAxis): this;
+    /** Sets the semantic attachment size; a number or length is the `size` style, as on any element. */
+    size(value: AttachmentSize | import("native-shell").Length): this;
+    /** Mobile: the preview, an icon or an `image(src)` that fills the media area. */
+    media(el: Element): this;
+    /** Mobile: the file name. */
+    title(text: string): this;
+    /** Mobile: kind and size; red once failed, the percentage appended while uploading. */
+    description(text: string): this;
+    /** Mobile: upload progress, 0 to 100, drawn while uploading. */
+    progress(percent: number): this;
+    /** Mobile: a Remove control on the attachment. */
+    on_remove(handler: ChatHandler): this;
+    /** Mobile: a Retry control once failed. */
+    on_retry(handler: ChatHandler): this;
+  }
+  export interface Attachment extends Element {}
+
+  /** Retained scroll state for a `MessageScroller`: the row count and whether the reader follows the end. */
+  export interface MessageScrollerState {
+    item_count(): number;
+    is_scrolled_up(): boolean;
+    is_following_tail(): boolean;
+    /** Replaces the row count and returns to the latest row. */
+    reset(item_count: number): void;
+    /** Replaces rows `[start, end)` with `count` rows; false when the range is outside the list. */
+    splice(start: number, end: number, count: number): boolean;
+    append(count: number): boolean;
+    /** Older rows above; the reader's position is kept. */
+    prepend(count: number): boolean;
+    remeasure(): void;
+    remeasure_items(start: number, end: number): boolean;
+    scroll_to_item(index: number): boolean;
+    /** Back to the latest row, following it again. */
+    scroll_to_end(): void;
+  }
+  /** Retained virtual-list and tail-following state for a message transcript; create it in `init`. */
+  export function MessageScrollerState(item_count: number): MessageScrollerState;
+
+  /**
+   * A virtualized message transcript: opens at its end, keeps the newest row in
+   * view, and offers a jump-to-latest button once scrolled away. A row's
+   * `.key()` keeps its identity when history is prepended; `.test_id()` names the list.
+   */
+  export class MessageScroller {
+    constructor(id: string, state: MessageScrollerState, render_item: (index: number) => Element | null);
+    /** Accepted: native lists draw their own scroll indicator. */
+    scrollbar(value: boolean): this;
+    /** Enables the jump-to-latest button (on by default). */
+    jump_button(value: boolean): this;
+    /** Sets the jump-to-latest button label (its accessibility label). */
+    jump_button_label(label: string): this;
+    /** Mobile: the row height assumed before a row is measured. */
+    estimated_row_height(px: number): this;
+  }
+  export interface MessageScroller extends Element {}
 }
 
 declare module "fs/promises" {
