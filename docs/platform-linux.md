@@ -123,28 +123,43 @@ dev mode; `load_dir`, `load_sources` or `load_bundle` load a program and
 `SurfaceView::attach` renders it. `Instance::connect_error` reports
 unrecoverable failures; the surface shows the engine's error page or banner.
 
-## Hot reload with `nshell dev`
+## Hot reload
 
-`nshell dev <dir>` serves a program over HTTP and prints the command to run
-it on Linux. `DevClient::connect(url, runtime)` is the client:
+`DevClient` runs a program and reloads it in place whenever its files change,
+from one of two sources:
 
-* `cargo run --example run -- --dev http://HOST:PORT`, or the launcher's
-  `--dev` flag and its "Connect to Dev Server" row.
-* It fetches `/bundle` and runs the program in dev mode; a background thread
-  long-polls `/version`, and on every change the program is reloaded in
-  place: a new instance on a fresh `SurfaceView` in the same container, so
+* A local directory: `cargo linux-run examples/tasks --watch` (from the
+  repository root; relative paths resolve from the current directory, and a
+  directory without `native-shell.json` is refused with a clear message), or
+  `DevClient::watch(dir, runtime)`. The directory is polled every 250 ms and a
+  change is published once the files have been quiet for 200 ms, as
+  `nshell dev` does, so saving several files reloads once. No server or second
+  terminal is needed.
+* `nshell dev <dir>`, which serves a program over HTTP (for another machine)
+  and prints the command to run it on Linux:
+  `cargo linux-run --dev http://HOST:PORT`, the launcher's `--dev` flag or its
+  "Connect to Dev Server" row, or `DevClient::connect(url, runtime)`.
+
+Both work the same way:
+
+* The program runs in dev mode; a background thread watches the directory or
+  long-polls the server's `/version`, and on every change the program is
+  reloaded in place: a new instance on a fresh `SurfaceView` in the same container, so
   the window stays (program state starts over).
-* An error the server reports (the program cannot be read), a malformed
-  bundle or an unreachable server is shown as the engine's error page; the
+* A program that cannot be read (a malformed manifest, an error the server
+  reports, a malformed bundle) or an unreachable server is shown as the
+  engine's error page; the
   next good version replaces it, and an unreachable server is retried every
   second.
-* Script and renderer logs go to the server (`POST /log`, printed there as
-  `[device <level>] …`) as well as to stderr; this replaces the runtime's
-  logger.
+* With a server, script and renderer logs go to it (`POST /log`, printed
+  there as `[device <level>] …`) as well as to stderr; this replaces the
+  runtime's logger.
 
-`tests/dev.rs` runs the client against a small in-process server with the
-same endpoints: load, reload in place, error page until fixed, unreachable
-server, forwarded logs.
+`tests/dev.rs` covers both: a small in-process server with the same endpoints
+(load, reload in place, error page until fixed, unreachable server, forwarded
+logs) and a watched temporary directory (reload on save, one reload for a
+multi-file save, a broken manifest and its fix, a directory that is not a
+program).
 
 ## Testing
 

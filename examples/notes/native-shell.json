@@ -1,0 +1,8 @@
+{
+  "id": "dev.native-shell.notes",
+  "name": "Notes",
+  "version": "1.0.0",
+  "entry": "main.js",
+  "description": "Folders of Markdown notes with checklists, tags, search across everything, and undo.",
+  "capabilities": { "fs": true, "clipboard": { "write": true } }
+}

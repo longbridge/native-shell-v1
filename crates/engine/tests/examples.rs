@@ -212,46 +212,125 @@ fn settings_toggles_pickers_account_and_confirmations() {
 
 // Chat ----------------------------------------------------------------------
 
+/// The thread's row count, as the list reports it.
+fn item_count(h: &Harness, list: &str) -> i32 {
+    match h.prop(list, Prop::ItemCount) {
+        Some(PropValue::I32(n)) => n,
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
+fn chat_opens_at_the_newest_messages_with_markers_and_attachments() {
+    let h = started(build("chat"));
+    // A bottom-aligned list: the thread opens at its end and keeps the end in view.
+    assert_eq!(h.view_type("messages"), ViewType::List);
+    assert_eq!(h.prop("messages", Prop::ListAlignment), Some(PropValue::I32(1)));
+    // Day labels and the unread line.
+    assert!(h.find_text("Today").is_some(), "{}", h.dump());
+    assert!(h.find_text("3 unread messages").is_some());
+    // Maya's photo is an image tile; her PDF a file chip with its name and size.
+    assert!(h.find("attachment-m11").is_some());
+    assert!(!h.nodes_of(ViewType::Image).is_empty());
+    assert!(h.find_text("trail-conditions.pdf").is_some() && h.find_text("PDF · 380 KB").is_some());
+    // The long message wraps inside its bubble, which stops short of the edge.
+    assert!(h.frame("bubble-m10").width < 390.0 * 0.8 + 0.5 && h.frame("bubble-m10").height > 60.0);
+    // Your latest message did not go out.
+    assert!(h.find("failed-m9").is_some());
+    assert_clean(&h);
+}
+
 #[test]
 fn chat_sends_retries_loads_history_and_deletes_with_undo() {
     let mut h = started(build("chat"));
-    assert_eq!(h.view_type("messages"), ViewType::List);
-    assert!(h.find("failed-m8").is_some());
+    let rows = item_count(&h, "messages");
 
-    // Return sends; delivery is confirmed after the round trip.
+    // Return sends; delivery is confirmed after the round trip, and the thread goes to its end.
     assert!(disabled(&h, "send"));
     h.type_text("draft", "See you at the station");
+    h.clear_commands();
     h.submit("draft");
     assert_eq!(h.native_input("draft").text, "");
     assert_eq!(h.text_of("delivery"), "Sending…");
+    assert_eq!(item_count(&h, "messages"), rows + 1);
+    let last = format!(r#""index":{}"#, rows);
+    assert!(h.commands().iter().any(|(_, c, p)| *c == Command::ScrollToIndex && p.contains(&last)), "{:?}", h.commands());
     h.advance(800.0);
     assert_eq!(h.text_of("delivery"), "Delivered");
 
     // A failed message can be sent again.
-    h.tap("retry-m8");
-    assert!(h.find("failed-m8").is_none());
+    h.tap("retry-m9");
+    assert!(h.find("failed-m9").is_none());
     h.advance(800.0);
 
-    // Older messages load on request, then the start of the conversation is marked.
+    // Older messages load on request, a page at a time, then the start of the conversation is marked.
     h.scroll_list("messages", 0, 4);
     h.tap("load-earlier");
     assert!(h.find("history-loading").is_some());
+    assert!(!h.nodes_of(ViewType::Spinner).is_empty());
+    h.advance(1000.0);
+    h.scroll_list("messages", 0, 4);
+    assert!(h.find("load-earlier").is_some(), "a second page remains");
+    h.tap("load-earlier");
     h.advance(1000.0);
     h.scroll_list("messages", 0, 4);
     assert!(h.find("history-start").is_some(), "{}", h.dump());
+    // Both pages (twelve messages, with their day labels) went above the thread.
+    assert!(item_count(&h, "messages") >= rows + 1 + 12 + 4, "{}", item_count(&h, "messages"));
 
     // Message actions: copy, and delete with undo.
-    h.scroll_list("messages", 0, 30);
+    h.scroll_list("messages", 0, 60);
     h.clear_commands();
-    h.tap("bubble-m7");
+    h.tap("bubble-m8");
     assert_eq!(h.surfaces().len(), 2);
     h.tap("action-copy");
     assert!(h.commands().iter().any(|(_, c, p)| *c == Command::SetClipboard && p.contains("first-aid kit")));
-    h.long_press("bubble-m7");
+    h.long_press("bubble-m8");
     h.tap("action-delete");
-    assert!(h.find("bubble-m7").is_none() && h.find("undo-bar").is_some());
+    assert!(h.find("bubble-m8").is_none() && h.find("undo-bar").is_some());
     h.tap("undo");
-    assert!(h.find("bubble-m7").is_some());
+    assert!(h.find("bubble-m8").is_some());
+    assert_clean(&h);
+}
+
+#[test]
+fn chat_uploads_a_failed_attachment_again_and_offers_the_latest() {
+    let mut h = started(build("chat"));
+    h.scroll_list("messages", 0, 30);
+
+    // Yesterday's route file did not go out: a destructive chip and the retry line.
+    assert!(h.find("failed-m3").is_some());
+    assert!(h.find_text("Upload failed").is_some());
+    let red = native_shell::core::theme::Theme::default_for(native_shell::core::theme::Appearance::Light).color("destructive").unwrap();
+    assert_eq!(h.prop("attachment-m3", Prop::BorderColor), Some(PropValue::Color(red)));
+
+    // Sending again uploads it: progress in the description and the bar, then delivered.
+    h.tap("retry-m3");
+    assert!(h.find("failed-m3").is_none());
+    h.advance(160.0);
+    assert!(h.find_text("GPX · 84 KB · 20%").is_some(), "{:?}", h.texts());
+    h.advance(1000.0);
+    assert!(h.find_text("GPX · 84 KB").is_some() && h.find_text("Upload failed").is_none());
+    assert!(h.texts().iter().all(|t| !t.contains('%')), "{:?}", h.texts());
+
+    // An attachment's actions have no text to copy.
+    h.tap("attachment-m12");
+    assert_eq!(h.surfaces().len(), 2);
+    assert!(h.find("action-delete").is_some() && h.find("action-copy").is_none());
+    h.dismiss();
+
+    // Reading further up offers a way back to the newest message.
+    let list = h.find("messages").unwrap();
+    h.dispatch(
+        list,
+        native_shell::core::protocol::EventType::Scroll,
+        r#"{"x":0,"y":0,"content_width":390,"content_height":2400,"viewport_width":390,"viewport_height":600}"#,
+    );
+    assert_eq!(h.prop("messages-jump", Prop::A11yLabel), Some(PropValue::Str("Latest messages".into())));
+    h.clear_commands();
+    h.tap("messages-jump");
+    assert!(h.commands().iter().any(|(_, c, p)| *c == Command::ScrollToIndex && p.contains(r#""position":"bottom""#)));
+    assert!(h.find("messages-jump").is_none());
     assert_clean(&h);
 }
 
