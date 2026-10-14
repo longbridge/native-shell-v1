@@ -100,16 +100,18 @@ fn scroll_to() {
 }
 
 const CAROUSEL: &str = r#"
-import { View, div, h_flex, v_flex } from "native-shell";
+import { View, div, v_flex } from "native-shell";
+import { Carousel, CarouselContent, CarouselItem, CarouselState } from "gpui-component";
 export default class App extends View {
-  init() { this.x = 0; }
+  init() { this.album = CarouselState(4); this.selected = 0; }
   render() {
-    const strip = h_flex().test_id("carousel").overflow_x_scroll().w_full().h(200)
-      .on_scroll((e, cx) => { this.x = e.x; cx.notify(); })
-      .children([0, 1, 2, 3].map((i) => div().flex_none().w_full().h(200)));
-    // Gpui-component's Carousel sets this; no element method names it yet.
-    strip._P().paging = true;
-    return v_flex().size_full().child(div().test_id(`x-${Math.round(this.x)}`).h(4)).child(strip);
+    const s = this.album;
+    return v_flex().size_full().overflow_y_scroll().test_id("page")
+      .child(div().test_id(`selected-${this.selected}`).h(4))
+      .child(new Carousel("album", s).on_change((i, cx) => { this.selected = i; cx.notify(); })
+        .child(new CarouselContent(s).test_id("carousel")
+          .children([0, 1, 2, 3].map((i) => new CarouselItem(`slide-${i}`, i, s).child(div().h(200))))))
+      .child(div().h(1200));
   }
 }"#;
 
@@ -148,7 +150,7 @@ fn paging_settles_on_pages() {
     assert!(rest(0.0), "back to the first page, at {}", hadj.value());
     swipe(&c, 250.0, 0.0);
     assert!(rest(390.0), "on to the second page, at {}", hadj.value());
-    f.wait_for("x-390");
+    f.wait_for("selected-1");
 
     // A fling turns exactly one page, however fast.
     swipe(&c, 40.0, 5000.0);
@@ -159,13 +161,22 @@ fn paging_settles_on_pages() {
     // A sideways wheel notch turns a page; a vertical one belongs to the page around.
     c.emit_by_name::<bool>("scroll", &[&1.0f64, &0.0f64]);
     assert!(rest(780.0), "a notch turns one page, at {}", hadj.value());
+    f.wait_for("selected-2");
+
+    // Vertical motion over the carousel scrolls the page around it.
     let handled = c.emit_by_name::<bool>("scroll", &[&0.0f64, &1.0f64]);
     assert!(!handled, "a vertical wheel is not the carousel's");
-    f.wait_for("x-780");
+    c.emit_by_name::<()>("scroll-begin", &[]);
+    let handled = c.emit_by_name::<bool>("scroll", &[&2.0f64, &30.0f64]);
+    c.emit_by_name::<()>("scroll-end", &[]);
+    assert!(!handled, "a mostly vertical touchpad swipe is not the carousel's");
+    assert!(rest(780.0), "and leaves the page where it was, at {}", hadj.value());
+    assert!(scrolled(&f, "page").vadjustment().upper() > HEIGHT as f64, "the page around scrolls");
 
     // A narrower viewport keeps the same page in view.
     f.resize(320, HEIGHT);
     assert!(rest(640.0), "page 2 at the new width, at {}", hadj.value());
+    f.expect("selected-2");
 }
 
 /// Gpui-component's Carousel on Paging: the slide a swipe rests on is the
