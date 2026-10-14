@@ -13,3 +13,4 @@ this file (and `git log origin/main`) before starting anything shared.
 | `crates/engine/js` | Charts: `BarChart`, `LineChart`, `AreaChart`, `PieChart`, `RadarChart` | Linux team (agent `comp-charts`) | 2026-10-14 |
 | `examples/` | New example programs: `shop` (catalog, product, cart, checkout), `portfolio` (charts, holdings, transactions), `events` (calendar, booking form) | Linux team (agents `ex-*`) | 2026-10-14 |
 | `examples/{tasks,settings,watchlist,components}`, example apps' launchers | iOS-direction redesign: typography roles, inset grouped lists, iOS Button presets, `grouped_background`, removing stopgaps; final light/dark screenshots on iOS and Android | macOS team (agent `design`) | 2026-10-14 |
+| `crates/engine/js/core.js` | Toast actions outlive the page that pushed them; `bind_keys` normalizes modifier order | Linux team (agent `ex-notes`) | 2026-10-14 |
