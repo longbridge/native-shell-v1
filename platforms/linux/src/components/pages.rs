@@ -70,7 +70,7 @@ pub fn create(cx: &NodeCx) -> Box<dyn Component> {
     });
     let presenter = cx.shared.overlays.presenter();
     if let Some(p) = &presenter {
-        state.host.set_background(Some(p.color("background", 0xFFFF_FFFF)));
+        state.host.set_background(Some(p.color("background")));
         p.register(cx.view, Surface::Page(state.clone()));
         let weak_state = Rc::downgrade(&state);
         state.nav_page.connect_showing(move |_| {
