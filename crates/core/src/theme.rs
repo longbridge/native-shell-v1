@@ -1,4 +1,13 @@
-//! Theme tokens: the 17 colors of gpui-shell plus spacing and radius scales.
+//! Theme tokens: gpui-shell's color roles plus status colors, spacing and
+//! radius scales.
+//!
+//! The names are gpui-shell's (18 roles) with three status pairs added for
+//! toasts, badges and validation (`success`, `warning`, `info`). The default
+//! values are not gpui-shell's neutral desktop palette: native-shell's visual
+//! language is iOS, so the defaults are the iOS system colors (system blue
+//! tint, label / secondary label, grouped backgrounds, separators, system
+//! red / green / orange) in their light and dark variants. A program that
+//! sets its own tokens with `set_theme` gets exactly what it asked for.
 //!
 //! Colors are resolved to ARGB in Rust when a style is interned, so a theme
 //! change clears the style cache and re-renders every view; renderers never see
@@ -7,7 +16,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-pub const COLOR_TOKENS: [&str; 17] = [
+pub const COLOR_TOKENS: [&str; 24] = [
     "background",
     "foreground",
     "surface",
@@ -25,15 +34,71 @@ pub const COLOR_TOKENS: [&str; 17] = [
     "border",
     "input",
     "ring",
+    "selection",
+    "success",
+    "success_foreground",
+    "warning",
+    "warning_foreground",
+    "info",
+    "info_foreground",
 ];
 
-const LIGHT: [&str; 17] = [
-    "#ffffff", "#0a0a0a", "#ffffff", "#0a0a0a", "#171717", "#fafafa", "#e5e5e5", "#171717", "#f5f5f5", "#737373",
-    "#f5f5f5", "#171717", "#ef4444", "#fafafa", "#e5e5e5", "#e5e5e5", "#a3a3a3",
+// iOS system colors. Translucent iOS colors (secondary label, fills,
+// separators) are flattened onto the background they sit on, because these
+// tokens are also used as text and border colors where blending would differ
+// per platform. `accent`, `ring` and `selection` stay translucent: they are
+// tints laid over content.
+const LIGHT: [&str; 24] = [
+    "#ffffff",   // background: systemBackground
+    "#000000",   // foreground: label
+    "#ffffff",   // surface: secondarySystemGroupedBackground (cells, cards)
+    "#000000",   // surface_foreground
+    "#007aff",   // primary: systemBlue, the tint
+    "#ffffff",   // primary_foreground
+    "#e5e5ea",   // secondary: systemGray5, gray buttons
+    "#000000",   // secondary_foreground
+    "#f2f2f7",   // muted: systemGroupedBackground / systemGray6
+    "#8a8a8e",   // muted_foreground: secondaryLabel on white
+    "#007aff1f", // accent: tinted fill (tinted buttons, highlighted rows)
+    "#007aff",   // accent_foreground
+    "#ff3b30",   // destructive: systemRed
+    "#ffffff",   // destructive_foreground
+    "#c6c6c8",   // border: opaqueSeparator
+    "#d1d1d6",   // input: systemGray4, field outlines
+    "#007aff80", // ring: focus ring
+    "#007aff33", // selection: selected text and cells
+    "#34c759",   // success: systemGreen
+    "#ffffff",   // success_foreground
+    "#ff9500",   // warning: systemOrange
+    "#000000",   // warning_foreground: white on orange fails contrast
+    "#007aff",   // info: systemBlue
+    "#ffffff",   // info_foreground
 ];
-const DARK: [&str; 17] = [
-    "#0a0a0a", "#fafafa", "#0a0a0a", "#fafafa", "#fafafa", "#171717", "#262626", "#fafafa", "#262626", "#a3a3a3",
-    "#262626", "#fafafa", "#f87171", "#dc2626", "#262626", "#2f2f2f", "#737373",
+const DARK: [&str; 24] = [
+    "#000000",   // background: systemBackground
+    "#ffffff",   // foreground: label
+    "#1c1c1e",   // surface: secondarySystemGroupedBackground
+    "#ffffff",   // surface_foreground
+    "#0a84ff",   // primary: systemBlue
+    "#ffffff",   // primary_foreground
+    "#2c2c2e",   // secondary: systemGray5
+    "#ffffff",   // secondary_foreground
+    "#1c1c1e",   // muted: systemGray6
+    "#8d8d93",   // muted_foreground: secondaryLabel on black
+    "#0a84ff2e", // accent
+    "#0a84ff",   // accent_foreground
+    "#ff453a",   // destructive: systemRed
+    "#ffffff",   // destructive_foreground
+    "#38383a",   // border: opaqueSeparator
+    "#3a3a3c",   // input: systemGray4
+    "#0a84ff80", // ring
+    "#0a84ff40", // selection
+    "#30d158",   // success: systemGreen
+    "#000000",   // success_foreground
+    "#ff9f0a",   // warning: systemOrange
+    "#000000",   // warning_foreground
+    "#0a84ff",   // info: systemBlue
+    "#ffffff",   // info_foreground
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -59,11 +124,14 @@ impl Theme {
             Appearance::Dark => DARK,
         };
         let colors = COLOR_TOKENS.iter().zip(table).map(|(k, v)| (k.to_string(), parse_hex(v).unwrap())).collect();
+        // The 8 pt grid with the 4 / 2 pt half steps iOS layouts use.
         let spacing = [("xxs", 2.0), ("xs", 4.0), ("sm", 8.0), ("md", 12.0), ("lg", 16.0), ("xl", 24.0), ("xxl", 32.0)]
             .into_iter()
             .map(|(k, v)| (k.to_string(), v))
             .collect();
-        let radius = [("none", 0.0), ("sm", 4.0), ("md", 6.0), ("lg", 8.0), ("xl", 12.0), ("full", 9999.0)]
+        // iOS corner radii: small controls 6, fields and cells 10, filled buttons
+        // 12, sheets and cards 16 (renderers draw continuous corners).
+        let radius = [("none", 0.0), ("sm", 6.0), ("md", 10.0), ("lg", 12.0), ("xl", 16.0), ("full", 9999.0)]
             .into_iter()
             .map(|(k, v)| (k.to_string(), v))
             .collect();
@@ -178,8 +246,13 @@ mod tests {
         let light = Theme::default_for(Appearance::Light);
         let dark = Theme::default_for(Appearance::Dark);
         assert_eq!(light.color("background"), Some(0xFFFF_FFFF));
-        assert_eq!(dark.color("background"), Some(0xFF0A_0A0A));
-        assert_eq!(light.colors.len(), 17);
+        assert_eq!(dark.color("background"), Some(0xFF00_0000));
+        assert_eq!(light.color("primary"), Some(0xFF00_7AFF));
+        assert_eq!(dark.color("primary"), Some(0xFF0A_84FF));
+        assert_eq!(light.color("selection"), Some(0x3300_7AFF));
+        assert_eq!(light.colors.len(), COLOR_TOKENS.len());
+        assert_eq!(dark.colors.len(), COLOR_TOKENS.len());
+        assert_eq!(light.color("success"), Some(0xFF34_C759));
         assert_eq!(light.color("rgba(255, 0, 0, 0.5)"), Some(0x80FF_0000));
         assert_eq!(light.color("nope"), None);
     }

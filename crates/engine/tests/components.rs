@@ -1,6 +1,7 @@
 //! Every component's native kind, props and events.
 
 use native_shell::core::protocol::{Prop, PropValue, ViewType};
+use native_shell::core::theme::{Appearance, Theme};
 use native_shell::testing::Harness;
 
 const EVERY_COMPONENT: &str = r##"
@@ -67,7 +68,8 @@ fn components_map_to_native_kinds_with_props() {
     assert!(h.texts().contains(&"Agree".to_string()), "{}", h.dump());
     assert!(h.native().nodes[&check].frame.is_some());
     // The primary button paints with the theme's primary color.
-    assert_eq!(h.prop("b1", Prop::BackgroundColor), Some(PropValue::Color(0xFF17_1717)));
+    let primary = Theme::default_for(Appearance::Light).color("primary").unwrap();
+    assert_eq!(h.prop("b1", Prop::BackgroundColor), Some(PropValue::Color(primary)));
     assert!(h.prop("b1", Prop::ActiveOpacity).is_some(), "active styles go native");
     assert_eq!(h.prop("b2", Prop::A11yState), Some(PropValue::Json(r#"{"disabled":true}"#.into())));
 }

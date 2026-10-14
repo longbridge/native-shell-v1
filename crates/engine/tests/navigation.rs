@@ -2,7 +2,7 @@
 
 use native_shell::core::host::Environment;
 use native_shell::core::protocol::{Command, Mutation, Prop, PropValue, ViewType, ROOT_NODE};
-use native_shell::core::theme::Appearance;
+use native_shell::core::theme::{Appearance, Theme, COLOR_TOKENS};
 use native_shell::testing::Harness;
 
 const APP: &str = r##"
@@ -336,12 +336,17 @@ fn cx_entity_lets_a_pushed_page_redraw_the_view_below() {
     assert!(h.error_logs().is_empty(), "notifying a released entity is a no-op: {:?}", h.error_logs());
 }
 
+/// A default theme color, so tests follow palette changes.
+fn color(appearance: Appearance, token: &str) -> PropValue {
+    PropValue::Color(Theme::default_for(appearance).color(token).expect("a default token"))
+}
+
 #[test]
 fn theme_switch_re_renders_with_new_colors() {
     let mut h = app();
-    assert_eq!(h.prop("swatch", Prop::BackgroundColor), Some(PropValue::Color(0xFF17_1717)));
+    assert_eq!(h.prop("swatch", Prop::BackgroundColor), Some(color(Appearance::Light, "primary")));
     h.tap("dark");
-    assert_eq!(h.prop("swatch", Prop::BackgroundColor), Some(PropValue::Color(0xFFFA_FAFA)));
+    assert_eq!(h.prop("swatch", Prop::BackgroundColor), Some(color(Appearance::Dark, "primary")));
     h.tap("brand");
     assert_eq!(h.prop("swatch", Prop::BackgroundColor), Some(PropValue::Color(0xFFFF_0000)));
 }
@@ -357,7 +362,7 @@ fn environment_changes_re_render_and_follow_the_system_appearance() {
         ..Environment::default()
     });
     assert_eq!(h.text_of("window"), "400x800 dark");
-    assert_eq!(h.prop("swatch", Prop::BackgroundColor), Some(PropValue::Color(0xFFFA_FAFA)));
+    assert_eq!(h.prop("swatch", Prop::BackgroundColor), Some(color(Appearance::Dark, "primary")));
 }
 
 #[test]
@@ -422,8 +427,9 @@ export default class T extends View {
     let first = h.theme_tokens().to_vec();
     assert_eq!(first.len(), 1, "the first batch carries the theme");
     assert_eq!(first[0]["appearance"], "light");
-    assert_eq!(first[0]["background"], 0xFFFF_FFFFu32);
-    assert_eq!(first[0].as_object().unwrap().len(), 18, "17 colors and the appearance");
+    let light = Theme::default_for(Appearance::Light);
+    assert_eq!(first[0]["background"], light.color("background").unwrap());
+    assert_eq!(first[0].as_object().unwrap().len(), COLOR_TOKENS.len() + 1, "every color and the appearance");
 
     h.tap("brand");
     assert_eq!(h.theme_tokens().len(), 2);

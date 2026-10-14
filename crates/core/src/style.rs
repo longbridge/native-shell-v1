@@ -1605,7 +1605,7 @@ mod tests {
         // Tailwind's `opacity_50` is not a GPUI method.
         assert!(err(&[op("opacity_50")]).contains("unknown style method `opacity_50`"));
         let r = resolve(&[opa("bg", vec![s("primary")]), opa("opacity", vec![Arg::Num(0.5)])], &theme()).unwrap();
-        assert_eq!(r.visual.background, Some(0xFF17_1717));
+        assert_eq!(r.visual.background, theme().color("primary"));
         assert_eq!(r.visual.opacity, 0.5);
         assert!(r.visual.paints());
     }
@@ -1626,7 +1626,7 @@ mod tests {
         o.nested = Some(("active".into(), vec![opa("opacity", vec![Arg::Num(0.6)]), opa("bg", vec![s("muted")])]));
         let r = resolve(&[o], &theme()).unwrap();
         assert_eq!(r.active_opacity, Some(0.6));
-        assert_eq!(r.active_background, Some(0xFFF5_F5F5));
+        assert_eq!(r.active_background, theme().color("muted"));
     }
 
     #[test]
