@@ -130,6 +130,21 @@ sheets), it stays the native platform control on each OS.
   unit/integration, harness, XCTest, JVM/instrumented). Pure visual tweaks may
   skip tests but not screenshots.
 
+## Working in parallel
+
+Several people and agents work on `main` at the same time, on different
+machines (platform work happens where the platform runs).
+
+- Commit small and often, straight to `main`; stage only the paths you
+  changed (`git add <paths>`, never `git add -A`).
+- `git pull --rebase` before every push; never force-push or rewrite pushed
+  history. Resolve conflicts in files you don't own by asking their owner.
+- Each platform lives in its own `platforms/<name>` directory and owns it.
+  Shared contracts (`crates/core`, the C ABI, `docs/protocol-json.md`) change
+  in a dedicated commit that says so in its subject, with every existing
+  renderer updated or a note on what it still needs.
+- A commit leaves the tests of the crates and platforms it touches green.
+
 ## Commands
 
 ```bash
