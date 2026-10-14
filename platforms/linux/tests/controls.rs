@@ -261,6 +261,9 @@ fn progress_and_spinner_draw() {
 
 fn controls_screenshots() {
     let f = fixture();
+    // Keyboard focus on the switch shows its ring.
+    f.window.set_focus_visible(true);
+    control(&f, "sw").grab_focus();
     f.screenshot("screenshots/controls-light.png");
     f.set_dark(true);
     f.screenshot("screenshots/controls-dark.png");
