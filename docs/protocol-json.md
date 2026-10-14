@@ -329,6 +329,11 @@ Linux; iOS has none and ignores it). `Hover` events go only to nodes with the
 materializes program-relative assets under the data directory). `svg(path)`
 elements arrive as `Shape` nodes (path data in view-box units), drawn in one
 color like gpui; `FillRule` (0 nonzero, 1 even-odd) selects the fill rule.
+Renderers fit the `ViewBox` into the frame uniformly, centered. A script
+shape with `fit: "fill"` (chart lines and areas) is stretched by the core
+instead: after layout it sends `PathData` rewritten into frame points and a
+`ViewBox` of `[0, 0, width, height]`, again whenever the frame's size
+changes, so renderers draw it like any other shape.
 
 ## Shape strokes
 

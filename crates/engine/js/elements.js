@@ -549,6 +549,15 @@ export function shape(path, opts = {}) {
     }
     el._P().fill_rule = opts.fill_rule === "evenodd" ? 1 : 0;
   }
+  // Mobile: `"fill"` stretches the view box to the laid-out frame on each axis
+  // (a chart's line across a plot of any width); `"contain"`, the default,
+  // fits it uniformly, as an icon.
+  if (opts.fit !== undefined) {
+    if (opts.fit !== "contain" && opts.fit !== "fill") {
+      throw new TypeError(`shape(): fit must be "contain" or "fill", got ${JSON.stringify(opts.fit)}`);
+    }
+    if (opts.fit === "fill") el._stretch = true;
+  }
   return el;
 }
 

@@ -75,3 +75,7 @@ harness = false
 [[test]]
 name = "dev"
 harness = false
+
+[[test]]
+name = "component_forms"
+harness = false

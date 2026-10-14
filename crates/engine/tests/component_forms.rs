@@ -460,3 +460,85 @@ fn composite_components_work_inside_sheets_and_anchored_surfaces() {
     h.tap("in-popover-star-4");
     assert_eq!(h.text_of("log"), "sheet=3 pop=4", "{:?}", h.error_logs());
 }
+
+fn components_example() -> Harness {
+    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/components");
+    let h = Harness::from_dir(&dir).expect("example directory").start();
+    assert!(h.load_error().is_none(), "{:?} {:?}", h.load_error(), h.logs());
+    h
+}
+
+#[test]
+fn the_components_example_checks_out_flowers_through_the_forms_page() {
+    let mut h = components_example();
+    h.tap("open-forms");
+    assert_eq!(h.surfaces().len(), 2);
+    assert_eq!(string(&h, "stepper-step-0", Prop::A11yLabel), "Step 1 of 3, Recipient");
+    assert!(h.prop("stepper-step-2", Prop::A11yState).is_some_and(|s| s == PropValue::Json(r#"{"disabled":true}"#.into())));
+
+    // Continuing explains every problem under its field.
+    h.tap("continue");
+    assert_eq!(h.text_of("name-error"), "Enter who the flowers are for.");
+    assert_eq!(h.text_of("phone-error"), "Enter a 10-digit phone number.");
+    h.type_text("name-input", "Jordan Lee");
+    assert!(h.find("name-error").is_none(), "an edit clears its field's error");
+    h.type_text("phone-input", "555 010 0199");
+    h.dispatch(h.find("time-picker").unwrap(), EventType::Change, r#"{"date":"21:30"}"#);
+    h.type_text("message-input", &"Happy birthday! ".repeat(10));
+    assert!(h.texts().contains(&"160/150".to_string()), "{}", h.dump());
+    h.tap("continue");
+    assert_eq!(h.text_of("time-error"), "Choose a time between 9:00 and 20:00.");
+    assert_eq!(h.text_of("message-error"), "Shorten the message to 150 characters.");
+    h.dispatch(h.find("time-picker").unwrap(), EventType::Change, r#"{"date":"17:45"}"#);
+    h.type_text("message-input", "Happy birthday! Love, Sam");
+
+    // The ribbon color comes from a sheet of the shop's ribbons.
+    h.tap("ribbon-picker-swatch");
+    assert_eq!(h.surfaces().len(), 3);
+    h.tap("ribbon-picker-swatch-F6BF26");
+    h.tap("ribbon-picker-done");
+    assert_eq!(h.surfaces().len(), 2);
+    assert_eq!(string(&h, "ribbon-picker-swatch", Prop::A11yValue), "#F6BF26");
+
+    h.tap("continue");
+    assert!(h.find("payment").is_some(), "{}", h.dump());
+    assert_eq!(string(&h, "stepper-step-0", Prop::A11yValue), "Completed");
+
+    // Payment: a refused card and an unknown code, then a working pair.
+    h.type_text("card-input", "4242 4242 4242 4241");
+    h.type_text("promo-input", "winter");
+    h.tap("apply");
+    assert!(h.prop("apply", Prop::A11yState).is_some_and(|s| s == PropValue::Json(r#"{"disabled":true}"#.into())), "checking");
+    h.advance(700.0);
+    assert_eq!(h.text_of("promo-error"), "“WINTER” isn’t a valid code, or it has expired.");
+    h.tap("continue");
+    assert_eq!(h.text_of("card-error"), "Check the card number.");
+    assert_eq!(h.text_of("expiry-error"), "Enter the expiry as MM/YY.");
+    h.type_text("card-input", "4242 4242 4242 4242");
+    h.type_text("expiry-input", "09/49");
+    h.type_text("cvc-input", "123");
+    h.type_text("promo-input", "SPRING10");
+    h.tap("apply");
+    h.advance(700.0);
+    assert_eq!(h.text_of("total"), "$50.49");
+    assert_eq!(h.text_of("promo-description"), "SPRING10 applied: $4.50 off the flowers.");
+
+    // Going back keeps what was typed.
+    h.tap("stepper-step-0");
+    assert_eq!(h.native_input("name-input").text, "Jordan Lee");
+    h.tap("continue");
+
+    h.tap("continue");
+    assert!(h.texts().iter().any(|t| t.contains("Place Order · $50.49")), "{}", h.dump());
+    assert!(h.prop("continue", Prop::A11yState).is_some_and(|s| s == PropValue::Json(r#"{"disabled":true}"#.into())), "placing");
+    h.advance(1300.0);
+    assert!(h.find("confirmation").is_some(), "{}", h.dump());
+    assert!(h.texts().iter().any(|t| t.contains("today at 17:45")), "{}", h.dump());
+    h.tap("copy-order");
+    assert!(h.commands().iter().any(|(_, c, p)| *c == native_shell::core::protocol::Command::SetClipboard && p.contains("FL-4521")));
+    h.tap("rating-star-2");
+    assert_eq!(h.text_of("thanks"), "Thanks. We’ll look at what slowed you down.");
+    assert_eq!(string(&h, "florist-rating", Prop::A11yLabel), "4.5 out of 5 stars");
+    h.tap("finish");
+    assert_eq!(h.surfaces().len(), 1);
+}

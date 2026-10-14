@@ -22,6 +22,7 @@ fn main() -> ExitCode {
         ("controls screenshots", controls_screenshots),
         ("settings example: switches, time and theme", settings_example),
         ("components example: control pages", components_pages),
+        ("components example: charts page", components_charts),
     ])
 }
 
@@ -358,6 +359,16 @@ fn components_pages() {
     list.emit_by_name::<()>("row-activated", &[&list.row_at_index(3).expect("4 guests")]);
     f.settle();
     screenshots(&f, "components-pickers");
+}
+
+fn components_charts() {
+    let f = components_page("charts");
+    // Prices arrive after a moment; until then the portfolio shows a spinner.
+    f.expect("portfolio-loading");
+    f.wait_for("portfolio-chart");
+    f.tap("steps-chart-point-4");
+    f.tap("portfolio-chart-point-12");
+    screenshots(&f, "components-charts");
 }
 
 fn descendants(w: &gtk::Widget) -> Vec<gtk::Widget> {
