@@ -546,6 +546,7 @@ impl Inner {
                 view.set_editable(c.editable);
                 view.set_cursor_visible(c.editable);
                 view.set_can_focus(c.editable);
+                space_lines(view, &c.style);
             }
         }
 
@@ -745,6 +746,30 @@ fn css_color(c: u32) -> String {
     format!("rgba({},{},{},{:.3})", (c >> 16) & 0xff, (c >> 8) & 0xff, c & 0xff, a)
 }
 
+/// `TextStyle.line_height` on a text view: the extra space over the font's
+/// own line goes half above and half below each line (CSS half-leading), as
+/// the placeholder's `line-height` does.
+fn space_lines(view: &gtk::TextView, style: &serde_json::Value) {
+    let num = |k: &str| style.get(k).and_then(|v| v.as_f64()).map(|v| v as f32);
+    let scale = crate::text::font_scale();
+    let extra = num("line_height").map_or(0.0, |lh| {
+        let desc = crate::text::font_description(
+            num("size").unwrap_or(DEFAULT_SIZE),
+            num("weight").unwrap_or(400.0) as i32,
+            style.get("family").and_then(|v| v.as_str()),
+            style.get("italic").and_then(|v| v.as_bool()) == Some(true),
+            scale,
+        );
+        let metrics = view.pango_context().metrics(Some(&desc), None);
+        let natural = (metrics.ascent() + metrics.descent()) as f32 / gtk::pango::SCALE as f32;
+        (lh * scale - natural).max(0.0)
+    });
+    let above = (extra / 2.0).round() as i32;
+    view.set_pixels_above_lines(above);
+    view.set_pixels_below_lines(extra.round() as i32 - above);
+    view.set_pixels_inside_wrap(extra.round() as i32);
+}
+
 /// The theme tokens the editor's own chrome uses.
 struct Palette {
     foreground: u32,
@@ -788,15 +813,17 @@ fn stylesheet(c: &Config, scale: f32, palette: &Palette) -> String {
     if s.get("italic").and_then(|v| v.as_bool()) == Some(true) {
         font.push_str(" font-style: italic;");
     }
-    if let Some(lh) = num("line_height") {
-        font.push_str(&format!(" line-height: {:.2}px;", lh * scale));
-    }
+    // GtkTextView does not re-read `line-height` when the stylesheet
+    // changes, so multi-line editors space their lines themselves
+    // (`Inner::space_lines`); one-line editors and the placeholder use CSS.
+    let line_height = num("line_height").map(|lh| format!(" line-height: {:.2}px;", lh * scale)).unwrap_or_default();
     format!(
         ".nsh-input, .nsh-input > text, .nsh-input > undershoot {{ background: none; border: none; box-shadow: none; \
          outline: none; padding: 0; margin: 0; min-height: 0; min-width: 0; }}\n\
          .nsh-input, .nsh-input > text {{ color: {color}; caret-color: {tint}; {font} }}\n\
+         text.nsh-input {{{line_height} }}\n\
          .nsh-input selection, .nsh-input > text > selection {{ background-color: {selection}; color: {color}; }}\n\
-         label.nsh-placeholder {{ color: {placeholder}; {font} }}\n",
+         label.nsh-placeholder {{ color: {placeholder}; {font}{line_height} }}\n",
         color = css_color(color),
         tint = css_color(palette.tint),
         selection = css_color(palette.selection),
