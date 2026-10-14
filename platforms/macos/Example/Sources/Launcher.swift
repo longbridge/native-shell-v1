@@ -157,6 +157,8 @@ private extension Array {
 final class DetailController: NSViewController {
     private(set) var program: ProgramController?
     private let message = NSTextField(wrappingLabelWithString: "")
+    /// Shown only when a program takes noticeably long to draw its first frame.
+    private let spinner = NSProgressIndicator()
 
     override func loadView() {
         let v = NSView()
@@ -171,10 +173,21 @@ final class DetailController: NSViewController {
             message.centerYAnchor.constraint(equalTo: v.centerYAnchor),
             message.widthAnchor.constraint(lessThanOrEqualToConstant: 360),
         ])
+        spinner.style = .spinning
+        spinner.controlSize = .regular
+        spinner.isDisplayedWhenStopped = false
+        v.addSubview(spinner)
         view = v
     }
 
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        let side: CGFloat = 32
+        spinner.frame = CGRect(x: ((view.bounds.width - side) / 2).rounded(), y: ((view.bounds.height - side) / 2).rounded(), width: side, height: side)
+    }
+
     func show(_ example: Example, dataRoot: URL, reset: Bool) {
+        spinner.stopAnimation(nil)
         if let old = program {
             old.view.removeFromSuperview()
             old.removeFromParent()
@@ -189,10 +202,18 @@ final class DetailController: NSViewController {
             config.dataDirectory = dir
             let instance = try NSHInstance(config: config)
             let vc = ProgramController(instance: instance)
+            vc.onFirstFrame = { [weak self] in self?.spinner.stopAnimation(nil) }
+            // Most programs draw within a few hundred milliseconds; past that, show progress.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self, weak vc] in
+                guard let self = self, let vc = vc, vc === self.program, !vc.hasRendered else { return }
+                self.spinner.startAnimation(nil)
+            }
             addChild(vc)
             vc.view.frame = view.bounds
             vc.view.autoresizingMask = [.width, .height]
             view.addSubview(vc.view, positioned: .below, relativeTo: message)
+            // The spinner sits above the program, which draws nothing until its first frame.
+            view.addSubview(spinner, positioned: .above, relativeTo: vc.view)
             try instance.loadSources(sources)
             program = vc
             message.isHidden = true
@@ -205,12 +226,19 @@ final class DetailController: NSViewController {
 
 /// One running program.
 final class ProgramController: NSHViewController, NSHInstanceDelegate {
+    var onFirstFrame: (() -> Void)?
+    private(set) var hasRendered = false
     override init(instance: NSHInstance?, runtime: NSHRuntime = .shared) {
         super.init(instance: instance, runtime: runtime)
         instance?.delegate = self
     }
 
     required init?(coder: NSCoder) { fatalError("not supported") }
+
+    func instanceDidRenderFirstFrame(_ instance: NSHInstance) {
+        hasRendered = true
+        onFirstFrame?()
+    }
 
     func instance(_ instance: NSHInstance, didFailWithError message: String) {
         NSLog("native-shell error: %@", message)
