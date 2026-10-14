@@ -354,6 +354,28 @@ struct TextCache<'a> {
     scale: f32,
 }
 
+/// A component's intrinsic size, cached per (name, props, width constraint).
+fn component_size(
+    name: &Rc<str>,
+    props: &Rc<str>,
+    mode: WidthMode,
+    measurer: &dyn Measurer,
+    cache: &mut TextCache,
+) -> Option<(f32, f32)> {
+    let (tag, width) = match mode {
+        WidthMode::Undefined => (0u8, 0.0f32),
+        WidthMode::AtMost(w) => (1, w),
+        WidthMode::Exactly(w) => (2, w),
+    };
+    let key = (name.clone(), props.clone(), tag, width.to_bits());
+    if let Some(size) = cache.components.get(&key) {
+        return *size;
+    }
+    let size = measurer.measure_component(name, props, mode);
+    cache.components.insert(key, size);
+    size
+}
+
 /// Size of a Select or DatePicker the host measurer does not know.
 const CONTROL_FALLBACK: (f32, f32) = (96.0, 36.0);
 
@@ -450,27 +472,20 @@ fn measure(
             or_known(w, m.height)
         }
         Measure::Component { name, props } => {
-            let (tag, width) = match mode {
-                WidthMode::Undefined => (0u8, 0.0f32),
-                WidthMode::AtMost(w) => (1, w),
-                WidthMode::Exactly(w) => (2, w),
-            };
-            let key = (name.clone(), props.clone(), tag, width.to_bits());
-            let size = match cache.components.get(&key) {
-                Some(size) => *size,
-                None => {
-                    let size = measurer.measure_component(name, props, mode);
-                    cache.components.insert(key, size);
-                    size
-                }
-            };
-            match size {
+            match component_size(name, props, mode, measurer, cache) {
+                Some((w, h)) => or_known(w, h),
+                None => or_known(0.0, 0.0),
+            }
+        }
+        Measure::Widest { name, candidates } => {
+            let widest = candidates
+                .iter()
+                .filter_map(|props| component_size(name, props, mode, measurer, cache))
+                .reduce(|(w, h), (w2, h2)| (w.max(w2), h.max(h2)));
+            match widest {
                 Some((w, h)) => or_known(w, h),
                 // A built-in control the host cannot measure: a usable minimum.
-                None if name.starts_with("nsh/") => {
-                    or_known(CONTROL_FALLBACK.0, CONTROL_FALLBACK.1)
-                }
-                None => or_known(0.0, 0.0),
+                None => or_known(CONTROL_FALLBACK.0, CONTROL_FALLBACK.1),
             }
         }
     }

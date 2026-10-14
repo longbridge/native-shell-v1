@@ -1903,26 +1903,25 @@ fn select_and_date_picker_are_measured_by_the_host() {
         let f = rep.nodes[&id].frame.unwrap();
         (f.width, f.height)
     };
-    // "Weekly": 6 × 8 + 32; "09:30": 5 × 8 + 24. Neither collapses in the row.
-    assert_eq!(of(&rep, ViewType::Select), (80.0, 36.0));
+    // As wide as the widest option: the placeholder "Choose…" (7 × 8 + 32) beats "Weekly"
+    // and "Name"; a time picker covers 10:58 and 22:58 (5 × 8 + 24). Neither collapses.
+    assert_eq!(of(&rep, ViewType::Select), (88.0, 36.0));
     assert_eq!(of(&rep, ViewType::DatePicker), (64.0, 36.0));
     let calls = m.calls.borrow().clone();
-    assert!(
-        calls.contains(&(
-            "nsh/select".into(),
-            "{\"label\":\"Weekly\",\"placeholder\":\"Choose…\"}".into()
-        )),
-        "{calls:?}"
-    );
-    assert!(
-        calls.contains(&(
-            "nsh/date-picker".into(),
-            "{\"mode\":\"time\",\"value\":\"09:30\"}".into()
-        )),
-        "{calls:?}"
-    );
+    for (name, props) in [
+        ("nsh/select", "{\"label\":\"Name\"}"),
+        ("nsh/select", "{\"label\":\"Weekly\"}"),
+        ("nsh/select", "{\"placeholder\":\"Choose…\"}"),
+        ("nsh/date-picker", "{\"mode\":\"time\",\"value\":\"10:58\"}"),
+        ("nsh/date-picker", "{\"mode\":\"time\",\"value\":\"22:58\"}"),
+    ] {
+        assert!(
+            calls.contains(&(name.into(), props.into())),
+            "{name} {props}: {calls:?}"
+        );
+    }
 
-    // A sibling changes: the controls' measurements come from the cache.
+    // A sibling changes, or the selection moves to a short item: same width, no new calls.
     let before = m.calls.borrow().len();
     commit_with(
         &mut tree,
@@ -1930,11 +1929,15 @@ fn select_and_date_picker_are_measured_by_the_host() {
         &controls_row(Some("weekly"), "", "b"),
         &m,
     );
-    assert_eq!(m.calls.borrow().len(), before);
-
-    // Nothing selected: sized to the placeholder.
+    commit_with(
+        &mut tree,
+        &mut rep,
+        &controls_row(Some("name"), "", "b"),
+        &m,
+    );
     commit_with(&mut tree, &mut rep, &controls_row(None, "", "b"), &m);
-    assert_eq!(of(&rep, ViewType::Select), (8.0 * 7.0 + 32.0, 36.0));
+    assert_eq!(of(&rep, ViewType::Select), (88.0, 36.0));
+    assert_eq!(m.calls.borrow().len(), before);
 
     // A style width: not measured, default height.
     let before = m.calls.borrow().len();
@@ -2212,4 +2215,60 @@ fn an_empty_bottom_aligned_list_grows_from_its_end() {
     let mut fresh = H::new();
     fresh.tree.set_list_window("chat", 5, 15);
     assert_eq!(fresh.tree.list_window_for("chat", 50, true), (5, 15));
+}
+
+#[test]
+fn date_pickers_measure_every_month_of_the_value_year() {
+    let (mut tree, mut rep, m) = (
+        native_shell_tree::Tree::new(),
+        native_shell_tree::testing::Replayer::new(),
+        ComponentLog::default(),
+    );
+    let picker = |value: &str, mode: i32| {
+        let p = with_prop(
+            el(ElementKind::DatePicker, ""),
+            Prop::Date,
+            PropValue::Str(value.into()),
+        );
+        root(view(
+            "flex flex_row",
+            vec![with_prop(p, Prop::DateMode, PropValue::I32(mode))],
+        ))
+    };
+    commit_with(&mut tree, &mut rep, &picker("2026-05-02", 0), &m);
+    let calls: Vec<String> = m
+        .calls
+        .borrow()
+        .iter()
+        .filter(|(n, _)| n == "nsh/date-picker")
+        .map(|(_, p)| p.clone())
+        .collect();
+    let expected: Vec<String> = (1..=12)
+        .map(|mo| format!("{{\"mode\":\"date\",\"value\":\"2026-{mo:02}-28\"}}"))
+        .collect();
+    for e in &expected {
+        assert!(calls.contains(e), "{e}: {calls:?}");
+    }
+    let width = |rep: &native_shell_tree::testing::Replayer| {
+        rep.nodes
+            .values()
+            .find(|n| n.view_type == ViewType::DatePicker)
+            .unwrap()
+            .frame
+            .unwrap()
+            .width
+    };
+    assert_eq!(width(&rep), 8.0 * 10.0 + 24.0);
+    // Another day of the same year: measured from the cache, same width.
+    let before = m.calls.borrow().len();
+    commit_with(&mut tree, &mut rep, &picker("2026-12-31", 0), &m);
+    assert_eq!(m.calls.borrow().len(), before);
+    // Date and time: every month at both hours.
+    commit_with(&mut tree, &mut rep, &picker("2026-05-02T09:30", 2), &m);
+    assert!(m
+        .calls
+        .borrow()
+        .iter()
+        .any(|(_, p)| p == "{\"mode\":\"datetime\",\"value\":\"2026-02-28T22:58\"}"));
+    assert_eq!(width(&rep), 8.0 * 16.0 + 24.0);
 }

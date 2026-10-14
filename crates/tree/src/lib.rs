@@ -148,9 +148,19 @@ pub(crate) enum Key {
 }
 
 /// What a taffy leaf measures with.
+#[derive(PartialEq)]
 pub(crate) enum Measure {
     Text(Rc<str>),
-    Component { name: Rc<str>, props: Rc<str> },
+    Component {
+        name: Rc<str>,
+        props: Rc<str>,
+    },
+    /// A control as wide as the widest thing it can show: one measurement per candidate
+    /// props, the largest width and height.
+    Widest {
+        name: Rc<str>,
+        candidates: Vec<Rc<str>>,
+    },
 }
 
 pub(crate) struct Node {

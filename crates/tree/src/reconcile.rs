@@ -180,12 +180,17 @@ fn measured_control(desc: &Desc) -> bool {
         && desc.style.layout.size.width.is_auto()
 }
 
-/// The reserved component a built-in control is measured as, and its props: the text the
-/// control shows (`docs/protocol-json.md`, "Built-in control measurement").
+/// The reserved component a built-in control is measured as, and the props of everything it
+/// can show (`docs/protocol-json.md`, "Built-in control measurement"). The control is as wide
+/// as the widest of them, so its width does not jump when the selection changes.
 fn control_measure(desc: &Desc, props: &[(Prop, PropValue)]) -> Option<Measure> {
     let prop = |p: Prop| props.iter().find(|(k, _)| *k == p).map(|(_, v)| v);
-    let mut out = serde_json::Map::new();
-    let name = match desc.kind {
+    let one = |key: &str, value: &str| -> Rc<str> {
+        let mut m = serde_json::Map::new();
+        m.insert(key.into(), value.into());
+        Rc::from(serde_json::Value::Object(m).to_string())
+    };
+    let (name, candidates) = match desc.kind {
         ElementKind::Select => {
             let menu = match prop(Prop::Menu) {
                 Some(PropValue::Json(j)) => {
@@ -193,38 +198,77 @@ fn control_measure(desc: &Desc, props: &[(Prop, PropValue)]) -> Option<Measure> 
                 }
                 _ => serde_json::Value::Null,
             };
-            let selected = match prop(Prop::SelectedIndex) {
-                Some(PropValue::I32(i)) if *i >= 0 => menu["items"]
-                    .get(*i as usize)
-                    .and_then(|it| it["label"].as_str()),
-                _ => None,
-            };
-            if let Some(label) = selected {
-                out.insert("label".into(), label.into());
-            }
+            let mut c: Vec<Rc<str>> = menu["items"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|it| it["label"].as_str())
+                .map(|label| one("label", label))
+                .collect();
             if let Some(p) = menu["placeholder"].as_str() {
-                out.insert("placeholder".into(), p.into());
+                c.push(one("placeholder", p));
             }
-            "nsh/select"
+            if c.is_empty() {
+                c.push(Rc::from("{}"));
+            }
+            ("nsh/select", c)
         }
         ElementKind::DatePicker => {
-            if let Some(PropValue::Str(v)) = prop(Prop::Date) {
-                out.insert("value".into(), v.as_str().into());
-            }
+            let value = match prop(Prop::Date) {
+                Some(PropValue::Str(v)) => v.as_str(),
+                _ => "",
+            };
             let mode = match prop(Prop::DateMode) {
                 Some(PropValue::I32(1)) => "time",
                 Some(PropValue::I32(2)) => "datetime",
                 _ => "date",
             };
-            out.insert("mode".into(), mode.into());
-            "nsh/date-picker"
+            ("nsh/date-picker", date_candidates(mode, value))
         }
         _ => return None,
     };
-    Some(Measure::Component {
+    Some(Measure::Widest {
         name: Rc::from(name),
-        props: Rc::from(serde_json::Value::Object(out).to_string()),
+        candidates,
     })
+}
+
+/// Values covering a picker's widest localized output: month names differ in width (the
+/// 28th exists in every month) and 12-hour times differ from 24-hour ones (10:58, 22:58).
+fn date_candidates(mode: &str, value: &str) -> Vec<Rc<str>> {
+    let year = value
+        .get(..4)
+        .filter(|y| y.bytes().all(|b| b.is_ascii_digit()))
+        .map(str::to_string)
+        .unwrap_or_else(current_year);
+    let props = |v: String| -> Rc<str> {
+        Rc::from(serde_json::json!({ "mode": mode, "value": v }).to_string())
+    };
+    let dates = || (1..=12).map(|m| format!("{year}-{m:02}-28"));
+    match mode {
+        "time" => ["10:58", "22:58"].map(|t| props(t.to_string())).to_vec(),
+        "datetime" => dates()
+            .flat_map(|d| ["10:58", "22:58"].map(move |t| format!("{d}T{t}")))
+            .map(props)
+            .collect(),
+        _ => dates().map(props).collect(),
+    }
+}
+
+/// The current year (UTC), for a picker that has no value yet.
+fn current_year() -> String {
+    let days = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs() / 86_400) as i64;
+    // Days since 1970-01-01 to a civil year (Howard Hinnant's `civil_from_days`).
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let year = yoe + era * 400 + i64::from(mp >= 10);
+    year.to_string()
 }
 
 impl Tree {
@@ -869,14 +913,7 @@ impl Tree {
             b.root_dirty(root);
         }
         if let Some(m) = measure {
-            let same = match (self.taffy.get_node_context(tnode), &m) {
-                (Some(Measure::Text(a)), Measure::Text(b)) => a == b,
-                (
-                    Some(Measure::Component { name: a, props: p }),
-                    Measure::Component { name: c, props: q },
-                ) => a == c && p == q,
-                _ => false,
-            };
+            let same = self.taffy.get_node_context(tnode) == Some(&m);
             if !same {
                 if let Measure::Text(json) = &m {
                     b.texts.push(json.clone());
