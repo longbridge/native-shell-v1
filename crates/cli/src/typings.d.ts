@@ -1222,10 +1222,10 @@ declare module "gpui-component" {
     title(title: string): this;
     /** Uses the full-width banner presentation. */
     banner(): this;
-    /** Controls whether the alert is rendered. */
-    visible(visible: boolean): this;
-    /** Sets the alert's semantic size. */
-    size(size: FeedbackSize): this;
+    /** Controls whether the alert is rendered. Without an argument, the style method. */
+    visible(visible?: boolean): this;
+    /** Sets the alert's semantic size.A length is the style method (width and height). */
+    size(size: FeedbackSize | import("native-shell").Length): this;
     /** gpui-component's `Alert::icon`: an element in place of the variant's glyph. */
     icon(icon: Element): this;
     /** gpui-component's `Alert::on_close`: a dismiss button that calls the handler. */
@@ -1247,8 +1247,8 @@ declare module "gpui-component" {
     max(max: number): this;
     /** Sets the badge background from a theme token or a color literal. */
     color(color: import("native-shell").Color): this;
-    /** Sets the semantic component size. */
-    size(size: FeedbackSize): this;
+    /** Sets the semantic component size.A length is the style method (width and height). */
+    size(size: FeedbackSize | import("native-shell").Length): this;
   }
   /** A count or dot badge positioned over its ordinary children. */
   export const Badge: Constructor<[], BadgeElement>;
@@ -1260,8 +1260,8 @@ declare module "gpui-component" {
     outline(): this;
     /** Uses pill-shaped corners. */
     rounded_full(): this;
-    /** Sets the semantic component size. */
-    size(size: FeedbackSize): this;
+    /** Sets the semantic component size.A length is the style method (width and height). */
+    size(size: FeedbackSize | import("native-shell").Length): this;
     /** Mobile: a trailing dismiss button, for a removable tag. */
     on_close(handler: FeedbackClick): this;
   }
@@ -1364,6 +1364,8 @@ declare module "gpui-component" {
     type(type: "info" | "success" | "warning" | "error"): this;
     /** Mobile: the toast's *View* action. */
     on_click(callback: (cx: import("native-shell").Context) => void): this;
+    /** Not the button's tap: that shows the notification. Declared so the element stays an `Element`. */
+    on_click(handler: FeedbackClick): this;
     /** Runs when the toast expires or its action is tapped. */
     on_close(callback: (cx: import("native-shell").Context) => void): this;
     autohide(value: boolean): this;

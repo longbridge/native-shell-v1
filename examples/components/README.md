@@ -18,6 +18,7 @@ nshell check examples/components
 | Pickers | A table booking | A segmented control for two modes, menus for longer lists, the native date picker, and a footer sentence that reads the booking back |
 | Forms | A flower delivery checkout | A stepper that shows the three steps and takes the buyer back; a stacked form of framed fields (required markers, descriptions, a phone prefix, a message counter that turns red past 150), the platform time picker, a ribbon color sheet; an inset grouped payment form whose errors appear under each row, a promo code that is checked (loading) and can be refused; the confirmation with a copyable order number, a rating that answers, and a read-only average |
 | Overlays | A shared document | The smallest surface for each decision: a sheet for share targets, an alert-style dialog for a one-field rename, a toast for a result you can’t see (making it available offline), an alert for a deletion that can’t be undone |
+| Status | A shop’s order screen | `gpui-component`’s feedback set in context: a status `Tag` and a banner `Alert` per delivery state (success, a dismissible warning, a declined payment with its fix), `Label` rows with muted quantities split by inset `Separator` hairlines, a `Notification` button confirmed by a toast, `Badge` counts on a tab bar (capped at 99+) and presence dots on avatars, an inbox emptied into an `Empty` state with Undo, `Skeleton` rows and `ShimmerText` while recommendations load, `Kbd` shortcuts for a hardware keyboard |
 
 ## Design notes
 
