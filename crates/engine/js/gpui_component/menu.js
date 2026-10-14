@@ -12,7 +12,7 @@
 
 import { theme } from "nsh:core";
 import { Element, chainKey } from "nsh:elements";
-import { checkSize, retainedState } from "nsh:component/shared";
+import { isComponentSize, retainedState } from "nsh:component/shared";
 
 /**
  * The native menu button: `_entries()` answers its items (`{label, disabled?,
@@ -235,7 +235,8 @@ export class DropdownButton extends Element {
   }
 
   size(size) {
-    this._size = checkSize(size, "DropdownButton.size()");
+    if (!isComponentSize(size)) return super.size(size);
+    this._size = size;
     return this._sync();
   }
 
@@ -307,7 +308,7 @@ export class DropdownButton extends Element {
     menu._P().a11y_label = `More ${this._label} options`;
     menu._P().tint = fg;
     // A hairline divides the halves, as on a split button.
-    menu._preset([["flex_none"], ["border_l_1"], ["border_color", bg === null ? "border" : "surface"]]);
+    menu._preset([["flex_none"], ["w", z.h], ["border_l_1"], ["border_color", bg === null ? "border" : "surface"]]);
     this._c = null;
     super.child(this._action);
     super.child(menu);
