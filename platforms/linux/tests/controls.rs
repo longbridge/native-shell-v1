@@ -57,7 +57,7 @@ export default class App extends View {
 }"##;
 
 fn fixture() -> Fixture {
-    // Animations would wait for a frame clock Broadway never ticks.
+    // Springs jump to their end, so every check sees the settled state.
     gtk::Settings::default().expect("settings").set_gtk_enable_animations(false);
     Fixture::new(PROGRAM)
 }
