@@ -452,7 +452,6 @@ export default class Portfolio extends View {
                   .test_id("allocation-chart")
                   .accessibility_label(`Allocation: ${rows.map((r) => `${r.label} ${percent((r.value / sum) * 100)}`).join(", ")}`)
                   .inner_radius(58)
-                  .color((_row, i) => colors[i % colors.length])
                   .value_format(money)
                   .pad_angle(0.02)
                   .size_full(),
@@ -557,7 +556,7 @@ export default class Portfolio extends View {
   }
 }
 
-/** The allocation's colors, in slice order; the legend uses the same list. */
+/** The legend's swatches: the chart tokens, in the order the pie gives them to its slices. */
 function sliceColors(t) {
   return [t.chart_1, t.chart_2, t.chart_3, t.chart_4, t.chart_5];
 }
