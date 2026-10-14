@@ -180,6 +180,8 @@ impl MountingManager {
             if let PropValue::Json(json) = value {
                 if let Some(tokens) = ThemeTokens::parse(json) {
                     self.shared.theme.replace(tokens);
+                    // Chrome drawn from tokens (control tints…) has no prop that changed.
+                    queue_draw_tree(self.shared.root.upcast_ref());
                 }
             }
         }
@@ -190,6 +192,15 @@ impl MountingManager {
                 apply_base_prop(&n.view, prop, value);
             }
         }
+    }
+}
+
+fn queue_draw_tree(widget: &gtk::Widget) {
+    widget.queue_draw();
+    let mut child = widget.first_child();
+    while let Some(w) = child {
+        queue_draw_tree(&w);
+        child = w.next_sibling();
     }
 }
 

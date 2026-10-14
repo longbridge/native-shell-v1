@@ -20,6 +20,10 @@ impl Measurer for GtkHost {
     fn measure_text(&self, attributed_json: &str, width: WidthMode) -> TextMetrics {
         crate::text::measure(attributed_json, width)
     }
+
+    fn measure_component(&self, name: &str, props_json: &str, _width: WidthMode) -> Option<(f32, f32)> {
+        crate::components::measure_builtin(name, props_json)
+    }
 }
 
 impl Host for GtkHost {
