@@ -139,6 +139,8 @@ export function openTransactionForm(cx, { market, transactions, symbol, save }) 
       return v_flex()
         .test_id("transaction-form")
         .size_full()
+        // Sheets lay out at their content's height; this fills the detent with the grouped color.
+        .min_h(cx.window().height)
         .bg(t.grouped_background)
         .line_height(1.375)
         .child(
