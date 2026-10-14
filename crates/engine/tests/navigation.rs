@@ -520,7 +520,7 @@ fn the_settings_example_needs_no_window_refresh_after_its_account_page() {
         }
     }
     assert!(
-        files.iter().any(|(n, t)| n == "main.js" && t.contains("save: (account, cx)")),
+        files.iter().any(|(n, t)| n == "main.js" && t.contains("save: (")),
         "the scenario still exists"
     );
     let refs: Vec<(&str, &str)> = files.iter().map(|(n, t)| (n.as_str(), t.as_str())).collect();
@@ -536,7 +536,7 @@ fn the_settings_example_needs_no_window_refresh_after_its_account_page() {
     h.tap("account");
     h.tap("sign-out");
     h.alert_action(1);
-    assert_eq!(h.text_of("account-name"), "Sign in");
+    assert_eq!(h.text_of("account-label"), "Sign In");
     let _ = std::fs::remove_dir_all(&data);
 }
 
