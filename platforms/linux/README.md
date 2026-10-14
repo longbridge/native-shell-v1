@@ -70,7 +70,7 @@ cargo clippy --all-targets -- -D warnings
 cargo run --example launcher                 # the example app
 cargo run --example launcher -- --example tasks --reset
 cargo run --example run -- ../../examples/chat
-cargo run --example screenshot [-- tasks …]  # screenshots/<example>-{light,dark}.png
+cargo run --example screenshot [-- tasks …]  # screenshots/example-<name>-{light,dark}.png
 cargo run --example launcher -- --screenshot screenshots
 ```
 
